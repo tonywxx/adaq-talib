@@ -9,7 +9,13 @@ readme = "README.md"
 repository = "https://github.com/tonywxx/adaq-talib"
 homepage = "https://github.com/tonywxx/adaq-talib"
 documentation = "https://docs.rs/adaq-talib"
-keywords = ["technical-analysis", "ta-lib", "indicators", "quantitative", "finance", "rust"]
+keywords = [
+    "technical-analysis",
+    "ta-lib",
+    "indicators",
+    "quantitative",
+    "finance",
+]
 categories = ["finance", "algorithms", "science"]
 authors = ["tonywxx"]
 
@@ -71,4 +77,3 @@ harness = false
 [[bench]]
 name = "stoch_bench"
 harness = false
-
