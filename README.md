@@ -330,9 +330,7 @@ assert!(!out[13].is_nan()); // first valid at index period-1 = 13
 - **No external crates**: the published crate's `[dependencies]` is empty.
 - **No TA-Lib C library or Python** required to build or test (golden vectors are in-repo).
 
-### Add the dependency
-
-If published on crates.io:
+### From crates.io
 
 ```bash
 cargo add adaq-talib
@@ -561,9 +559,9 @@ deletion of published capabilities.**
   function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` → 308/308 green,
   `reconcile.py` → 161/161) and performance-optimized (see
   [Verification & Benchmarks](#verification--benchmarks)).
-- 🔜 **Future work (post-1.0)**: optional candle-settings variants
-  ([ADR 0009](docs/adr/0009-candle-settings-default-only.md)), optional `bench-c` wiring for the
-  newly optimized indicators (LINREG/CORREL/WILLR/STOCH), and documentation/CI polish. **No
-  functional coverage gap remains against TA-Lib 0.7.1.**
+- 🔜 **Future work (post-1.0)**: per [ADR 0009](docs/adr/0009-candle-settings-default-only.md) only
+  the **default** candle settings are implemented and no configuration API is exposed; optional
+  `bench-c` wiring for the newly optimized indicators (LINREG/CORREL/WILLR/STOCH), and
+  documentation/CI polish. **No functional coverage gap remains against TA-Lib 0.7.1.**
 
 Once those land, adaq-talib reaches full coverage equivalent to TA-Lib 0.7.1.

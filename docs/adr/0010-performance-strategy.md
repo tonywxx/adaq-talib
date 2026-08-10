@@ -16,7 +16,7 @@ Zero-FFI、No-Dependencies（`[dependencies]` 为空）、`f64`、API 模型 B�
    扫描并各分配 `Vec`；`rolling_extreme` 为 O(n·period) 朴素窗口（`src/core/mod.rs` 自注
    "correctness first"）；WMA 内循环每 `i` 重算 `period` 次；无 SIMD、无 `unsafe`、仅少量 `#[inline]`。
 3. 黄金向量已于 **2026-08-10** 由 `tools/gen_fixtures/generate.py` 基于真实 TA-Lib C 0.7.1
-   输出全量重生成（共 63 个 fixture），是**权威黄金向量**，不再携带 `_note` 字段
+   输出全量重生成（共 159 个 fixture，覆盖全部 161 个对外函数），是**权威黄金向量**，不再携带 `_note` 字段
    （见 `tools/README.md` / ADR 0003）。性能重构的数值漂移风险由全量黄金向量比对兜底。
 
 ## 决策
@@ -47,7 +47,7 @@ Zero-FFI、No-Dependencies（`[dependencies]` 为空）、`f64`、API 模型 B�
 ### D3 正确性前置：性能重构前先生成权威黄金向量【已完成 · 2026-08-10】
 
 - **状态**：本机已安装 TA-Lib C 0.7.1 + PyPI `TA-Lib`；`tools/gen_fixtures/generate.py`
-  已运行，全量重生成 63 个 fixture 为**真实 0.7.1 输出**的权威黄金向量（不再含 `_note`）；
+  已运行，全量重生成 159 个 fixture（覆盖全部 161 个对外函数）为**真实 0.7.1 输出**的权威黄金向量（不再含 `_note`）；
   C 库版本登记于 `tools/README.md`（0.7.1）。全量 `cargo test` 1:1 通过（ADR 0005 容限）。
 - 任何性能改动须通过全量黄金向量比对（ADR 0003 / ADR 0005）；数值敏感指标按 ADR 0005
   逐指标放宽容限（如 `1e-6`）以吸收合法的浮点重排（重排顺序 ≠ 偏差）。

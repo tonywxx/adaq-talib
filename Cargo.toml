@@ -13,6 +13,14 @@ keywords = ["technical-analysis", "ta-lib", "indicators", "quantitative", "finan
 categories = ["finance", "algorithms", "science"]
 authors = ["tonywxx"]
 
+# Files excluded from the published crate (dev/agent artifacts, not library source).
+exclude = [
+    ".workbuddy",
+    ".codegraph",
+    "tools/gen_fixtures/__pycache__",
+    "/tony",
+]
+
 [dependencies]
 
 [features]

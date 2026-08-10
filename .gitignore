@@ -1,7 +1,5 @@
+# Rust build artifacts
 /target
-.workbuddy
-.codegraph
-tony
-.env
-.agent
-tools/gen_fixtures/__pycache__
+
+# Stray personal notes (not part of the crate)
+/tony
