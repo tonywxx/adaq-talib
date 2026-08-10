@@ -10,7 +10,7 @@
 //! returned at equal length (ADR 0007).
 
 use crate::core::defaults::{ADOSC_FAST, ADOSC_SLOW};
-use crate::core::{check_eq_len, ema};
+use crate::core::check_eq_len;
 use crate::error::{check_period, TaError};
 
 /// 累积/派发线（Accumulation/Distribution Line，TA-Lib `TA_AD`）。
@@ -59,12 +59,15 @@ pub fn ad(
 
 /// 累积/派发震荡器（Chaikin A/D Oscillator，TA-Lib `TA_ADOSC`）。
 ///
-/// 先计算累计 A/D 线（见 [`ad`]），再对其分别做经典 `EMA(fast)` 与 `EMA(slow)`，
-/// `ADOSC = EMA(fast) - EMA(slow)`。前导 `slow-1` 个为 [`f64::NAN`]。
+/// 先计算累计 A/D 线（见 [`ad`]），再对其分别做 EMA(fast) 与 EMA(slow)，
+/// `ADOSC = EMA(fast) - EMA(slow)`。与经典 `EMA` 不同，TA-Lib（及 Metastock）的 ADOSC
+/// 以**首个 A/D 值**同时作为快、慢 EMA 的种子（非 SMA），其后按经典 EMA（k = 2/(period+1)）
+/// 递推。首个有效输出落在索引 `slow-1`（lookback = slow-1）。
 ///
-/// Computes the cumulative A/D line (see [`ad`]), applies a classic `EMA(fast)` and
-/// `EMA(slow)` to it, then `ADOSC = EMA(fast) - EMA(slow)`. The leading `slow - 1`
-/// positions are [`f64::NAN`].
+/// Computes the cumulative A/D line (see [`ad`]) and applies an EMA(fast) and EMA(slow) to it,
+/// `ADOSC = EMA(fast) - EMA(slow)`. Unlike a standalone `EMA`, TA-Lib (and Metastock) seeds
+/// both EMAs with the **first A/D value** (not an SMA), then recurses with the classic EMA
+/// factor `k = 2/(period+1)`. The first valid output is at index `slow - 1` (lookback = slow-1).
 pub fn adosc(
     high: &[f64],
     low: &[f64],
@@ -79,13 +82,22 @@ pub fn adosc(
         return Err(TaError::BadParam("fast_period must be < slow_period".into()));
     }
     let ad_line = ad(high, low, close, volume)?;
-    let ef = ema(&ad_line, fast_period);
-    let es = ema(&ad_line, slow_period);
     let n = ad_line.len();
+    if n == 0 {
+        return Ok(vec![f64::NAN; 0]);
+    }
+    let fast_k = 2.0 / (fast_period as f64 + 1.0);
+    let slow_k = 2.0 / (slow_period as f64 + 1.0);
+    // 以首个 A/D 值同时作为快/慢 EMA 的种子（与 TA-Lib / Metastock 一致）。
+    // Seed both EMAs with the first A/D value (matches TA-Lib / Metastock).
+    let mut fast_ema = ad_line[0];
+    let mut slow_ema = ad_line[0];
     let mut out = vec![f64::NAN; n];
-    for i in 0..n {
-        if !ef[i].is_nan() && !es[i].is_nan() {
-            out[i] = ef[i] - es[i];
+    for i in 1..n {
+        fast_ema = fast_k * ad_line[i] + (1.0 - fast_k) * fast_ema;
+        slow_ema = slow_k * ad_line[i] + (1.0 - slow_k) * slow_ema;
+        if i >= slow_period - 1 {
+            out[i] = fast_ema - slow_ema;
         }
     }
     Ok(out)

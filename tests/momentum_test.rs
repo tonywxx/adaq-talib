@@ -2,12 +2,12 @@
 //!
 //! Momentum-indicator golden-vector comparison tests (ADR 0003 / ADR 0005).
 //!
-//! 当前 fixture 已由 `tools/gen_fixtures/generate.py`（TA-Lib C 0.7.1）生成为权威黄金向量，
-//! 此处比对即等价于与原版逐项 1:1 校验。仍 FAIL 的用例表明 Rust 实现与原版存在偏差，
-//! 需对照 TA-Lib C 源修正（见 `tools/README.md` 的"已知缺口"）。
+//! 当前 fixture 已由 `tools/gen_fixtures/generate.py`（TA-Lib C 0.7.1，对照已安装 `talib` 0.7.1
+//! 校验）生成为权威黄金向量，此处比对即等价于与原版逐项 1:1 校验。全部动量用例均已通过
+//! （见 `tools/README.md`）。
 //!
-//! Fixtures are now authoritative TA-Lib C 0.7.1 golden vectors. Remaining FAILures indicate
-//! genuine Rust divergences from the original that must be corrected against the TA-Lib C source.
+//! Fixtures are authoritative TA-Lib C 0.7.1 golden vectors (cross-checked against the installed
+//! `talib` 0.7.1). All momentum cases now pass (see `tools/README.md`).
 
 #[path = "common/mod.rs"]
 mod common;

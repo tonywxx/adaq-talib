@@ -33,10 +33,19 @@ python tools/gen_fixtures/generate.py
   （`talib` Python 绑定，已确认版本 0.7.1）真实输出生成，是**权威黄金向量**，
   不再携带 `_note: REFERENCE` 字段。`cargo test` 对它们的比对即等价于与原版逐项 1:1 校验。
 - 普通用户运行 `cargo test` 仍**无需** Python / TA-Lib —— fixture 已入库。
-- 已知缺口：截至本轮，动量类 13 个函数在权威向量下仍 FAIL（Rust 实现与原版存在偏差，
-  需对照 TA-Lib C 源逐项修正）：`cmo`、`macd`(signal 种子)、`stoch_rsi`/`ultosc`(NaN 对齐)、
-  以及 `plus_dm`/`minus_dm`/`plus_di`/`minus_di`/`adx`/`adxr`/`aroon`/`aroon_osc`/`trix`
-  （Wilder/EMA/周期约定）。详见对应 issue。
+- 已知缺口（已全部闭合）：A0.1 范围内的全部函数（Overlap 17 / Momentum 30 / Volatility 3 /
+  Volume 3 / Price Transform 4 / Stat 9）现已在权威黄金向量下 1:1 通过 `cargo test`。
+  此前偏离原版的 13 个动量函数（`cmo`、`macd`、`stoch_rsi`、`ultosc`、`plus_dm`、`minus_dm`、
+  `plus_di`、`minus_di`、`adx`、`adxr`、`aroon`、`aroon_osc`、`trix`）均已对照 TA-Lib C 源修正。
+- 与原版保持兼容的几个非显然约定（已在对应函数 doc-comment 中标注）：
+  - `aroon` / `aroon_osc`：已安装 `talib` 0.7.1 构建的 `outAroonUp`/`outAroonDown` 输出**互换**
+    （`aroon_osc = up - down` 仍按正确公式），Rust 与之逐项对齐；上游 C 源（0.4.0 / 0.7.1 tag /
+    main）实现的是非互换的标准算法。
+  - `beta`（TA-Lib `TA_BETA`）：基于相邻价格的**收益率**（相对变化）做回归，lookback = period；
+    BETA 不是原始价格的 `cov/var`。
+  - `adosc`（TA-Lib `TA_ADOSC`）：快/慢 EMA 均以**首个 A/D 值**为种子（非 SMA），与 Metastock 一致。
+  - `trange`（TA-Lib `TA_TRANGE`）：索引 0 因无前收盘价输出 `NaN`（lookback 1）；
+    故下游 `atr`/`natr` 的首个有效点落在索引 `period`。
 
 ## bench/ — Python 便捷基准对照（见 ADR 0004）
 

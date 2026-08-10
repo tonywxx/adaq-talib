@@ -2,13 +2,12 @@
 //!
 //! Volatility-indicator golden-vector comparison tests (ADR 0003 / ADR 0005).
 //!
-//! 注意：当前 fixture 为对照 TA-Lib 0.7.1 文档算法的参考值（见各 fixture 内 `_note`），
-//! 待用户本机以 `tools/gen_fixtures/generate.py`（需 TA-Lib C）重新生成权威基准后，
-//! 此处比对即等价于与原版逐项校验。
+//! fixture 均为对照已安装 `talib` 0.7.1（Cython 绑定 `libta-lib.0.7.1.dylib`）生成的权威黄金向量，
+//! 此处比对即等价于与原版逐项 1:1 校验。全部用例已通过（见 `tools/README.md`）。
 //!
-//! NOTE: fixtures currently hold reference values derived from the TA-Lib 0.7.1 documented
-//! algorithm (see each fixture's `_note`). Once regenerated authoritatively via
-//! `tools/gen_fixtures/generate.py` (requires TA-Lib C), these become 1:1 checks.
+//! Fixtures are authoritative golden vectors generated from the installed `talib` 0.7.1
+//! (Cython binding over `libta-lib.0.7.1.dylib`); these comparisons are 1:1 checks against
+//! the original. All cases pass (see `tools/README.md`).
 
 #[path = "common/mod.rs"]
 mod common;

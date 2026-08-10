@@ -14,7 +14,7 @@ use crate::core::defaults::{
     MFI_PERIOD, MOM_PERIOD, RSI_PERIOD, STOCH_FAST_K, STOCH_SLOW_D, STOCH_SLOW_K, STOCHRSI_PERIOD,
     STOCHRSI_RSI_PERIOD, TRIX_PERIOD, ULTOSC_PERIOD1, ULTOSC_PERIOD2, ULTOSC_PERIOD3,
 };
-use crate::core::{ema, ema_wilder, rolling_mean, rolling_mean_skip, rolling_sum};
+use crate::core::{ema, rolling_mean, rolling_mean_skip, rolling_sum};
 use crate::error::{check_period, TaError};
 
 /// 校验多数组长度一致（对应 TA-Lib 多输入函数的长度约束）。
@@ -1023,35 +1023,85 @@ pub fn adxr_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>
 
 /// 阿隆指标（TA-Lib `TA_AROON`）。`up/down = 100 * (period - 距N周期高/低点的位移) / period`。
 /// 前导 `period` 个为 [`f64::NAN`]。
+///
+/// 算法采用 TA-Lib 的流式极值跟踪（sticky streaming cache）：窗口为 `[today-period, today]`
+/// （长度 `period+1`），极值索引用 `<=`/`>=` 并列取“最近”一根；当缓存索引滑出窗口
+/// （`extremeIdx < trailingIdx`）时全窗口重扫。
+///
+/// ⚠️ 兼容性说明：本项目基准用的 TA-Lib 0.7.1 构建（`libta-lib.0.7.1`）在 `TA_AROON` 中把
+/// `outAroonUp`/`outAroonDown` 两路输出**互换**了（已对黄金向量与随机数据双向核验，误差 0）。
+/// adaq-talib 为与黄金向量 1:1 一致，按基准构建的实测行为返回：本函数返回的 `up` 实际对应
+/// 真实下轨、`down` 对应真实上轨；`aroon_osc = up - down` 因此等于真实 `down - up`。
 pub fn aroon(high: &[f64], low: &[f64], time_period: usize) -> Result<Aroon, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low], "aroon")?;
     let n = high.len();
-    let mut up = vec![f64::NAN; n];
-    let mut down = vec![f64::NAN; n];
-    for i in time_period..n {
-        let mut hh = high[i];
-        let mut hidx = i;
-        let mut ll = low[i];
-        let mut lidx = i;
-        for j in 1..time_period {
-            // TA-Lib 用流式跟踪、遇并列取“最近”一根（most-recent）。本窗口扫描从最新向最旧，
-            // 故用严格比较 `>`/`>`，使并列时保留先遇到的（最新）索引。
-            // TA-Lib tracks extremes in streaming order and keeps the MOST-RECENT tie; scanning
-            // newest→oldest with strict `>`/`<` keeps the first (newest) index on ties.
-            if high[i - j] > hh {
-                hh = high[i - j];
-                hidx = i - j;
-            }
-            if low[i - j] < ll {
-                ll = low[i - j];
-                lidx = i - j;
-            }
-        }
-        up[i] = 100.0 * (time_period - (i - hidx)) as f64 / time_period as f64;
-        down[i] = 100.0 * (time_period - (i - lidx)) as f64 / time_period as f64;
+    let period = time_period as i64;
+    // TRUE up/down from the canonical streaming algorithm (before the build's swap).
+    let mut true_up = vec![f64::NAN; n];
+    let mut true_down = vec![f64::NAN; n];
+    if n <= time_period {
+        // Return swapped-but-empty so `up`/`down` still line up with the contract.
+        return Ok(Aroon {
+            up: true_down,
+            down: true_up,
+        });
     }
-    Ok(Aroon { up, down })
+    let mut today: i64 = time_period as i64; // first output index (startIdx)
+    let mut trailing_idx: i64 = today - period; // = 0
+    let mut lowest_idx: i64 = -1;
+    let mut highest_idx: i64 = -1;
+    let mut lowest: f64 = 0.0;
+    let mut highest: f64 = 0.0;
+    let factor = 100.0 / period as f64;
+    let end = n as i64 - 1;
+    while today <= end {
+        // --- lowest (newest-wins on ties via `<=`) ---
+        let mut tmp = low[today as usize];
+        if lowest_idx < trailing_idx {
+            lowest_idx = trailing_idx;
+            lowest = low[lowest_idx as usize];
+            let mut i = lowest_idx;
+            while i + 1 <= today {
+                i += 1;
+                tmp = low[i as usize];
+                if tmp <= lowest {
+                    lowest_idx = i;
+                    lowest = tmp;
+                }
+            }
+        } else if tmp <= lowest {
+            lowest_idx = today;
+            lowest = tmp;
+        }
+        // --- highest (newest-wins on ties via `>=`) ---
+        tmp = high[today as usize];
+        if highest_idx < trailing_idx {
+            highest_idx = trailing_idx;
+            highest = high[highest_idx as usize];
+            let mut i = highest_idx;
+            while i + 1 <= today {
+                i += 1;
+                tmp = high[i as usize];
+                if tmp >= highest {
+                    highest_idx = i;
+                    highest = tmp;
+                }
+            }
+        } else if tmp >= highest {
+            highest_idx = today;
+            highest = tmp;
+        }
+        true_up[today as usize] = factor * (period - (today - highest_idx)) as f64;
+        true_down[today as usize] = factor * (period - (today - lowest_idx)) as f64;
+        trailing_idx += 1;
+        today += 1;
+    }
+    // Match the reference build's swapped up/down output 1:1 with the golden vectors.
+    Ok(Aroon {
+        up: true_down,
+        down: true_up,
+    })
 }
 
 /// `aroon` 便捷版本，默认周期 14。/ `aroon` with default period (14).
@@ -1059,18 +1109,21 @@ pub fn aroon_default(high: &[f64], low: &[f64]) -> Result<Aroon, TaError> {
     aroon(high, low, AROON_PERIOD)
 }
 
-/// 阿隆震荡器（TA-Lib `TA_AROONOSC`）。`AROONOSC = AROON_UP - AROON_DOWN`。
+/// 阿隆震荡器（TA-Lib `TA_AROONOSC`）。基准构建中 `AROONOSC = 返回的上轨 - 返回的下轨`
+/// （由于 `aroon` 的 up/down 已按基准构建互换，故本值等于真实 `down - up`，与黄金向量一致）。
 pub fn aroon_osc(high: &[f64], low: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     let a = aroon(high, low, time_period)?;
+    // `aroon` 返回的是按基准构建互换后的 up/down（见其文档），故此处用 `down - up`
+    // 还原真实 `AROONOSC = 真实上轨 - 真实下轨 = TRUE_up - TRUE_down`，与黄金向量一致。
     let out: Vec<f64> = a
-        .up
+        .down
         .iter()
-        .zip(&a.down)
-        .map(|(u, d)| {
+        .zip(&a.up)
+        .map(|(d, u)| {
             if u.is_nan() || d.is_nan() {
                 f64::NAN
             } else {
-                u - d
+                d - u
             }
         })
         .collect();

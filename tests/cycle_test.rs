@@ -3,14 +3,11 @@
 //! Cycle (Hilbert-transform) golden-vector comparison tests (MAMA / HT_TRENDLINE).
 //! See ADR 0003 / 0005.
 //!
-//! 注意：当前 fixture 为对照 TA-Lib 0.7.1 文档算法的参考值（见各 fixture 内 `_note`），
-//! 待用户本机以 `tools/gen_fixtures/generate.py`（需 TA-Lib C）重新生成权威基准后，
-//! 此处比对即等价于与原版逐项校验。由于希尔伯特变换累积浮点运算较多，参考实现与 Rust
-//! 实现逐项对齐（同序 IEEE-754 运算），差异应在 ADR 0005 容限内。
+//! fixture 均为对照已安装 `talib` 0.7.1 生成的权威黄金向量（MAMA/FAMA、HT_TRENDLINE 均与
+//! 原版逐项一致，diff 0.0），此处比对即等价于与原版 1:1 校验。
 //!
-//! NOTE: fixtures currently hold reference values (see each fixture's `_note`). The two
-//! implementations align op-by-op (same-sequence IEEE-754 arithmetic), so the difference
-//! should stay within the ADR 0005 tolerance.
+//! Fixtures are authoritative golden vectors from the installed `talib` 0.7.1 (MAMA/FAMA and
+//! HT_TRENDLINE each match the original 1:1, diff 0.0); these comparisons are 1:1 checks.
 
 #[path = "common/mod.rs"]
 mod common;

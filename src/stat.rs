@@ -174,18 +174,129 @@ pub fn tsf_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 // BETA / CORREL
 // ---------------------------------------------------------------------------
 
-/// 协方差/相关系数族的内核（总体口径）。
-/// Shared core for BETA / CORREL (population basis).
+/// TA-Lib `TA_IS_ZERO` 的等价判定：`(-1e-8 < v) && (v < 1e-8)`。
+/// 与原生 C 实现的收益率分母保护保持一致。
+#[inline]
+fn ta_is_zero(v: f64) -> bool {
+    v > -1e-8 && v < 1e-8
+}
+
+/// 计算第 `idx` 个相邻价格（索引 `idx-1 -> idx`）的收益率对 `(x, y)`，
+/// 其中 `x` 来自 `real0`、`y` 来自 `real1`，并更新各自的"上一价格"游标。
+/// Computes the (x, y) return pair between prices `idx-1` and `idx`,
+/// updating each series' "last price" cursor in place.
+#[inline]
+fn return_pair(
+    real0: &[f64],
+    real1: &[f64],
+    idx: i64,
+    last_x: &mut f64,
+    last_y: &mut f64,
+) -> (f64, f64) {
+    let cur_x = real0[idx as usize];
+    let x = if ta_is_zero(*last_x) {
+        0.0
+    } else {
+        (cur_x - *last_x) / *last_x
+    };
+    *last_x = cur_x;
+    let cur_y = real1[idx as usize];
+    let y = if ta_is_zero(*last_y) {
+        0.0
+    } else {
+        (cur_y - *last_y) / *last_y
+    };
+    *last_y = cur_y;
+    (x, y)
+}
+
+/// 贝塔系数内核（TA-Lib `TA_BETA`，逐字移植 C 流式算法）。
 ///
-/// - `mode = 0`：BETA —— `cov(real0, real1) / var(real0)`（以 `real0` 为自变量）。
-/// - `mode = 1`：CORREL —— 皮尔逊相关系数。
-fn beta_corr_core(real0: &[f64], real1: &[f64], period: usize, mode: u8) -> Vec<f64> {
+/// TA-Lib 的 BETA **不是** 对原始价格的协方差/方差，而是：对相邻价格取相对变化
+/// （收益率）得到 `(x, y)` 样本点，再对窗口内 `period` 个收益点对做线性回归，
+/// 返回斜率 `β = (n·Sxy − Sx·Sy) / (n·Sxx − Sx²)`。
+/// 由于每个收益点对需要 2 个价格，首个有效输出落在索引 `period`（lookback = period）。
+///
+/// Beta kernel (verbatim port of TA-Lib's streaming C algorithm).
+fn beta_core(real0: &[f64], real1: &[f64], period: usize) -> Vec<f64> {
+    let n = real0.len();
+    let mut out = vec![f64::NAN; n];
+    // 需要 period+1 个价格才能构成 period 个收益点对。
+    if n <= period {
+        return out;
+    }
+    let p = period as f64;
+    // 对应 C 中 `i = ++trailingIdx`：主循环 `i` 从 1 起步，trailing 游标也预增到 1，
+    // 因此首个尾部读取计算 (0->1) 收益点对（与首个被加入的对互逆）。
+    // Mirrors C `i = ++trailingIdx`: main `i` starts at 1 and trailing cursor is
+    // pre-incremented to 1, so the first trailing read is the (0->1) pair.
+    let mut trailing_idx: i64 = 1;
+    let mut last_x = real0[0];
+    let mut last_y = real1[0];
+    let mut trail_last_x = real0[0];
+    let mut trail_last_y = real1[0];
+    let mut s_xx = 0.0_f64;
+    let mut s_xy = 0.0_f64;
+    let mut s_x = 0.0_f64;
+    let mut s_y = 0.0_f64;
+
+    // 预填充：消费索引 1..period（共 period-1 个收益点对），trailing 游标保持 0。
+    let mut i: i64 = 1;
+    while i < period as i64 {
+        let (x, y) = return_pair(real0, real1, i, &mut last_x, &mut last_y);
+        s_xx += x * x;
+        s_xy += x * y;
+        s_x += x;
+        s_y += y;
+        i += 1;
+    }
+
+    // do-循环：首个有效输出落在索引 `period`，之后每步滑动一个价格。
+    let end = n as i64 - 1;
+    loop {
+        // 1) 加入当前收益点对 (i-1 -> i)
+        let (x, y) = return_pair(real0, real1, i, &mut last_x, &mut last_y);
+        s_xx += x * x;
+        s_xy += x * y;
+        s_x += x;
+        s_y += y;
+
+        // 2) 计算将被移除的尾部收益点对（基于 trailing 游标），但不计入 S。
+        let (tx, ty) = return_pair(real0, real1, trailing_idx, &mut trail_last_x, &mut trail_last_y);
+
+        // 3) 写出输出（索引 i）
+        let denom = p * s_xx - s_x * s_x;
+        out[i as usize] = if ta_is_zero(denom) {
+            0.0
+        } else {
+            (p * s_xy - s_x * s_y) / denom
+        };
+
+        // 4) 从 S 中移除尾部收益点对（与第 2 步计算值完全互逆）。
+        s_xx -= tx * tx;
+        s_xy -= tx * ty;
+        s_x -= tx;
+        s_y -= ty;
+
+        i += 1;
+        trailing_idx += 1;
+        if i > end {
+            break;
+        }
+    }
+    out
+}
+
+/// 皮尔逊相关系数内核（TA-Lib `TA_CORREL`，总体口径，原始价格）。
+/// Pearson correlation kernel (population basis, raw prices).
+fn correl_core(real0: &[f64], real1: &[f64], period: usize) -> Vec<f64> {
     let n = real0.len();
     let mut out = vec![f64::NAN; n];
     if n < period {
         return out;
     }
     let p = period as f64;
+    // CORREL 的首个有效点落在索引 `period-1`（lookback = period-1）。
     for i in (period - 1)..n {
         let mut s0 = 0.0_f64;
         let mut s1 = 0.0_f64;
@@ -204,13 +315,7 @@ fn beta_corr_core(real0: &[f64], real1: &[f64], period: usize, mode: u8) -> Vec<
         let cov = (s01 - s0 * s1 / p) / p;
         let v0 = (s00 - s0 * s0 / p) / p;
         let v1 = (s11 - s1 * s1 / p) / p;
-        out[i] = if mode == 0 {
-            if v0 == 0.0 {
-                0.0
-            } else {
-                cov / v0
-            }
-        } else if v0 == 0.0 || v1 == 0.0 {
+        out[i] = if ta_is_zero(v0) || ta_is_zero(v1) {
             0.0
         } else {
             cov / (v0 * v1).sqrt()
@@ -221,8 +326,12 @@ fn beta_corr_core(real0: &[f64], real1: &[f64], period: usize, mode: u8) -> Vec<
 
 /// 贝塔系数（Beta，TA-Lib `TA_BETA`）。
 ///
-/// `BETA = cov(real0, real1) / var(real0)`（以 `real0` 为自变量，`real1` 为因变量），
-/// 总体协方差/方差口径。前导 `period-1` 个为 [`f64::NAN`]。
+/// 以 `real0` 为"市场"、`real1` 为"标的"，取相邻价格的相对变化（收益率）构成样本点，
+/// 对窗口内 `period` 个收益点对做线性回归，返回该回归线的斜率。
+/// 数值与 TA-Lib 0.7.1 逐项一致。前导 `period` 个为 [`f64::NAN`]（lookback = period）。
+///
+/// Beta is the slope of the linear regression through the (return_x, return_y)
+/// sample points over a trailing window of `period` return pairs.
 pub fn beta(
     real0: &[f64],
     real1: &[f64],
@@ -230,7 +339,7 @@ pub fn beta(
 ) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[real0, real1], "beta")?;
-    Ok(beta_corr_core(real0, real1, time_period, 0))
+    Ok(beta_core(real0, real1, time_period))
 }
 
 /// `beta` 便捷版本，默认周期 5。/ `beta` with default period (5).
@@ -240,8 +349,8 @@ pub fn beta_default(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
 
 /// 皮尔逊相关系数（Pearson Correlation Coefficient，TA-Lib `TA_CORREL`）。
 ///
-/// `CORREL = cov(real0, real1) / sqrt(var(real0) * var(real1))`，总体口径。
-/// 前导 `period-1` 个为 [`f64::NAN`]。
+/// `CORREL = cov(real0, real1) / sqrt(var(real0) * var(real1))`，总体口径（原始价格）。
+/// 数值与 TA-Lib 0.7.1 逐项一致。前导 `period-1` 个为 [`f64::NAN`]。
 pub fn correl(
     real0: &[f64],
     real1: &[f64],
@@ -249,7 +358,7 @@ pub fn correl(
 ) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[real0, real1], "correl")?;
-    Ok(beta_corr_core(real0, real1, time_period, 1))
+    Ok(correl_core(real0, real1, time_period))
 }
 
 /// `correl` 便捷版本，默认周期 5。/ `correl` with default period (5).
@@ -308,12 +417,15 @@ mod tests {
     }
 
     #[test]
-    fn beta_of_scaled_series() {
-        // b = 3*a + 5 -> beta(a, b) = 3
-        let a: Vec<f64> = (0..20).map(|i| (i as f64).sin()).collect();
-        let b: Vec<f64> = a.iter().map(|&v| 3.0 * v + 5.0).collect();
+    fn beta_of_proportional_series_is_one() {
+        // TA-Lib 的 BETA 基于"收益率"而非原始价格：若 b 与 a 成严格比例（b = 3·a），
+        // 二者的相对变化完全相同，回归斜率为 1.0（比例缩放不会放大 beta）。
+        // TA-Lib BETA is return-based: proportional series share identical returns,
+        // so the regression slope is 1.0 regardless of the scaling factor.
+        let a: Vec<f64> = (0..20).map(|i| 10.0 + i as f64).collect();
+        let b: Vec<f64> = a.iter().map(|&v| 3.0 * v).collect();
         let bt = beta(&a, &b, 10).unwrap();
-        assert!((bt[19] - 3.0).abs() < 1e-9);
+        assert!((bt[19] - 1.0).abs() < 1e-9);
     }
 
     #[test]

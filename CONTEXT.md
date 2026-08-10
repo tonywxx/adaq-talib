@@ -17,3 +17,10 @@
 - **TaError**：本库公开错误枚举，语义映射 TA-Lib `TA_RetCode`（`BadParam` / `OutOfRange` / `LibNotInitialized` / `OutOfMemory` 等），见 ADR 0006。
 - **TA-Lib Python 绑定**：PyPI 包 `TA-Lib`（导入名 `talib`），为 TA-Lib C 库的 ctypes/numpy 封装，运行需系统已安装 TA-Lib C 库。
 - **candle settings**：TA-Lib 模式识别函数依赖的蜡烛部件（实体/上影/下影）涨跌色与允许范围设置；默认有一组内建值（待 ADR 0009 决议）。
+- **单调队列 (monotonic queue)**：O(n) 滚动极值算法，替代朴素 O(n·period) 窗口扫描，用于 MIDPOINT / MIDPRICE 等热路径（见 ADR 0010 D1）。
+- **融合单遍核 (fused single-pass kernel)**：将多次独立扫描合并为单次遍历，减少分配与缓存 miss，如 DEMA/TEMA 复用 EMA 状态、BBANDS 合并 middle+sd（见 ADR 0010 D1）。
+- **原地写入 (in-place / write-to-buffer)**：指标提供 `*_with_output(&mut [f64])` 变体，由调用方提供输出缓冲，避免每调用分配（见 ADR 0010 D2）。
+- **自动向量化 (autovectorization)**：依赖编译器将标量循环生成为 SIMD 指令，靠 `#[inline]`、消除热循环 bounds-check、数据对齐达成；本项目性能首层手段（见 ADR 0010 D1）。
+- **内存对齐 (alignment)**：保证 `f64` 数组按 32/64 字节对齐以提升 SIMD / 缓存效率（见 ADR 0010 D1）。
+- **基准双轨 (dual-track benchmark)**：Rust FFI 对照原生 C（`bench-c`，可进 CI）+ Python 便捷对照（`tools/bench`，标注 vs TA-Lib Python binding），见 ADR 0004 / ADR 0010 D4。
+- **权威黄金向量 (authoritative golden vectors)**：由真实 TA-Lib 0.7.1 C 库生成的参考输出（区别于当前"对照文档算法的参考值"），作为性能重构的数值 Oracle（见 ADR 0010 D3）。

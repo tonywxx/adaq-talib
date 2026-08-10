@@ -17,15 +17,15 @@ use crate::error::{check_period, TaError};
 
 /// 真实波幅（True Range，TA-Lib `TA_TRANGE`）。
 ///
-/// `TR[0] = high[0] - low[0]`；`TR[i] = max(high[i], close[i-1]) - min(low[i], close[i-1])`。
-/// 无滞后（lookback 0），与输入等长；首个值即为 `high[0]-low[0]`（不含前导 NaN）。
+/// `TR[0] = NaN`（需前一收盘价）；`TR[i] = max(high[i], close[i-1]) - min(low[i], close[i-1])`，`i >= 1`。
+/// 与 TA-Lib `TA_TRANGE` 一致：首根无前收盘价，故前导 1 个 `NaN`（lookback 1）。
 ///
 /// # 参数 / Parameters
 /// - `high` / `low` / `close`：最高/最低/收盘价序列，长度须一致。
 ///   High/Low/Close series, equal length required.
 ///
 /// # 返回值 / Returns
-/// 与输入等长的向量；无前导 NaN（TA-Lib `TA_TRANGE` lookback 为 0）。
+/// 与输入等长的向量；首根为 [`f64::NAN`]（TA-Lib `TA_TRANGE` 此处输出 NaN）。
 ///
 /// # 示例 / Example
 /// ```
@@ -34,7 +34,9 @@ use crate::error::{check_period, TaError};
 /// let low  = [9.0, 9.5, 11.0];
 /// let close = [9.5, 10.5, 11.5];
 /// let tr = trange(&high, &low, &close).unwrap();
-/// assert!((tr[0] - 1.0).abs() < 1e-9); // high[0]-low[0]
+/// assert!(tr[0].is_nan()); // 首根需前一收盘价 -> NaN
+/// // TR[1] = max(11,9.5)-min(9.5,10.5) = 11 - 9.5 = 1.5
+/// assert!((tr[1] - 1.5).abs() < 1e-12);
 /// ```
 pub fn trange(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[high, low, close], "trange")?;
@@ -46,22 +48,23 @@ pub fn trange(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaEr
 /// 平均真实波幅（Average True Range，TA-Lib `TA_ATR`）。
 ///
 /// 对真实波幅（TR）做 Wilder 平滑（SMMA，`k = 1/period`）：首个有效值 = 前 `period`
-/// 个 TR 的算术均值（种子），其后按 `prev = prev + (tr - prev)/period` 递推。
-/// 前导 `period-1` 个为 [`f64::NAN`]。
+/// 个有效 TR（即 `TR[1..period]`）的算术均值（种子），其后按
+/// `prev = prev + (tr - prev)/period` 递推。前导 `period` 个为 [`f64::NAN`]（lookback = period）。
 ///
 /// Wilder-smoothed (SMMA) average of True Range; the first valid value is the mean of the
-/// first `period` TR values (seed), then recursed. The leading `period - 1` positions are
-/// [`f64::NAN`].
+/// first `period` valid TR values (seed), then recursed. The leading `period` positions are
+/// [`f64::NAN`] (lookback = period).
 ///
 /// # 示例 / Example
 /// ```
 /// use adaq_talib::volatility::atr;
-/// let high = [10.0, 11.0, 12.0, 13.0, 14.0];
-/// let low  = [9.0, 9.5, 11.0, 12.0, 13.0];
-/// let close = [9.5, 10.5, 11.5, 12.5, 13.5];
+/// let high = [10.0, 11.0, 12.0, 13.0, 14.0, 15.0];
+/// let low  = [9.0, 9.5, 11.0, 12.0, 13.0, 14.0];
+/// let close = [9.5, 10.5, 11.5, 12.5, 13.5, 14.5];
 /// let out = atr(&high, &low, &close, 3).unwrap();
-/// assert!(out[0].is_nan() && out[1].is_nan());
-/// assert!(!out[2].is_nan()); // 种子 = TR[0..2] 的均值 / seed = mean of TR[0..2]
+/// // 前导 3 个为 NaN（lookback = period = 3），首个有效在索引 3。
+/// assert!(out[0].is_nan() && out[1].is_nan() && out[2].is_nan());
+/// assert!(!out[3].is_nan());
 /// ```
 pub fn atr(
     high: &[f64],
@@ -84,7 +87,7 @@ pub fn atr_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>,
 
 /// 归一化平均真实波幅（Normalized ATR，TA-Lib `TA_NATR`）。
 ///
-/// `NATR = 100 * ATR / close`（ATR 同样为 Wilder 平滑）。前导 `period-1` 个为 [`f64::NAN`]；
+/// `NATR = 100 * ATR / close`（ATR 同样为 Wilder 平滑）。前导 `period` 个为 [`f64::NAN`]（lookback = period）；
 /// 若某位置 `close == 0`，对应 `NATR` 为 0.0（与 TA-Lib 一致，避免除零）。
 ///
 /// `NATR = 100 * ATR / close`. The leading `period - 1` positions are [`f64::NAN`]; a zero
@@ -129,8 +132,8 @@ mod tests {
         let low = [9.0, 9.5, 11.0];
         let close = [9.5, 10.5, 11.5];
         let tr = trange(&high, &low, &close).unwrap();
-        // TR[0] = 10-9 = 1
-        assert!((tr[0] - 1.0).abs() < 1e-12);
+        // 首根无前收盘价 -> NaN（与 TA-Lib TA_TRANGE 一致）。
+        assert!(tr[0].is_nan());
         // TR[1] = max(11,9.5)-min(9.5,10.5) = 11 - 9.5 = 1.5
         assert!((tr[1] - 1.5).abs() < 1e-12);
         // TR[2] = max(12,10.5)-min(11,10.5) = 12 - 10.5 = 1.5
@@ -139,17 +142,18 @@ mod tests {
 
     #[test]
     fn atr_wilder_seed() {
-        // TR = [1.0, 1.5, 1.5, 1.5, 1.5]; period=3 -> 种子 = (1.0+1.5+1.5)/3 = 4/3
+        // TR = [NaN, 1.5, 1.5, 1.5, 1.5]; period=3 -> 种子 = mean(TR[1..3]) = (1.5+1.5+1.5)/3 = 1.5
+        // 首个有效在索引 period = 3。
         let high = [10.0, 11.0, 12.0, 13.0, 14.0];
         let low = [9.0, 9.5, 11.0, 12.0, 13.0];
         let close = [9.5, 10.5, 11.5, 12.5, 13.5];
         let out = atr(&high, &low, &close, 3).unwrap();
-        assert!(out[0].is_nan() && out[1].is_nan());
-        let seed = (1.0 + 1.5 + 1.5) / 3.0;
-        assert!((out[2] - seed).abs() < 1e-12);
-        // out[3] = prev + (tr[3]-prev)/3 = seed + (1.5 - seed)/3
+        assert!(out[0].is_nan() && out[1].is_nan() && out[2].is_nan());
+        let seed = (1.5 + 1.5 + 1.5) / 3.0;
+        assert!((out[3] - seed).abs() < 1e-12);
+        // out[4] = prev + (tr[4]-prev)/3 = seed + (1.5 - seed)/3
         let exp = seed + (1.5 - seed) / 3.0;
-        assert!((out[3] - exp).abs() < 1e-12);
+        assert!((out[4] - exp).abs() < 1e-12);
     }
 
     #[test]
