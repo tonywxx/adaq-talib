@@ -89,6 +89,63 @@ MIDPOINT 22.55→6.88（2.26×）。新增 `core::tests::rolling_extreme_matches
 目标：将剩余热路径 Rust/C 比值压到 **≈1.0**。在 P2-1~P2-5 完成后，8 项 C 接线基准中 6 项已快于/持平 C，
 仅 MIDPOINT/T3 因 SIMD NO-GO 维持现状（已知权衡）。P3 评估闭环。
 
+## 架构深化 P1 候选②：MINMAX 单遍化（2026-08-10）
+
+> 源自 `/improve-codebase-architecture` 评审候选②：将 `math_ops::minmax` 的两遍独立极值扫描
+> 合并为单遍。改动：`math_ops::minmax` 由 `rolling_min`+`rolling_max` 改为复用
+> `core::rolling_minmax`（P2-2 已验证的单遍双队列 O(n)，最右 tie-break、前导 `NaN` 与分别调用逐位相等）。
+> 受双基准（精度 1:1 + 性能最大化）约束，实测后诚实记录如下。
+
+- **精度**：1:1 零偏差。通过 `tests/fixtures/minmax_basic.json` 黄金向量 + 全量 `cargo test`
+  （0 失败；含 144 模式 + 21 doctest + 各模块单测）。
+- **性能实测**（ns/elem，release，`N=1e6`，`PERIOD=20`，`ITERS=20`，点测 ±5%）：
+
+  | 实现 | ns/elem | 说明 |
+  |------|--------:|------|
+  | Rust MINMAX 单遍（新） | **6.76** | 复用 `core::rolling_minmax` |
+  | Rust MAX+MIN 两遍（改动前等价） | **6.96** | 原 `rolling_min`+`rolling_max` |
+  | C MINMAX（原生，`bench-c`） | **3.11** | TA-Lib 0.7.1 |
+
+- **结论（诚实）**：设想的"两遍→一遍 2× 提速**未出现**"。`minmax` 的成本在**两个单调队列的维护**
+  而非数据遍历；单遍双队列与"两次独立单队列扫描"的总队列操作量相同，少一遍数据扫描省下的开销
+  落在 ±5% 噪声内（6.96→6.76，仅 ~3%）。故本改动**性能中性、精度零退化**，真实收益是
+  **消除重复极值逻辑、把 `minmax` 钉在已验证的 `core` 核上（与 `midpoint` 同源）**——降低未来
+  极值语义漂移风险（服务准确性基准的长期稳定性），**而非性能优化**。
+- **双基准判定**：准确性满足（非妥协项）、性能未退化（中性）、且提升核唯一性 → 保留；
+  但**不计入性能优化收益**。perf 口径下 Rust/C = 2.17×，仍未达 ≈1.0 目标，且瓶颈同为单调双队列
+  （与 MIDPOINT 同类，P3 SIMD 闸门 NO-GO）。
+
+## 架构深化 P3 候选③：极值索引单遍化（2026-08-10）
+
+> 源自 `/improve-codebase-architecture` 评审候选③：消除 `math_ops` 索引变体（`max_index` /
+> `min_index` / `minmax_index`）对极值逻辑的本地重推导（`core` 可见性 seam），并把并列 tie-break
+> 显式化（索引变体最左、值变体最右，二者现同处 `core`）。改动：新增 `core::rolling_extreme_index`
+> （单遍单调队列 O(n)、最左 tie-break、前导 `0.0`），`math_ops` 三个索引函数统一复用之，替换原有
+> 朴素 `O(n·period)` 嵌套扫描。受双基准（精度 1:1 + 性能最大化）约束，实测后诚实记录如下。
+
+- **精度**：1:1 零偏差。新增 `core::rolling_extreme_index_matches_naive_leftmost`（对朴素最左扫描逐项相等，
+  含重复极值并列场景）；`tests/fixtures/{max_index,min_index,minmax_index}_basic.json` 黄金向量 +
+  全量 `cargo test`（0 失败；含 144 模式 + 21 doctest + 各模块单测）。
+- **性能实测**（ns/elem，release，`N=1e6`，`PERIOD=20`，`ITERS=20`，点测 ±5%）：
+
+  | 实现 | ns/elem | 说明 |
+  |------|--------:|------|
+  | Rust MAX_INDEX 单遍（新） | **3.43** | 复用 `core::rolling_extreme_index` |
+  | Rust MAX_INDEX 朴素 O(n·period)（改动前等价） | **6.55** | 原本地嵌套扫描 |
+  | Rust MIN_INDEX 单遍（新） | **3.31** | 同上 |
+  | Rust MINMAX_INDEX 两遍 O(n)（新） | **6.79** | 两次 `rolling_extreme_index` |
+  | C MAXINDEX / MININDEX / MINMAXINDEX（原生，`bench-c`） | **2.56 / 2.62 / 3.09** | TA-Lib 0.7.1 |
+
+  （C 对照的 checksum 累加为本机 C 接线读数偏差，仅作时间量级参考；时序数值有效。）
+- **结论（诚实）**：本次是**真实性能收益**——单索引 `O(n·period) → O(n)`，实测 **~1.9× 提速**
+  （6.55 → 3.43 ns/elem），Rust/C 差距由 ~2.56× 收窄到 ~1.34×。不同于候选②（性能中性），候选③
+  把"少一遍遍历"的红利落到了实处，因为旧实现确实是 `period` 倍的嵌套比较、瓶颈就是遍历而非队列。
+- **范围/局限**：索引函数属**纯对外 API**，未被 crate 内部任何指标调用，故收益归于直接调用方，
+  不在 crate 内部热路径上。`minmax_index` 当前为**两次 O(n) 遍历**（6.79）；若要逼近 C 的 3.09，
+  可进一步做单遍双队列（min+max 同扫），但属常数级微优、收益有限，非必要。
+- **双基准判定**：准确性满足（非妥协项）、性能提升（真实、已实测）、且修复 `core` 可见性 seam +
+  显式 tie-break → 保留并计入性能优化收益。
+
 ## 复现 / Reproduce
 
 ```text

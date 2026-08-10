@@ -11,7 +11,9 @@
 //! ops (MAX / MIN / SUM and their index variants MINMAX / MINMAXINDEX), numerically 1:1 with
 //! TA-Lib 0.7.1 (within ADR 0005). Rolling-window outputs carry `period - 1` leading `NaN`s.
 
-use crate::core::{check_eq_len, rolling_max, rolling_min, rolling_sum};
+use crate::core::{
+    check_eq_len, rolling_extreme_index, rolling_max, rolling_min, rolling_minmax, rolling_sum,
+};
 use crate::error::{check_period, TaError};
 
 /// 逐元素相加（TA-Lib `TA_ADD`）：`out = real0 + real1`，等长返回。
@@ -65,7 +67,7 @@ pub fn sum(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
 }
 
 /// 滚动窗口最大值的**索引**（TA-Lib `TA_MAXINDEX`），返回窗口内最大值的绝对位置
-/// （0 基；平局取最左）。前导 `period-1` 个为 [`f64::NAN`]。
+/// （0 基；平局取最左）。前导 `period-1` 个为 **0.0**（与原版一致，非 `NaN`）。
 /// Index of the rolling-window maximum (TA-Lib `TA_MAXINDEX`), the absolute (0-based) position
 /// of the max in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
 pub fn max_index(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
@@ -74,7 +76,7 @@ pub fn max_index(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError
 }
 
 /// 滚动窗口最小值的**索引**（TA-Lib `TA_MININDEX`），返回窗口内最小值的绝对位置
-/// （0 基；平局取最左）。前导 `period-1` 个为 [`f64::NAN`]。
+/// （0 基；平局取最左）。前导 `period-1` 个为 **0.0**（与原版一致，非 `NaN`）。
 /// Index of the rolling-window minimum (TA-Lib `TA_MININDEX`), the absolute (0-based) position
 /// of the min in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
 pub fn min_index(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
@@ -93,10 +95,13 @@ pub struct MinMax {
 
 /// 滚动窗口最小/最大值（TA-Lib `TA_MINMAX`）。等长双向量，前导 `period-1` 为 [`f64::NAN`]。
 /// Rolling window min/max (TA-Lib `TA_MINMAX`); two equal-length vectors, leading `period - 1` `NaN`.
+///
+/// 单遍实现：复用 `core::rolling_minmax` 一次遍历同时求得最大与最小（最右 tie-break、前导
+/// `NaN` 与分别调用 `rolling_max`/`rolling_min` 逐位相等，见 `core::rolling_minmax` 文档），
+/// 将原本的两次独立窗口扫描合并为一次，规避重复遍历开销（P1 候选②，ADR 0005 零偏差）。
 pub fn minmax(values: &[f64], time_period: usize) -> Result<MinMax, TaError> {
     check_period(time_period)?;
-    let mn = rolling_min(values, time_period);
-    let mx = rolling_max(values, time_period);
+    let (mx, mn) = rolling_minmax(values, time_period);
     Ok(MinMax { min: mn, max: mx })
 }
 
@@ -109,64 +114,16 @@ pub struct MinMaxIndex {
     pub max_idx: Vec<f64>,
 }
 
-/// 滚动窗口最小/最大值索引（TA-Lib `TA_MINMAXINDEX`）。前导 `period-1` 为 [`f64::NAN`]。
-/// Rolling window min/max indices (TA-Lib `TA_MINMAXINDEX`). The leading `period - 1` positions are `NaN`.
+/// 滚动窗口最小/最大值索引（TA-Lib `TA_MINMAXINDEX`）。前导 `period-1` 为 **0.0**（与原版一致）。
+/// Rolling window min/max indices (TA-Lib `TA_MINMAXINDEX`). The leading `period - 1` positions are **0.0**.
+///
+/// 复用 `core::rolling_extreme_index` 单遍单调队列（最左 tie-break）分别求最小/最大索引，
+/// 将原本的 O(n·period) 嵌套扫描合并为两次 O(n) 遍历（候选③，ADR 0005 零偏差）。
+/// Reuses `core::rolling_extreme_index` (single-pass, leftmost) for min and max — replacing the
+/// naïve O(n·period) nested scan with two O(n) passes (candidate ③, ADR 0005 zero-deviation).
 pub fn minmax_index(values: &[f64], time_period: usize) -> Result<MinMaxIndex, TaError> {
     check_period(time_period)?;
-    let n = values.len();
-    // 前导 `period-1` 个位置 TA-Lib 返回 **0.0**（与原版一致）。
-    // The leading `period - 1` positions return **0.0** in TA-Lib (not `NaN`).
-    let mut min_idx = vec![0.0; n];
-    let mut max_idx = vec![0.0; n];
-    if n >= time_period {
-        for i in (time_period - 1)..n {
-            let mut bmin = values[i];
-            let mut bmini = i;
-            let mut bmax = values[i];
-            let mut bmaxi = i;
-            for j in 1..time_period {
-                let v = values[i - j];
-                // 平局取最左（leftmost）。/ Leftmost on ties.
-                if v <= bmin {
-                    bmin = v;
-                    bmini = i - j;
-                }
-                if v >= bmax {
-                    bmax = v;
-                    bmaxi = i - j;
-                }
-            }
-            min_idx[i] = bmini as f64;
-            max_idx[i] = bmaxi as f64;
-        }
-    }
+    let min_idx = rolling_extreme_index(values, time_period, false);
+    let max_idx = rolling_extreme_index(values, time_period, true);
     Ok(MinMaxIndex { min_idx, max_idx })
-}
-
-/// 滚动窗口极值索引的内部实现（共享于 `max_index` / `min_index`）。平局取最左。
-/// 前导 `period-1` 个位置 TA-Lib 返回 **0.0**（与原版一致，非 `NaN`）。
-/// Shared rolling-extreme-index core for `max_index` / `min_index`. Leftmost on ties.
-/// The leading `period - 1` positions return **0.0** in TA-Lib (not `NaN`), matching the original.
-fn rolling_extreme_index(values: &[f64], period: usize, take_max: bool) -> Vec<f64> {
-    let n = values.len();
-    let mut out = vec![0.0; n];
-    if n < period {
-        return out;
-    }
-    for i in (period - 1)..n {
-        let mut best = values[i];
-        let mut best_idx = i;
-        for j in 1..period {
-            let v = values[i - j];
-            // 平局取最左（leftmost）：遇到相等极值也更新到更小索引。
-            // Leftmost on ties: update even on an equal extreme to keep the smaller index.
-            let better = if take_max { v >= best } else { v <= best };
-            if better {
-                best = v;
-                best_idx = i - j;
-            }
-        }
-        out[i] = best_idx as f64;
-    }
-    out
 }

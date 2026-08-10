@@ -436,6 +436,68 @@ pub(crate) fn rolling_minmax(values: &[f64], period: usize) -> (Vec<f64>, Vec<f6
     (max_out, min_out)
 }
 
+/// 滚动窗口极值**索引**，单遍单调队列 O(n)（平局取最左 / leftmost）。
+///
+/// Rolling-extreme **index** in a single O(n) monotonic-queue pass (leftmost on ties). Returns
+/// the absolute (0-based) position of the window extreme (max when `take_max`, min otherwise);
+/// the leading `period - 1` positions are `0.0` (matching TA-Lib `TA_MAXINDEX` / `TA_MININDEX`,
+/// which emit `0.0`, not `NaN`).
+///
+/// 与 [`rolling_extreme`]（值变体，最右 tie-break）互为镜像：此处弹出条件用**严格** `<` / `>`
+/// 而非 `<=` / `>=`，使并列极值保留更靠左（更小索引）的候选，从而复刻 TA-Lib 索引变体的
+/// 最左 tie-break（见 `math_ops::max_index` / `min_index` 文档）。在有限输入上与朴素
+/// `O(n·period)` 扫描逐项相等（零偏差，ADR 0005）。
+///
+/// Mirrors [`rolling_extreme`] (the value variant, rightmost tie-break): here the pop condition
+/// is the **strict** `<` / `>` (not `<=` / `>=`), so equal extremes keep the leftmost (smaller
+/// index) candidate — reproducing TA-Lib's leftmost tie-break for the index variants. Bit-for-bit
+/// equal to the naïve `O(n·period)` scan on finite inputs (ADR 0005).
+pub(crate) fn rolling_extreme_index(values: &[f64], period: usize, take_max: bool) -> Vec<f64> {
+    debug_assert!(period >= 1);
+    let n = values.len();
+    let mut out = vec![0.0_f64; n];
+    if n < period {
+        return out;
+    }
+    let mut dq: std::collections::VecDeque<usize> = std::collections::VecDeque::with_capacity(period);
+    for i in 0..n {
+        // 移除已滑出窗口的最左候选 / drop the leftmost candidate that left the window
+        while let Some(&front) = dq.front() {
+            if front + period <= i {
+                dq.pop_front();
+            } else {
+                break;
+            }
+        }
+        if take_max {
+            // 弹出 < 候选者（严格小于），相等者保留 -> 队首为窗口最左最大值
+            // pop < candidates (strict), keep equal -> front is the leftmost max
+            while let Some(&back) = dq.back() {
+                if values[back] < values[i] {
+                    dq.pop_back();
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // 弹出 > 候选者（严格大于），相等者保留 -> 队首为窗口最左最小值
+            // pop > candidates (strict), keep equal -> front is the leftmost min
+            while let Some(&back) = dq.back() {
+                if values[back] > values[i] {
+                    dq.pop_back();
+                } else {
+                    break;
+                }
+            }
+        }
+        dq.push_back(i);
+        if i >= period - 1 {
+            out[i] = *dq.front().unwrap() as f64;
+        }
+    }
+    out
+}
+
 /// 滚动窗口最大值（用于 MIDPOINT / MIDPRICE 的 `max` 侧）。
 /// Rolling window maximum (the `max` side of MIDPOINT / MIDPRICE).
 #[inline]
@@ -706,6 +768,70 @@ mod tests {
                             naive[i]
                         );
                     }
+                }
+            }
+        }
+    }
+
+    /// 单遍单调队列索引实现必须与朴素 O(n·period) 扫描逐项相等，且平局取最左。
+    /// The single-pass index impl must equal the naïve scan element-wise, leftmost on ties.
+    #[test]
+    fn rolling_extreme_index_matches_naive_leftmost() {
+        // 确定性 LCG：覆盖随机序列与重复极值（制造并列最左 tie-break 场景）。
+        // Deterministic LCG covering random series and duplicate extremes (leftmost ties).
+        let mut x: u64 = 0x1234_5678_9abc_def0;
+        let mut lcg = || {
+            x = x
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((x >> 11) as f64 / (1u64 << 53) as f64) * 100.0 - 50.0
+        };
+        // 朴素最左极值索引：窗口 [i-period+1, i]，平局取最小索引。
+        // Naïve leftmost extreme index over window [i-period+1, i].
+        let naive_index = |v: &[f64], p: usize, take_max: bool| -> Vec<f64> {
+            let n = v.len();
+            let mut out = vec![0.0_f64; n];
+            if n < p {
+                return out;
+            }
+            for i in (p - 1)..n {
+                let mut best = v[i];
+                let mut best_idx = i;
+                for j in 1..p {
+                    let val = v[i - j];
+                    let better = if take_max { val >= best } else { val <= best };
+                    if better {
+                        best = val;
+                        best_idx = i - j;
+                    }
+                }
+                out[i] = best_idx as f64;
+            }
+            out
+        };
+        for &n in &[0usize, 1, 2, 5, 20, 137, 1000] {
+            for &p in &[1usize, 2, 3, 7, 20, 64] {
+                if n < p {
+                    continue;
+                }
+                let mut v = Vec::with_capacity(n);
+                for _ in 0..n {
+                    // 1/8 概率注入重复极值，专测并列最左 tie-break。
+                    // 1/8 chance of a duplicate extreme to exercise the leftmost tie-break.
+                    let r = lcg();
+                    if (r as usize) % 8 == 0 {
+                        v.push(42.0);
+                    } else {
+                        v.push(r);
+                    }
+                }
+                for &take_max in &[true, false] {
+                    let fast = rolling_extreme_index(&v, p, take_max);
+                    let naive = naive_index(&v, p, take_max);
+                    assert_eq!(
+                        fast, naive,
+                        "mismatch @ n={n} p={p} max={take_max}: index impl diverges from naïve"
+                    );
                 }
             }
         }

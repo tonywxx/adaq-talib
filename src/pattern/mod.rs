@@ -338,3 +338,267 @@ fn check_ohlc(
     }
     Ok(())
 }
+
+// ===========================================================================
+// 就近单测层 / Near-code unit tests (candidate ⑤)
+//
+// 形态识别此前仅由 tests/fixtures/*.json 黄金向量校验（远端 Oracle）。本模块在源码近处
+// 补一层手算向量单测，覆盖蜡烛原语、CandleAvg 滚动窗口（含 avgPeriod=0 与 OFF≠0 路径）
+// 及有代表性的形态（0 setting / 多 setting / 2-candle 两级 / 跳空引用前一根 / OFF=1 NEAR）。
+// 输出为整数（0 / ±100 / ±80），用精确相等断言；与黄金向量互不替代，互为补充安全网。
+//
+// Pattern recognition was only validated by the remote golden-vector fixtures. This near-code
+// layer adds hand-computed unit tests for the candle primitives, the CandleAvg running window
+// (incl. avgPeriod=0 and OFF≠0), and representative patterns. Outputs are integers, asserted
+// exactly. Complements — does not replace — the golden vectors.
+// ===========================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---- 蜡烛原语 / candle primitives (hand-derived) ----
+    #[test]
+    fn candle_primitives() {
+        assert_eq!(real_body(10.0, 20.0), 10.0);
+        assert_eq!(upper_shadow(10.0, 21.0, 20.0), 1.0);
+        assert_eq!(lower_shadow(10.0, 9.0, 20.0), 1.0);
+        assert_eq!(high_low_range(21.0, 9.0), 12.0);
+        assert_eq!(candle_color(10.0, 20.0), 1.0);
+        assert_eq!(candle_color(20.0, 10.0), -1.0);
+        assert_eq!(body_high(10.0, 20.0), 20.0);
+        assert_eq!(body_low(10.0, 20.0), 10.0);
+        assert_eq!(body_center(10.0, 20.0), 15.0);
+        assert!(real_body_gap_up(5.0, 6.0, 1.0, 2.0));
+        assert!(real_body_gap_down(1.0, 2.0, 5.0, 6.0));
+        assert!(candle_gap_up(5.0, 3.0));
+        assert!(candle_gap_down(3.0, 5.0));
+    }
+
+    // ---- CandleAvg 滚动窗口 / running window (hand-derived) ----
+    // close[k]-open[k] = k（open 全 0）-> 单根实体长度 = k。
+    fn bodies() -> ([f64; 8], [f64; 8], [f64; 8], [f64; 8]) {
+        let open = [0.0; 8];
+        let close = [0.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0];
+        let high = close;
+        let low = open;
+        (open, high, low, close)
+    }
+
+    #[test]
+    fn candle_avg_running_window() {
+        let (open, high, low, close) = bodies();
+        let s = CandleSetting { range_type: RangeType::RealBody, avg_period: 3, factor: 1.0 };
+        let mut a = CandleAvg::new(s, &open, &high, &low, &close, 5, 0);
+        assert_eq!(a.value(5, &open, &high, &low, &close), 4.0); // avg(2,4,6)
+        a.advance(5, &open, &high, &low, &close);
+        assert_eq!(a.value(6, &open, &high, &low, &close), 6.0); // avg(4,6,8)
+        a.advance(6, &open, &high, &low, &close);
+        assert_eq!(a.value(7, &open, &high, &low, &close), 8.0); // avg(6,8,10)
+    }
+
+    #[test]
+    fn candle_avg_avg_period_zero() {
+        let (open, high, low, close) = bodies();
+        let s = CandleSetting { range_type: RangeType::RealBody, avg_period: 0, factor: 2.0 };
+        let a = CandleAvg::new(s, &open, &high, &low, &close, 5, 0);
+        // avgPeriod==0 -> 偏移后当前根范围 * factor = real_body(8)*2 = 16
+        assert_eq!(a.value(5, &open, &high, &low, &close), 16.0);
+    }
+
+    #[test]
+    fn candle_avg_off_one() {
+        let (open, high, low, close) = bodies();
+        let s = CandleSetting { range_type: RangeType::RealBody, avg_period: 3, factor: 1.0 };
+        let mut a = CandleAvg::new(s, &open, &high, &low, &close, 5, 1);
+        // off=1 -> 窗口 [1,4) = 实体长度 0,2,4 -> 均值 2
+        assert_eq!(a.value(5, &open, &high, &low, &close), 2.0);
+        a.advance(5, &open, &high, &low, &close);
+        // 推进后窗口 [2,5) -> 2,4,6 -> 均值 4
+        assert_eq!(a.value(6, &open, &high, &low, &close), 4.0);
+    }
+
+    // ---- cdl_doji：0 setting，lookback=10 ----
+    #[test]
+    fn cdl_doji_detects() {
+        // 10 根预热（high-low=100），随后 2 根十字星（open==close）。
+        let o = vec![0.0; 12];
+        let mut h = vec![0.0; 12];
+        let l = vec![0.0; 12];
+        let c = vec![0.0; 12]; // open==close -> 全为十字星
+        for i in 0..12 {
+            h[i] = 100.0;
+        }
+        let out = cdl_doji(&o, &h, &l, &c).unwrap();
+        assert_eq!(out.len(), 12);
+        for i in 0..10 {
+            assert_eq!(out[i], 0.0, "leading index {i} must be 0");
+        }
+        assert_eq!(out[10], 100.0);
+        assert_eq!(out[11], 100.0);
+    }
+
+    // ---- cdl_marubozu：2 setting，看涨 / 看跌 / 不触发 ----
+    #[test]
+    fn cdl_marubozu_bullish() {
+        let mut o = vec![0.0; 11];
+        let mut h = vec![0.0; 11];
+        let mut l = vec![0.0; 11];
+        let mut c = vec![0.0; 11];
+        for i in 0..10 {
+            h[i] = 100.0; // 预热：实体 0、全幅 100
+        }
+        o[10] = 10.0;
+        c[10] = 20.0; // 实体 10 > 0
+        h[10] = 21.0; // 上影 1
+        l[10] = 9.0; // 下影 1（均 < 0.1*100 = 10）
+        let out = cdl_marubozu(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[10], 100.0);
+    }
+
+    #[test]
+    fn cdl_marubozu_bearish() {
+        let mut o = vec![0.0; 11];
+        let mut h = vec![0.0; 11];
+        let mut l = vec![0.0; 11];
+        let mut c = vec![0.0; 11];
+        for i in 0..10 {
+            h[i] = 100.0;
+        }
+        o[10] = 20.0;
+        c[10] = 10.0;
+        h[10] = 21.0;
+        l[10] = 9.0;
+        let out = cdl_marubozu(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[10], -100.0);
+    }
+
+    #[test]
+    fn cdl_marubozu_no_trigger_big_shadows() {
+        let mut o = vec![0.0; 11];
+        let mut h = vec![0.0; 11];
+        let mut l = vec![0.0; 11];
+        let mut c = vec![0.0; 11];
+        for i in 0..10 {
+            h[i] = 100.0;
+        }
+        o[10] = 10.0;
+        c[10] = 20.0;
+        h[10] = 100.0; // 上影 80
+        l[10] = 0.0; // 下影 80（均 > 10 -> 不触发）
+        let out = cdl_marubozu(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[10], 0.0);
+    }
+
+    // ---- cdl_engulfing：纯 2-candle，两级 ±80/±100 ----
+    #[test]
+    fn cdl_engulfing_full_bull() {
+        // 第1根阴线（20->10），第2根阳线完全吞没（5->25）。
+        let o = [0.0, 20.0, 5.0];
+        let h = [0.0, 20.0, 25.0];
+        let l = [0.0, 10.0, 5.0];
+        let c = [0.0, 10.0, 25.0];
+        let out = cdl_engulfing(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[0], 0.0);
+        assert_eq!(out[1], 0.0); // lookback=2，主循环从 i=2 起
+        assert_eq!(out[2], 100.0);
+    }
+
+    #[test]
+    fn cdl_engulfing_weak_bull() {
+        // 第2根开盘恰等于前收（open==close[i-1]）-> 弱吞没 +80。
+        let o = [0.0, 20.0, 10.0];
+        let h = [0.0, 20.0, 25.0];
+        let l = [0.0, 10.0, 10.0];
+        let c = [0.0, 10.0, 25.0];
+        let out = cdl_engulfing(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[2], 80.0);
+    }
+
+    #[test]
+    fn cdl_engulfing_full_bear() {
+        let o = [0.0, 10.0, 25.0];
+        let h = [0.0, 20.0, 25.0];
+        let l = [0.0, 10.0, 5.0];
+        let c = [0.0, 20.0, 5.0];
+        let out = cdl_engulfing(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[2], -100.0);
+    }
+
+    #[test]
+    fn cdl_engulfing_none() {
+        // 两根同为阳线 -> 不吞没。
+        let o = [0.0, 10.0, 12.0];
+        let h = [0.0, 20.0, 25.0];
+        let l = [0.0, 10.0, 12.0];
+        let c = [0.0, 20.0, 22.0];
+        let out = cdl_engulfing(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[2], 0.0);
+    }
+
+    // ---- cdl_shootingstar：小实体 + 长上影 + 相对前一根实体向上跳空，看跌 ----
+    #[test]
+    fn cdl_shootingstar_bearish() {
+        // 10 根预热：open=0,close=5（实体5）,high=100,low=0（全幅100）。
+        let mut o = vec![0.0; 11];
+        let mut h = vec![0.0; 11];
+        let mut l = vec![0.0; 11];
+        let mut c = vec![0.0; 11];
+        for i in 0..10 {
+            o[i] = 0.0;
+            c[i] = 5.0;
+            h[i] = 100.0;
+            l[i] = 0.0;
+        }
+        // 测试根 i=10：小实体、长上影、较前一根实体跳空向上。
+        o[10] = 10.0;
+        c[10] = 11.0; // 实体 1
+        h[10] = 13.0; // 上影 2
+        l[10] = 9.0; // 下影 1
+        let out = cdl_shootingstar(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[10], -100.0);
+    }
+
+    // ---- cdl_hammer：OFF=1 的 NEAR 设置，看涨 ----
+    #[test]
+    fn cdl_hammer_bullish() {
+        // 11 根预热（lookback=11）：open=0,close=5,high=100,low=0。
+        let mut o = vec![0.0; 12];
+        let mut h = vec![0.0; 12];
+        let mut l = vec![0.0; 12];
+        let mut c = vec![0.0; 12];
+        for i in 0..11 {
+            o[i] = 0.0;
+            c[i] = 5.0;
+            h[i] = 100.0;
+            l[i] = 0.0;
+        }
+        // 测试根 i=11：小实体、长下影、短上影、实体靠近前最低价。
+        o[11] = 10.0;
+        c[11] = 11.0; // 实体 1 < BODY_SHORT 均值 5
+        h[11] = 20.0; // 上影 9 < 0.1*100 = 10
+        l[11] = 8.0; // 下影 2 > 实体 1
+        let out = cdl_hammer(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[11], 100.0);
+    }
+
+    #[test]
+    fn cdl_hammer_no_trigger_long_upper_shadow() {
+        let mut o = vec![0.0; 12];
+        let mut h = vec![0.0; 12];
+        let mut l = vec![0.0; 12];
+        let mut c = vec![0.0; 12];
+        for i in 0..11 {
+            o[i] = 0.0;
+            c[i] = 5.0;
+            h[i] = 100.0;
+            l[i] = 0.0;
+        }
+        o[11] = 10.0;
+        c[11] = 11.0;
+        h[11] = 100.0; // 上影 89 > 10 -> 不触发
+        l[11] = 8.0;
+        let out = cdl_hammer(&o, &h, &l, &c).unwrap();
+        assert_eq!(out[11], 0.0);
+    }
+}
