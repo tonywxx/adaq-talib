@@ -15,7 +15,7 @@
 #[path = "common/mod.rs"]
 mod common;
 
-use adaq_talib::overlap::{bbands, kama, ma, mavp, sar, sarext, t3, trima, MaType};
+use adaq_talib::overlap::{accbands, bbands, kama, ma, mavp, sar, sarext, t3, trima, MaType};
 use adaq_talib::utils::approx_eq_slice;
 
 #[test]
@@ -116,5 +116,29 @@ fn sarext_matches_golden_vector() {
     assert!(
         approx_eq_slice(&out, &expected),
         "SAREXT output deviates from golden vector beyond ADR 0005 tolerance"
+    );
+}
+
+#[test]
+fn accbands_matches_golden_vector() {
+    let json = common::load_json("accbands_basic.json").expect("load fixture");
+    let high = common::load_f64_array(&json, "high").expect("high");
+    let low = common::load_f64_array(&json, "low").expect("low");
+    let close = common::load_f64_array(&json, "close").expect("close");
+    let upper = common::load_f64_array(&json, "upper").expect("upper");
+    let middle = common::load_f64_array(&json, "middle").expect("middle");
+    let lower = common::load_f64_array(&json, "lower").expect("lower");
+    let out = accbands(&high, &low, &close, 20).expect("accbands");
+    assert!(
+        approx_eq_slice(&out.upper, &upper),
+        "ACCBANDS upper band deviates from golden vector beyond ADR 0005 tolerance"
+    );
+    assert!(
+        approx_eq_slice(&out.middle, &middle),
+        "ACCBANDS middle band deviates from golden vector beyond ADR 0005 tolerance"
+    );
+    assert!(
+        approx_eq_slice(&out.lower, &lower),
+        "ACCBANDS lower band deviates from golden vector beyond ADR 0005 tolerance"
     );
 }

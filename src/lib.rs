@@ -18,8 +18,9 @@
 //! ## 覆盖范围 / Coverage
 //!
 //! 采用里程碑式发布（见 ADR 0002）：`0.1.0` 覆盖重叠研究、动量、波动率、成交量、价格变换
-//! 与统计类（共 65 个对外函数，见 [`docs/0.1.0-scope.md`](docs/0.1.0-scope.md)）；模式识别、
-//! 数学类与剩余周期指标后续版本补齐，最终全量且不删减任何原版能力。
+//! 与统计类；数学变换（Math Transform）、数学运算符（Math Operators）与剩余周期/模式识别
+//! 指标在后续里程碑补齐，最终全量且不删减任何原版能力（见 [`docs/0.1.0-scope.md`](docs/0.1.0-scope.md)
+//! 与 `docs/NEXT-ACTIONS-perf.md` 的 P4 进度）。
 //!
 //! ## 快速开始 / Quick start
 //!
@@ -49,6 +50,9 @@ pub mod stat;
 pub mod volume;
 pub mod volatility;
 pub mod cycle;
+pub mod math_ops;
+pub mod math_trans;
+pub mod pattern;
 
 pub(crate) mod core;
 // 暴露为 doc(hidden) 公共模块，便于集成测试与 benches 复用 approx 工具（内部实现细节）。

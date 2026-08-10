@@ -24,6 +24,11 @@ pub const ATR_PERIOD: usize = 14;
 pub const ADX_PERIOD: usize = 14;
 pub const CCI_PERIOD: usize = 14;
 pub const WILLR_PERIOD: usize = 14;
+/// 默认 DX / IMI 时间周期（TA-Lib 默认 14）。
+pub const DX_PERIOD: usize = 14;
+pub const IMI_PERIOD: usize = 14;
+/// 默认 ACCBANDS 时间周期（TA-Lib 默认 20）。
+pub const ACCBANDS_PERIOD: usize = 20;
 
 /// 默认 MACD 快/慢/信号周期（TA-Lib 默认 12 / 26 / 9）。
 pub const MACD_FAST: usize = 12;

@@ -208,6 +208,17 @@ pub fn nested_ema_with_output<const L: usize, F>(
 /// normalized by the sum `period*(period+1)/2`. The leading `period - 1` positions are
 /// [`f64::NAN`].
 ///
+/// 采用 **O(n) 滑动递推**（P2-3，ADR 0010）：维护朴素窗口和 `sw`（以 `sw += x[i]-x[i-period]`
+/// 在 O(1) 内滑动），并以闭式递推 `W[i] = W[i-1] + period·x[i] - sw[i-1]` 更新加权累加，
+/// 消除原朴素实现每窗口 `period` 次重复乘加。首个窗口沿用朴素求和作为种子，保证与历史实现
+/// 逐项对齐（数值同黄金向量一致，ADR 0005）。
+///
+/// Uses an O(n) sliding recurrence (P2-3, ADR 0010): a plain window sum `sw` is slid in O(1)
+/// via `sw += x[i] - x[i-period]`, and a closed-form `W[i] = W[i-1] + period·x[i] - sw[i-1]`
+/// updates the weighted accumulator — eliminating the naïve per-window `period` multiply-adds.
+/// The first window uses the naïve sum as a seed so it stays aligned with the historical impl
+/// (1:1 with the golden vector, ADR 0005).
+///
 /// # 公式 / Formula
 /// ```text
 /// WMA[i] = Σ_{j=0}^{period-1} (period-j) * x[i-j]   /   (period*(period+1)/2),  i >= period-1
@@ -217,6 +228,41 @@ pub fn nested_ema_with_output<const L: usize, F>(
 /// # Panics
 /// 调用方须保证 `period >= 1`。/ Caller must ensure `period >= 1`.
 pub fn wma(values: &[f64], period: usize) -> Vec<f64> {
+    debug_assert!(period >= 1);
+    let n = values.len();
+    let mut out = vec![f64::NAN; n];
+    if n < period {
+        return out;
+    }
+    let denom = (period * (period + 1) / 2) as f64;
+    // 种子：首个窗口（i = period-1）的朴素加权和与朴素窗口和。
+    // Seed: the naïve weighted sum and naïve window sum of the first window (i = period-1).
+    let mut sw = 0.0_f64; // 朴素窗口和 / plain window sum
+    for j in 0..period {
+        sw += values[j];
+    }
+    let mut w = 0.0_f64; // 加权累加 / weighted accumulator
+    for j in 0..period {
+        w += values[(period - 1) - j] * (period - j) as f64;
+    }
+    out[period - 1] = w / denom;
+    for i in period..n {
+        // 递推：W[i] = W[i-1] + period·x[i] - sw[i-1]（此时 sw 仍为窗口和至 i-1）。
+        // Recur: W[i] = W[i-1] + period·x[i] - sw[i-1] (sw here still ends at i-1).
+        w = w + (period as f64) * values[i] - sw;
+        out[i] = w / denom;
+        // 滑动窗口和：加入右端新元素，剔除左端出窗元素。/ slide window sum.
+        sw += values[i] - values[i - period];
+    }
+    out
+}
+
+/// 朴素 O(n·period) 加权移动平均，仅作为 [`wma`] 的单元测试对照（非热路径）。
+///
+/// Naïve O(n·period) weighted moving average — used only as the reference in unit tests for
+/// [`wma`]; not on any hot path.
+#[allow(dead_code)]
+fn wma_naive(values: &[f64], period: usize) -> Vec<f64> {
     debug_assert!(period >= 1);
     let n = values.len();
     let mut out = vec![f64::NAN; n];
@@ -239,11 +285,67 @@ pub fn wma(values: &[f64], period: usize) -> Vec<f64> {
 /// Rolling-window extreme (max or min), a full-indexed vector with the same length as the
 /// input; the leading `period - 1` positions are [`f64::NAN`].
 ///
-/// 当前为朴素 O(n·period) 窗口扫描，满足正确性优先；后续可在性能敏感路径改用单调队列 O(n)。
-/// Currently a naïve O(n·period) window scan (correctness first); a monotonic-queue O(n)
-/// variant can be introduced later on hot paths.
+/// 采用 **单调队列** O(n) 实现（P2-2，ADR 0010）：以双端队列维护窗口内的单调候选，每元素
+/// 入队/出队均摊 O(1)。并列极值取**窗口内最右**者（弹出 `<=`/`>=` 候选），与朴素扫描
+/// [`rolling_extreme_naive`] 的 tie-break 完全一致，数值逐项相等（零偏差，ADR 0005）。
+///
+/// Uses an O(n) monotonic-queue (P2-2, ADR 0010): a deque maintains the monotonic candidates
+/// inside the window so each element is enqueued/dequeued in amortized O(1). Ties resolve to
+/// the **rightmost** occurrence in the window (popping `<=`/`>=` candidates), which matches the
+/// tie-break of the naïve [`rolling_extreme_naive`] scan exactly — bit-for-bit equal (ADR 0005).
 #[inline]
 fn rolling_extreme(values: &[f64], period: usize, take_max: bool) -> Vec<f64> {
+    debug_assert!(period >= 1);
+    let n = values.len();
+    let mut out = vec![f64::NAN; n];
+    if n < period {
+        return out;
+    }
+    let mut dq: std::collections::VecDeque<usize> = std::collections::VecDeque::with_capacity(period);
+    for i in 0..n {
+        // 移除已滑出窗口的最左候选 / drop the leftmost candidate that left the window
+        while let Some(&front) = dq.front() {
+            if front + period <= i {
+                dq.pop_front();
+            } else {
+                break;
+            }
+        }
+        if take_max {
+            // 弹出 <= 候选者（含相等），使队首为窗口最右最大值
+            // pop <= candidates (incl. equal) so the front is the rightmost max
+            while let Some(&back) = dq.back() {
+                if values[back] <= values[i] {
+                    dq.pop_back();
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // 弹出 >= 候选者，使队首为窗口最右最小值
+            // pop >= candidates so the front is the rightmost min
+            while let Some(&back) = dq.back() {
+                if values[back] >= values[i] {
+                    dq.pop_back();
+                } else {
+                    break;
+                }
+            }
+        }
+        dq.push_back(i);
+        if i >= period - 1 {
+            out[i] = values[*dq.front().unwrap()];
+        }
+    }
+    out
+}
+
+/// 朴素 O(n·period) 窗口极值扫描，仅作为 [`rolling_extreme`] 的单元测试对照（非热路径）。
+///
+/// Naïve O(n·period) window-scan extreme — used only as the reference in unit tests for
+/// [`rolling_extreme`]; not on any hot path.
+#[allow(dead_code)]
+fn rolling_extreme_naive(values: &[f64], period: usize, take_max: bool) -> Vec<f64> {
     debug_assert!(period >= 1);
     let n = values.len();
     let mut out = vec![f64::NAN; n];
@@ -265,6 +367,73 @@ fn rolling_extreme(values: &[f64], period: usize, take_max: bool) -> Vec<f64> {
         out[i] = acc;
     }
     out
+}
+
+/// 滚动窗口的最大与最小，**同一次遍历** O(n)（用于 `MIDPOINT` 的 `(max+min)/2`）。
+///
+/// Rolling max **and** min in a single O(n) pass — for `MIDPOINT`'s `(max+min)/2`. Two
+/// monotonic deques (decreasing for max, increasing for min) advance together; ties resolve to
+/// the rightmost extreme (same `<=`/`>=` pop rule as [`rolling_extreme`]), so the per-element
+/// `max`/`min` equal the separate calls exactly (ADR 0005).
+///
+/// 对应 TA-Lib `TA_MIDPOINT` 内部 `MINMAXINDEX` 的单遍双队列思路，将 `midpoint` 的两次窗口
+/// 扫描合并为一次，规避重复遍历开销。
+///
+/// Mirrors TA-Lib `TA_MIDPOINT`'s internal `MINMAXINDEX` single-pass dual-deque approach, merging
+/// `midpoint`'s two window scans into one to avoid the redundant traversal.
+#[inline]
+pub(crate) fn rolling_minmax(values: &[f64], period: usize) -> (Vec<f64>, Vec<f64>) {
+    debug_assert!(period >= 1);
+    let n = values.len();
+    let mut max_out = vec![f64::NAN; n];
+    let mut min_out = vec![f64::NAN; n];
+    if n < period {
+        return (max_out, min_out);
+    }
+    let mut max_dq: std::collections::VecDeque<usize> =
+        std::collections::VecDeque::with_capacity(period);
+    let mut min_dq: std::collections::VecDeque<usize> =
+        std::collections::VecDeque::with_capacity(period);
+    for i in 0..n {
+        // 移除已滑出窗口的最左候选（两个队列同步）。/ drop out-of-window leftmost (both deques).
+        while let Some(&f) = max_dq.front() {
+            if f + period <= i {
+                max_dq.pop_front();
+            } else {
+                break;
+            }
+        }
+        while let Some(&f) = min_dq.front() {
+            if f + period <= i {
+                min_dq.pop_front();
+            } else {
+                break;
+            }
+        }
+        // 最大值队列（递减）：弹出 <= 候选者 / max deque (decreasing): pop <= candidates
+        while let Some(&b) = max_dq.back() {
+            if values[b] <= values[i] {
+                max_dq.pop_back();
+            } else {
+                break;
+            }
+        }
+        // 最小值队列（递增）：弹出 >= 候选者 / min deque (increasing): pop >= candidates
+        while let Some(&b) = min_dq.back() {
+            if values[b] >= values[i] {
+                min_dq.pop_back();
+            } else {
+                break;
+            }
+        }
+        max_dq.push_back(i);
+        min_dq.push_back(i);
+        if i >= period - 1 {
+            max_out[i] = values[*max_dq.front().unwrap()];
+            min_out[i] = values[*min_dq.front().unwrap()];
+        }
+    }
+    (max_out, min_out)
 }
 
 /// 滚动窗口最大值（用于 MIDPOINT / MIDPRICE 的 `max` 侧）。
@@ -444,4 +613,139 @@ pub fn rolling_var(values: &[f64], period: usize) -> Vec<f64> {
         out[i] = (sxx - sx * sx / p) / p;
     }
     out
+}
+
+/// 单遍滚动「均值 + 总体方差」（BBANDS 中轨/标准差融合核，P2-4，ADR 0010）。
+///
+/// Single-pass rolling mean **and** population variance, fused into one window traversal.
+///
+/// 维护同一个滑动窗口和 `sx` 与滑动平方和 `sxx`（与 [`rolling_mean`] / [`rolling_var`]
+/// 完全相同的递推与加法顺序），一次遍历同时产出算术均值与总体方差，消除 BBANDS 原先
+/// 「先 `rolling_mean` 再 `rolling_var`」的两遍扫描。因加法顺序与两个独立原语逐一相同，
+/// 产出值与分开调用逐项相等（零偏差，ADR 0005）。
+///
+/// Maintains the same sliding `sx` and `sxx` (identical recurrence and addition order to
+/// [`rolling_mean`] / [`rolling_var`]); one traversal yields both the mean and the population
+/// variance, eliminating the two-pass `rolling_mean` + `rolling_var` scan in BBANDS. Outputs
+/// are element-wise equal to calling the two primitives separately (ADR 0005).
+///
+/// 返回 `(mean, var)`，均与 `values` 等长，前导 `period-1` 个为 [`f64::NAN`]。
+/// Returns `(mean, var)`, equal-length to `values`; leading `period - 1` are [`f64::NAN`].
+///
+/// # Panics
+/// 调用方须保证 `period >= 1`。/ Caller must ensure `period >= 1`.
+#[inline]
+pub fn rolling_mean_var(values: &[f64], period: usize) -> (Vec<f64>, Vec<f64>) {
+    debug_assert!(period >= 1);
+    let n = values.len();
+    let mut mean = vec![f64::NAN; n];
+    let mut var = vec![f64::NAN; n];
+    if n < period {
+        return (mean, var);
+    }
+    let p = period as f64;
+    // 种子：首个窗口（i = period-1）的朴素窗口和 `sx` 与朴素平方和 `sxx`。
+    // Seed: naïve window sum `sx` and naïve sum-of-squares `sxx` of the first window.
+    let mut sx = values[..period].iter().copied().sum::<f64>();
+    let mut sxx = values[..period].iter().map(|v| v * v).sum::<f64>();
+    mean[period - 1] = sx / p;
+    var[period - 1] = (sxx - sx * sx / p) / p;
+    for i in period..n {
+        // 与 `rolling_mean` / `rolling_var` 完全相同的滑动递推顺序。
+        // Same sliding recurrence order as `rolling_mean` / `rolling_var`.
+        sx += values[i] - values[i - period];
+        sxx += values[i] * values[i] - values[i - period] * values[i - period];
+        mean[i] = sx / p;
+        var[i] = (sxx - sx * sx / p) / p;
+    }
+    (mean, var)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 单调队列实现必须与朴素 O(n·period) 扫描逐项相等（含并列极值的 tie-break）。
+    /// The monotonic-queue impl must equal the naïve scan element-wise (incl. tie-breaks).
+    #[test]
+    fn rolling_extreme_matches_naive() {
+        // 确定性 LCG：覆盖随机序列与重复极值（制造并列 tie-break 场景）。
+        // Deterministic LCG covering random series and duplicate extremes (tie-break cases).
+        let mut x: u64 = 0x1234_5678_9abc_def0;
+        let mut lcg = || {
+            x = x
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((x >> 11) as f64 / (1u64 << 53) as f64) * 100.0 - 50.0
+        };
+        for &n in &[0usize, 1, 2, 5, 20, 137, 1000] {
+            for &p in &[1usize, 2, 3, 7, 20, 64] {
+                if n < p {
+                    continue;
+                }
+                let mut v = Vec::with_capacity(n);
+                for _ in 0..n {
+                    // 1/8 概率注入与外部极值相同的重复值，专测并列最右 tie-break。
+                    // 1/8 chance of a duplicate value to exercise the rightmost tie-break.
+                    let r = lcg();
+                    if (r as usize) % 8 == 0 {
+                        v.push(42.0);
+                    } else {
+                        v.push(r);
+                    }
+                }
+                for &take_max in &[true, false] {
+                    let fast = rolling_extreme(&v, p, take_max);
+                    let naive = rolling_extreme_naive(&v, p, take_max);
+                    for i in 0..n {
+                        assert!(
+                            (fast[i].is_nan() && naive[i].is_nan())
+                                || (fast[i] - naive[i]).abs() < 1e-12,
+                            "mismatch @ n={n} p={p} max={take_max} i={i}: {} vs {}",
+                            fast[i],
+                            naive[i]
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// 滑动递推 WMA 必须与朴素 O(n·period) 扫描逐项相等（含不同窗口长度与序列形态）。
+    /// The sliding-recurrence WMA must equal the naïve O(n·period) scan element-wise
+    /// (across window sizes and series shapes).
+    #[test]
+    fn wma_matches_naive() {
+        // 确定性 LCG：覆盖随机序列、单调递增/递减、含重复值等形态。
+        // Deterministic LCG covering random, monotonic, and duplicate-value shapes.
+        let mut x: u64 = 0x9e37_79b9_7f4a_7c15;
+        let mut lcg = || {
+            x = x
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((x >> 11) as f64 / (1u64 << 53) as f64) * 100.0 - 50.0
+        };
+        for &n in &[0usize, 1, 2, 5, 20, 137, 1000] {
+            for &p in &[1usize, 2, 3, 7, 20, 64, 200] {
+                if n < p {
+                    continue;
+                }
+                let mut v = Vec::with_capacity(n);
+                for _ in 0..n {
+                    v.push(lcg());
+                }
+                let fast = wma(&v, p);
+                let naive = wma_naive(&v, p);
+                for i in 0..n {
+                    assert!(
+                        (fast[i].is_nan() && naive[i].is_nan())
+                            || (fast[i] - naive[i]).abs() < 1e-9,
+                        "mismatch @ n={n} p={p} i={i}: {} vs {}",
+                        fast[i],
+                        naive[i]
+                    );
+                }
+            }
+        }
+    }
 }

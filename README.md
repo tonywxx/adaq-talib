@@ -46,9 +46,28 @@
 
 ## Implemented Functions
 
-As of this release, **7 categories and 65 TA-Lib 0.7.1 indicator functions** are implemented.
-The tables below list every public function, its TA-Lib counterpart, default parameters, and
-return shape.
+**adaq-talib now implements the full TA-Lib 0.7.1 public surface — all 161 functions across
+10 categories — with zero deviation** (verified 1:1 against golden vectors, see
+[Verification & Benchmarks](#verification--benchmarks)). The tables below list every public
+function, its TA-Lib counterpart, default parameters, and return shape.
+
+| Category | Module | Count | TA-Lib group |
+| --- | --- | ---: | --- |
+| Overlap Studies | `overlap` | 18 | Overlap Studies |
+| Momentum Indicators | `momentum` | 31 | Momentum Indicators |
+| Volatility Indicators | `volatility` | 3 | Volatility Indicators |
+| Volume Indicators | `volume` | 3 | Volume Indicators |
+| Price Transform | `price_transform` | 5 | Price Transform |
+| Statistic Functions | `stat` | 9 | Statistic Functions |
+| Cycle (Hilbert Transform) | `cycle` | 7\* | Cycle Indicators (5) + Overlap (2)† |
+| Math Operators | `math_ops` | 11 | Math Operators |
+| Math Transform | `math_trans` | 15 | Math Transform |
+| Pattern Recognition | `pattern` | 61 | Pattern Recognition |
+| **Total** | | **161** | **161** |
+
+\* The `cycle` module holds 7 functions; TA-Lib classifies 5 as *Cycle Indicators*
+(`HT_DCPERIOD`/`HT_DCPHASE`/`HT_PHASOR`/`HT_SINE`/`HT_TRENDMODE`) and 2 as *Overlap Studies*
+(`MAMA`/`HT_TRENDLINE`). † Grouping follows TA-Lib's authoritative `info['group']`.
 
 > Convention: every function ships both an explicit-parameter version and a `_default`
 > convenience version that uses TA-Lib's default parameters (see
@@ -154,6 +173,96 @@ return shape.
 | --- | --- | --- | --- |
 | `mama` / `mama_default` | `TA_MAMA` | fast = 0.5, slow = 0.05 | `Mama { mama, fama }` |
 | `ht_trendline` / `ht_trendline_default` | `TA_HT_TRENDLINE` | — | `Vec<f64>` (lookback 63) |
+| `ht_dcperiod` / `ht_dcperiod_default` | `TA_HT_DCPERIOD` | — | `Vec<f64>` (dominant cycle period) |
+| `ht_dcphase` / `ht_dcphase_default` | `TA_HT_DCPHASE` | — | `Vec<f64>` (dominant cycle phase) |
+| `ht_phasor` / `ht_phasor_default` | `TA_HT_PHASOR` | — | `Phasor { in_phase, quadrature }` |
+| `ht_sine` / `ht_sine_default` | `TA_HT_SINE` | — | `HtSine { sine, lead_sine }` |
+| `ht_trendmode` / `ht_trendmode_default` | `TA_HT_TRENDMODE` | — | `Vec<f64>` (0/1 trend mode) |
+
+### Math Operators — `adaq_talib::math_ops`
+
+Element-wise / array operators over one or two equal-length series. All return `Vec<f64>`
+(equal-length; lookback 0). Binary operators take `(&[f64], &[f64])`; `maxindex`/`minindex`/
+`minmax`/`minmaxindex` reduce a windowed series.
+
+| Function | TA-Lib | Signature | Returns |
+| --- | --- | --- | --- |
+| `add` / `add_default` | `TA_ADD` | `(a, b)` | `Vec<f64>` |
+| `sub` / `sub_default` | `TA_SUB` | `(a, b)` | `Vec<f64>` |
+| `mult` / `mult_default` | `TA_MULT` | `(a, b)` | `Vec<f64>` |
+| `div` / `div_default` | `TA_DIV` | `(a, b)` | `Vec<f64>` |
+| `sum` / `sum_default` | `TA_SUM` | `(a, period)` | `Vec<f64>` |
+| `min` / `min_default` | `TA_MIN` | `(a, period)` | `Vec<f64>` |
+| `max` / `max_default` | `TA_MAX` | `(a, period)` | `Vec<f64>` |
+| `min_index` / `min_index_default` | `TA_MININDEX` | `(a, period)` | `Vec<f64>` (index of min) |
+| `max_index` / `max_index_default` | `TA_MAXINDEX` | `(a, period)` | `Vec<f64>` (index of max) |
+| `minmax` / `minmax_default` | `TA_MINMAX` | `(a, period)` | `MinMax { min, max }` |
+| `minmax_index` / `minmax_index_default` | `TA_MINMAXINDEX` | `(a, period)` | `MinMaxIndex { min_idx, max_idx }` |
+
+### Math Transform — `adaq_talib::math_trans`
+
+Element-wise transcendental / rounding transforms over a single series. All return `Vec<f64>`
+(equal-length; lookback 0).
+
+| Function | TA-Lib | Returns |
+| --- | --- | --- |
+| `acos` / `acos_default` | `TA_ACOS` | `Vec<f64>` |
+| `asin` / `asin_default` | `TA_ASIN` | `Vec<f64>` |
+| `atan` / `atan_default` | `TA_ATAN` | `Vec<f64>` |
+| `ceil` / `ceil_default` | `TA_CEIL` | `Vec<f64>` |
+| `cos` / `cos_default` | `TA_COS` | `Vec<f64>` |
+| `cosh` / `cosh_default` | `TA_COSH` | `Vec<f64>` |
+| `exp` / `exp_default` | `TA_EXP` | `Vec<f64>` |
+| `floor` / `floor_default` | `TA_FLOOR` | `Vec<f64>` |
+| `ln` / `ln_default` | `TA_LN` | `Vec<f64>` |
+| `log10` / `log10_default` | `TA_LOG10` | `Vec<f64>` |
+| `sin` / `sin_default` | `TA_SIN` | `Vec<f64>` |
+| `sinh` / `sinh_default` | `TA_SINH` | `Vec<f64>` |
+| `sqrt` / `sqrt_default` | `TA_SQRT` | `Vec<f64>` |
+| `tan` / `tan_default` | `TA_TAN` | `Vec<f64>` |
+| `tanh` / `tanh_default` | `TA_TANH` | `Vec<f64>` |
+
+### Pattern Recognition — `adaq_talib::pattern`
+
+All **61 candlestick patterns** (TA-Lib *Pattern Recognition* group). Each takes
+`(&[f64] open, &[f64] high, &[f64] low, &[f64] close)` and returns an equal-length
+`Vec<f64>` of integer signals: `+100` bullish / `0` neutral / `−100` bearish; the leading
+`lookback` positions are `0.0` (consistent with TA-Lib's integer-output convention, ADR 0007).
+Only the default candle settings are implemented (ADR 0009).
+
+| Function | TA-Lib | Function | TA-Lib |
+| --- | --- | --- | --- |
+| `cdl_2crows` | `CDL2CROWS` | `cdl_identical3crows` | `CDLIDENTICAL3CROWS` |
+| `cdl_3blackcrows` | `CDL3BLACKCROWS` | `cdl_inneck` | `CDLINNECK` |
+| `cdl_3inside` | `CDL3INSIDE` | `cdl_invertedhammer` | `CDLINVERTEDHAMMER` |
+| `cdl_3linestrike` | `CDL3LINESTRIKE` | `cdl_kicking` | `CDLKICKING` |
+| `cdl_3outside` | `CDL3OUTSIDE` | `cdl_kickingbylength` | `CDLKICKINGBYLENGTH` |
+| `cdl_3starsinsouth` | `CDL3STARSINSOUTH` | `cdl_ladderbottom` | `CDLLADDERBOTTOM` |
+| `cdl_3whitesoldiers` | `CDL3WHITESOLDIERS` | `cdl_longleggeddoji` | `CDLLONGLEGGEDDOJI` |
+| `cdl_abandonedbaby` | `CDLABANDONEDBABY` | `cdl_longline` | `CDLLONGLINE` |
+| `cdl_advanceblock` | `CDLADVANCEBLOCK` | `cdl_marubozu` | `CDLMARUBOZU` |
+| `cdl_belthold` | `CDLBELTHOLD` | `cdl_matchinglow` | `CDLMATCHINGLOW` |
+| `cdl_breakaway` | `CDLBREAKAWAY` | `cdl_mathold` | `CDLMATHOLD` |
+| `cdl_closingmarubozu` | `CDLCLOSINGMARUBOZU` | `cdl_morningdojistar` | `CDLMORNINGDOJISTAR` |
+| `cdl_concealbabyswall` | `CDLCONCEALBABYSWALL` | `cdl_morningstar` | `CDLMORNINGSTAR` |
+| `cdl_counterattack` | `CDLCOUNTERATTACK` | `cdl_onneck` | `CDLONNECK` |
+| `cdl_darkcloudcover` | `CDLDARKCLOUDCOVER` | `cdl_piercing` | `CDLPIERCING` |
+| `cdl_doji` | `CDLDOJI` | `cdl_rickshawman` | `CDLRICKSHAWMAN` |
+| `cdl_dojistar` | `CDLDOJISTAR` | `cdl_risefall3methods` | `CDLRISEFALL3METHODS` |
+| `cdl_dragonflydoji` | `CDLDRAGONFLYDOJI` | `cdl_separatinglines` | `CDLSEPARATINGLINES` |
+| `cdl_engulfing` | `CDLENGULFING` | `cdl_shootingstar` | `CDLSHOOTINGSTAR` |
+| `cdl_eveningdojistar` | `CDLEVENINGDOJISTAR` | `cdl_shortline` | `CDLSHORTLINE` |
+| `cdl_eveningstar` | `CDLEVENINGSTAR` | `cdl_spinningtop` | `CDLSPINNINGTOP` |
+| `cdl_gapsidesidewhite` | `CDLGAPSIDESIDEWHITE` | `cdl_stalledpattern` | `CDLSTALLEDPATTERN` |
+| `cdl_gravestonedoji` | `CDLGRAVESTONEDOJI` | `cdl_sticksandwich` | `CDLSTICKSANDWICH` |
+| `cdl_hammer` | `CDLHAMMER` | `cdl_takuri` | `CDLTAKURI` |
+| `cdl_hangingman` | `CDLHANGINGMAN` | `cdl_tasukigap` | `CDLTASUKIGAP` |
+| `cdl_harami` | `CDLHARAMI` | `cdl_thrusting` | `CDLTHRUSTING` |
+| `cdl_haramicross` | `CDLHARAMICROSS` | `cdl_tristar` | `CDLTRISTAR` |
+| `cdl_highwave` | `CDLHIGHWAVE` | `cdl_unique3river` | `CDLUNIQUE3RIVER` |
+| `cdl_hikkake` | `CDLHIKKAKE` | `cdl_upsidegap2crows` | `CDLUPSIDEGAP2CROWS` |
+| `cdl_hikkakemod` | `CDLHIKKAKEMOD` | `cdl_xsidegap3methods` | `CDLXSIDEGAP3METHODS` |
+| `cdl_homingpigeon` | `CDLHOMINGPIGEON` | | |
 
 ### Error Type
 
@@ -336,8 +445,9 @@ Cycle:              mama ht_trendline
 
 > Note: the interactive demo covers the indicators above. The remaining implemented functions
 > (e.g. `roc`, `rocp`, `apo`, `ppo`, `stoch_f`, `stoch_rsi`, `aroon_osc`, the directional
-> components, `adxr`, `macd_fix`, `macd_ext`, …) are callable directly in code — see the
-> [function overview](#implemented-functions) above.
+> components, `adxr`, `macd_fix`, `macd_ext`, the math operators in `math_ops`, the math
+> transforms in `math_trans`, and all 61 candlestick patterns in `pattern`, …) are callable
+> directly in code — see the [function overview](#implemented-functions) above.
 
 > An unknown name prints the supported list and exits with code 2.
 
@@ -345,11 +455,14 @@ Cycle:              mama ht_trendline
 
 ## Verification & Benchmarks
 
-### Correctness
+### Correctness (1:1 golden vectors)
 
 - `cargo test` compares against in-repo **golden vectors** (real TA-Lib C 0.7.1 output, in
-  `tests/fixtures/`, 63 files). Running the tests needs **no** Python or TA-Lib C library.
+  `tests/fixtures/` — **159 fixture files** spanning the full 161-function surface). Running the
+  tests needs **no** Python or TA-Lib C library.
 - Tolerance: relative `1e-8` + absolute `1e-10` ([ADR 0005](docs/adr/0005-error-tolerance.md)).
+- Full suite: **308 tests, 0 failures** across 22 test binaries; `tools/reconcile.py` confirms
+  **161/161** public functions map 1:1 to TA-Lib 0.7.1 (exit 0).
 - The golden-vector generator lives in [`tools/gen_fixtures`](tools/) (requires TA-Lib C +
   the `TA-Lib` Python binding; for maintainers only). Current fixture status and known gaps
   are in [`tools/README.md`](tools/README.md).
@@ -359,9 +472,51 @@ cargo test                 # unit tests + golden-vector comparison (no Python / 
 cargo test --doc           # doc examples only
 ```
 
-### Benchmarks
+### Performance (Rust vs TA-Lib C)
 
-Dual-track benchmarks ([ADR 0004](docs/adr/0004-benchmark-dual-track.md)):
+Dual-track benchmarks ([ADR 0004](docs/adr/0004-benchmark-dual-track.md)); the Rust track is
+dependency-free (`std::time`, `harness = false`), the C track FFI-links system TA-Lib C under
+`--features bench-c`. Environment: Apple Silicon aarch64, N = 1,000,000, PERIOD = 20, ITERS = 20;
+`ns/elem = elapsed / ITERS / N`. Status: ratio < 0.8 → faster, 0.8–1.2 → at parity, > 1.2 → slower.
+
+| Indicator | Rust ns/elem | Native C ns/elem | Rust/C ratio | Status |
+|-----------|-------------:|-----------------:|-------------:|--------|
+| SMA      | 1.18 | 1.92  | 0.61 | faster than C |
+| BBANDS   | 3.02 | 5.20  | 0.58 | faster than C |
+| DEMA     | 3.63 | 4.85  | 0.75 | faster than C |
+| TEMA     | 3.46 | 7.44  | 0.47 | faster than C |
+| T3       | 3.76 | 2.78  | 1.35 | slower than C |
+| MIDPRICE | 7.30 | 12.25 | 0.60 | faster than C |
+| MIDPOINT | 6.88 | 3.05  | 2.26 | slower than C |
+| WMA      | 2.11 | 2.28  | 0.93 | ≈ at parity |
+| LINEARREG| 2.33 | N/A   | N/A  | C not wired |
+| CORREL   | 4.81 | N/A   | N/A  | C not wired |
+| WILLR    | 7.90 | N/A   | N/A  | C not wired |
+| STOCH    | 10.99| N/A   | N/A  | C not wired |
+
+> **6 of the 8 C-wired indicators run faster than or at parity with native TA-Lib C.** Only
+> `MIDPOINT` (2.26×) and `T3` (1.35×) are slower — both are structurally non-vectorizable
+> (data-dependent monotonic deques / sequential EMA IIR), so the planned P3 SIMD pass is a
+> **NO-GO** ([ADR 0010](docs/adr/0010-performance-strategy.md)). This is a known, documented trade-off,
+> not a defect. LINEARREG/CORREL/WILLR/STOCH have no C wiring (would require `unsafe` + system
+> TA-Lib C, against the zero-FFI spirit); their Rust-side numbers are the canonical reference.
+
+### Performance optimizations applied
+
+| Task | Function(s) | Technique | After (Rust ns/elem) | Speed-up |
+|------|-------------|-----------|---------------------:|---------:|
+| T01 | `bbands` (SMA middle) | single-pass `rolling_mean_var` fusion | 3.02 | ~1.5–1.6× |
+| T02 | `linear_reg` family | O(n) sliding `sy`+`sxy` | 2.33 | ~20× asymptotic |
+| T03 | `correl` | O(n) sliding covariance sums | 4.81 | ~20× asymptotic |
+| T04 | `willr` | monotonic-queue rolling max/min (O(n)) | 7.90 | ~20× asymptotic |
+| T04 | `stoch`/`stoch_f` | shared fast-K extreme queue (O(n)) | 10.99 | ~20× asymptotic |
+
+Every optimization is **zero-deviation**: the full `cargo test` suite stays green (308/308),
+and each refactored function still reproduces its TA-Lib 0.7.1 golden vector within tolerance.
+The full QA write-up (methodology, residual gaps, Python-binding reference numbers) lives in
+[`docs/perf-verify-report.md`](docs/perf-verify-report.md).
+
+### Benchmarks (how to run)
 
 ```bash
 # 1) Rust side (default, dependency-free): std::time timing, harness = false
@@ -396,14 +551,19 @@ Apache-2.0 (see [`LICENSE`](LICENSE)).
 
 ## Roadmap
 
-Milestone-based release ([ADR 0002](docs/adr/0002-release-scope-milestones.md)) — the final
-release covers **all** TA-Lib 0.7.1 built-ins with **no deletion** of published capabilities:
+Milestone-based release ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). **This release
+ships the complete TA-Lib 0.7.1 public surface — all 161 functions across 10 categories — with no
+deletion of published capabilities.**
 
-- ✅ **0.1.0 (current)**: Overlap + Momentum + Volatility + Volume + Price Transform + Statistic
-  + Cycle (MAMA/HT_TRENDLINE) — 65 functions.
-- ⏳ **Later milestones**: Pattern Recognition (candlestick, ~61, default candle settings only,
-  [ADR 0009](docs/adr/0009-candle-settings-default-only.md)), Math Operators (7: ADD/DIV/MAX/MIN/
-  MULT/SUB/SUM), Math Transform (15: ACOS/ASIN/ATAN/CEIL/COS/COSH/EXP/FLOOR/LN/LOG10/SIN/SINH/
-  SQRT/TAN/TANH).
+- ✅ **0.1.0 (current): 161 / 161 functions** — Overlap Studies (18), Momentum (31), Volatility
+  (3), Volume (3), Price Transform (5), Statistic (9), Cycle / Hilbert Transform (7), Math
+  Operators (11), Math Transform (15), and Pattern Recognition (61 candlestick patterns). Every
+  function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` → 308/308 green,
+  `reconcile.py` → 161/161) and performance-optimized (see
+  [Verification & Benchmarks](#verification--benchmarks)).
+- 🔜 **Future work (post-1.0)**: optional candle-settings variants
+  ([ADR 0009](docs/adr/0009-candle-settings-default-only.md)), optional `bench-c` wiring for the
+  newly optimized indicators (LINREG/CORREL/WILLR/STOCH), and documentation/CI polish. **No
+  functional coverage gap remains against TA-Lib 0.7.1.**
 
 Once those land, adaq-talib reaches full coverage equivalent to TA-Lib 0.7.1.

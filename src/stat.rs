@@ -78,34 +78,69 @@ pub fn var_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// - `mode = 3`：LINEARREG_SLOPE —— 斜率。
 /// - `mode = 4`：TSF —— 回归线在窗口右端再外推一步（位置 `period`）的预测值。
 fn linreg_core(values: &[f64], period: usize, mode: u8) -> Vec<f64> {
+    let mut out = vec![f64::NAN; values.len()];
+    linreg_core_with_output(values, period, mode, &mut out);
+    out
+}
+
+/// 线性回归族内核（最小二乘，O(n) 滑动递推，P2-6，ADR 0010）。
+///
+/// Shared linear-regression core (least squares, O(n) sliding recurrence, P2-6, ADR 0010).
+///
+/// 维护滑动窗口和 `sy`（= 朴素窗口求和，`sy[i]=sy[i-1]+x[i]-x[i-period]`）与加权累加
+/// `sxy`，以闭式递推 `sxy[i]=sxy[i-1]+period·x[i]-sy[i]`（见 `docs/perf-final-plan.md` 附录 A）
+/// 将每窗口 O(period) 降为 O(1)。首个窗口沿用朴素求和作种子，之后 `slope`/`intercept` 的
+/// 计算与历史逐项对齐，数值同黄金向量一致（ADR 0005）。
+///
+/// Maintains the sliding window sum `sy` (`sy[i]=sy[i-1]+x[i]-x[i-period]`) and weighted
+/// accumulator `sxy` with the closed-form recurrence `sxy[i]=sxy[i-1]+period·x[i]-sy[i]`
+/// (see Appendix A of `docs/perf-final-plan.md`), reducing each window from O(period) to O(1).
+/// The first window uses the naïve sum as a seed; the `slope`/`intercept` math stays aligned
+/// with the historical impl (1:1 with the golden vector, ADR 0005).
+///
+/// `mode` 取值同 [`linreg_core`]。/ `mode` is the same as in [`linreg_core`].
+fn linreg_core_with_output(values: &[f64], period: usize, mode: u8, out: &mut [f64]) {
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
     if n < period {
-        return out;
+        return;
     }
     let p = period as f64;
     let sx = (period * (period - 1)) as f64 / 2.0; // Σ k, k=0..period-1
     let sxx = (period * (period - 1) * (2 * period - 1)) as f64 / 6.0; // Σ k^2
     let denom = p * sxx - sx * sx;
-    for i in (period - 1)..n {
-        let mut sy = 0.0_f64;
-        let mut sxy = 0.0_f64;
-        for k in 0..period {
-            let x = values[i - (period - 1) + k];
-            sy += x;
-            sxy += (k as f64) * x;
-        }
+    // 种子：首个窗口（i = period-1）的朴素窗口和 `sy` 与朴素加权累加 `sxy`。
+    // Seed: naïve window sum `sy` and naïve weighted accumulator `sxy` of the first window.
+    let mut sy = 0.0_f64;
+    let mut sxy = 0.0_f64;
+    for k in 0..period {
+        let x = values[k];
+        sy += x;
+        sxy += (k as f64) * x;
+    }
+    let slope = (p * sxy - sx * sy) / denom;
+    let intercept = (sy - slope * sx) / p;
+    out[period - 1] = match mode {
+        1 => slope.atan() * 180.0 / std::f64::consts::PI, // ANGLE (degrees)
+        2 => intercept,                                   // INTERCEPT
+        3 => slope,                                       // SLOPE
+        4 => intercept + slope * p,                       // TSF (project one step beyond)
+        _ => intercept + slope * (p - 1.0),               // LINEARREG (right edge)
+    };
+    for i in period..n {
+        // 滑动递推（与 WMA 同理）：sxy[i]=sxy[i-1]+period·x[i]-sy[i]，sy[i]=sy[i-1]+x[i]-x[i-period]。
+        // Sliding recurrence: sxy[i]=sxy[i-1]+period·x[i]-sy[i], sy[i]=sy[i-1]+x[i]-x[i-period].
+        sy = sy + values[i] - values[i - period];
+        sxy = sxy + (period as f64) * values[i] - sy;
         let slope = (p * sxy - sx * sy) / denom;
         let intercept = (sy - slope * sx) / p;
         out[i] = match mode {
-            1 => slope.atan() * 180.0 / std::f64::consts::PI, // ANGLE (degrees)
-            2 => intercept,                                   // INTERCEPT
-            3 => slope,                                       // SLOPE
-            4 => intercept + slope * p,                       // TSF (project one step beyond)
-            _ => intercept + slope * (p - 1.0),               // LINEARREG (right edge)
+            1 => slope.atan() * 180.0 / std::f64::consts::PI,
+            2 => intercept,
+            3 => slope,
+            4 => intercept + slope * p,
+            _ => intercept + slope * (p - 1.0),
         };
     }
-    out
 }
 
 /// 线性回归（Linear Regression，TA-Lib `TA_LINEARREG`）。
@@ -168,6 +203,91 @@ pub fn tsf(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
 /// `tsf` 便捷版本，默认周期 14。
 pub fn tsf_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
     tsf(values, LINEARREG_PERIOD)
+}
+
+/// 线性回归，零拷贝写入 `out`（与 `values` 等长）。见 [`linear_reg`]。
+/// Linear Regression, written zero-copy into `out`. See [`linear_reg`].
+pub fn linear_reg_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "linear_reg_with_output: out length must equal values length".into(),
+        ));
+    }
+    linreg_core_with_output(values, time_period, 0, out);
+    Ok(())
+}
+
+/// 线性回归角度，零拷贝写入 `out`。见 [`linear_reg_angle`]。
+/// Linear Regression Angle, written zero-copy into `out`. See [`linear_reg_angle`].
+pub fn linear_reg_angle_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "linear_reg_angle_with_output: out length must equal values length".into(),
+        ));
+    }
+    linreg_core_with_output(values, time_period, 1, out);
+    Ok(())
+}
+
+/// 线性回归截距，零拷贝写入 `out`。见 [`linear_reg_intercept`]。
+/// Linear Regression Intercept, written zero-copy into `out`. See [`linear_reg_intercept`].
+pub fn linear_reg_intercept_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "linear_reg_intercept_with_output: out length must equal values length".into(),
+        ));
+    }
+    linreg_core_with_output(values, time_period, 2, out);
+    Ok(())
+}
+
+/// 线性回归斜率，零拷贝写入 `out`。见 [`linear_reg_slope`]。
+/// Linear Regression Slope, written zero-copy into `out`. See [`linear_reg_slope`].
+pub fn linear_reg_slope_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "linear_reg_slope_with_output: out length must equal values length".into(),
+        ));
+    }
+    linreg_core_with_output(values, time_period, 3, out);
+    Ok(())
+}
+
+/// 时间序列预测，零拷贝写入 `out`。见 [`tsf`]。
+/// Time Series Forecast, written zero-copy into `out`. See [`tsf`].
+pub fn tsf_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "tsf_with_output: out length must equal values length".into(),
+        ));
+    }
+    linreg_core_with_output(values, time_period, 4, out);
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -290,28 +410,63 @@ fn beta_core(real0: &[f64], real1: &[f64], period: usize) -> Vec<f64> {
 /// 皮尔逊相关系数内核（TA-Lib `TA_CORREL`，总体口径，原始价格）。
 /// Pearson correlation kernel (population basis, raw prices).
 fn correl_core(real0: &[f64], real1: &[f64], period: usize) -> Vec<f64> {
+    let mut out = vec![f64::NAN; real0.len()];
+    correl_core_with_output(real0, real1, period, &mut out);
+    out
+}
+
+/// 皮尔逊相关系数内核（O(n) 滑动，P2-6，ADR 0010）。
+///
+/// Pearson correlation kernel (O(n) sliding, P2-6, ADR 0010).
+///
+/// 维护滚动 `s0`/`s1`（窗口和，= `rolling_sum`）、`s00`/`s11`（滚动平方和）、`s01`（滚动
+/// 叉积），均按 O(1) 滑动递推（与 `rolling_var` 同构），消除每窗口 `period` 次重算。
+/// 首个窗口沿用朴素求和作种子，`cov`/`v0`/`v1` 计算与历史逐项对齐，数值同黄金向量一致
+/// （ADR 0005）。
+///
+/// Maintains rolling `s0`/`s1` (window sums = `rolling_sum`), `s00`/`s11` (rolling
+/// sum-of-squares), `s01` (rolling cross-product), all slid in O(1) (isomorphic to
+/// `rolling_var`), eliminating the per-window `period` recompute. The first window uses the
+/// naïve sum as a seed; the `cov`/`v0`/`v1` math stays aligned with the historical impl
+/// (1:1 with the golden vector, ADR 0005).
+fn correl_core_with_output(real0: &[f64], real1: &[f64], period: usize, out: &mut [f64]) {
     let n = real0.len();
-    let mut out = vec![f64::NAN; n];
     if n < period {
-        return out;
+        return;
     }
     let p = period as f64;
-    // CORREL 的首个有效点落在索引 `period-1`（lookback = period-1）。
-    for i in (period - 1)..n {
-        let mut s0 = 0.0_f64;
-        let mut s1 = 0.0_f64;
-        let mut s00 = 0.0_f64;
-        let mut s11 = 0.0_f64;
-        let mut s01 = 0.0_f64;
-        for k in 0..period {
-            let a = real0[i - k];
-            let b = real1[i - k];
-            s0 += a;
-            s1 += b;
-            s00 += a * a;
-            s11 += b * b;
-            s01 += a * b;
-        }
+    // 种子：首个窗口（i = period-1）的朴素求和（窗口 = [i-period+1 .. i]）。
+    // Seed: naïve sums of the first window (i = period-1, window = [i-period+1 .. i]).
+    let mut s0 = 0.0_f64;
+    let mut s1 = 0.0_f64;
+    let mut s00 = 0.0_f64;
+    let mut s11 = 0.0_f64;
+    let mut s01 = 0.0_f64;
+    for k in 0..period {
+        let a = real0[period - 1 - k];
+        let b = real1[period - 1 - k];
+        s0 += a;
+        s1 += b;
+        s00 += a * a;
+        s11 += b * b;
+        s01 += a * b;
+    }
+    let cov = (s01 - s0 * s1 / p) / p;
+    let v0 = (s00 - s0 * s0 / p) / p;
+    let v1 = (s11 - s1 * s1 / p) / p;
+    out[period - 1] = if ta_is_zero(v0) || ta_is_zero(v1) {
+        0.0
+    } else {
+        cov / (v0 * v1).sqrt()
+    };
+    for i in period..n {
+        // 滚动滑动：窗口右移一格，加入右端新元素、剔除左端出窗元素。
+        // Slide: the window shifts right by one; add the new right element, drop the left one.
+        s0 = s0 + real0[i] - real0[i - period];
+        s1 = s1 + real1[i] - real1[i - period];
+        s00 = s00 + real0[i] * real0[i] - real0[i - period] * real0[i - period];
+        s11 = s11 + real1[i] * real1[i] - real1[i - period] * real1[i - period];
+        s01 = s01 + real0[i] * real1[i] - real0[i - period] * real1[i - period];
         let cov = (s01 - s0 * s1 / p) / p;
         let v0 = (s00 - s0 * s0 / p) / p;
         let v1 = (s11 - s1 * s1 / p) / p;
@@ -321,7 +476,6 @@ fn correl_core(real0: &[f64], real1: &[f64], period: usize) -> Vec<f64> {
             cov / (v0 * v1).sqrt()
         };
     }
-    out
 }
 
 /// 贝塔系数（Beta，TA-Lib `TA_BETA`）。
@@ -359,6 +513,25 @@ pub fn correl(
     check_period(time_period)?;
     check_eq_len(&[real0, real1], "correl")?;
     Ok(correl_core(real0, real1, time_period))
+}
+
+/// 皮尔逊相关系数，零拷贝写入 `out`（与 `real0` 等长）。见 [`correl`]。
+/// Pearson Correlation Coefficient, written zero-copy into `out`. See [`correl`].
+pub fn correl_with_output(
+    real0: &[f64],
+    real1: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[real0, real1], "correl")?;
+    if out.len() != real0.len() {
+        return Err(TaError::BadParam(
+            "correl_with_output: out length must equal real0 length".into(),
+        ));
+    }
+    correl_core_with_output(real0, real1, time_period, out);
+    Ok(())
 }
 
 /// `correl` 便捷版本，默认周期 5。/ `correl` with default period (5).
@@ -434,5 +607,159 @@ mod tests {
             beta(&[1.0, 2.0], &[1.0], 1),
             Err(TaError::BadParam(_))
         ));
+    }
+
+    /// 朴素 O(n·period) 线性回归（仅对照滑动实现，非热路径）。
+    /// Naïve O(n·period) linear regression — reference for the sliding impl.
+    fn linreg_core_naive(values: &[f64], period: usize, mode: u8) -> Vec<f64> {
+        let n = values.len();
+        let mut out = vec![f64::NAN; n];
+        if n < period {
+            return out;
+        }
+        let p = period as f64;
+        let sx = (period * (period - 1)) as f64 / 2.0;
+        let sxx = (period * (period - 1) * (2 * period - 1)) as f64 / 6.0;
+        let denom = p * sxx - sx * sx;
+        for i in (period - 1)..n {
+            let mut sy = 0.0_f64;
+            let mut sxy = 0.0_f64;
+            for k in 0..period {
+                let x = values[i - (period - 1) + k];
+                sy += x;
+                sxy += (k as f64) * x;
+            }
+            let slope = (p * sxy - sx * sy) / denom;
+            let intercept = (sy - slope * sx) / p;
+            out[i] = match mode {
+                1 => slope.atan() * 180.0 / std::f64::consts::PI,
+                2 => intercept,
+                3 => slope,
+                4 => intercept + slope * p,
+                _ => intercept + slope * (p - 1.0),
+            };
+        }
+        out
+    }
+
+    /// 朴素 O(n·period) 相关系数（仅对照滑动实现，非热路径）。
+    /// Naïve O(n·period) correlation — reference for the sliding impl.
+    fn correl_core_naive(real0: &[f64], real1: &[f64], period: usize) -> Vec<f64> {
+        let n = real0.len();
+        let mut out = vec![f64::NAN; n];
+        if n < period {
+            return out;
+        }
+        let p = period as f64;
+        for i in (period - 1)..n {
+            let mut s0 = 0.0_f64;
+            let mut s1 = 0.0_f64;
+            let mut s00 = 0.0_f64;
+            let mut s11 = 0.0_f64;
+            let mut s01 = 0.0_f64;
+            for k in 0..period {
+                let a = real0[i - k];
+                let b = real1[i - k];
+                s0 += a;
+                s1 += b;
+                s00 += a * a;
+                s11 += b * b;
+                s01 += a * b;
+            }
+            let cov = (s01 - s0 * s1 / p) / p;
+            let v0 = (s00 - s0 * s0 / p) / p;
+            let v1 = (s11 - s1 * s1 / p) / p;
+            out[i] = if ta_is_zero(v0) || ta_is_zero(v1) {
+                0.0
+            } else {
+                cov / (v0 * v1).sqrt()
+            };
+        }
+        out
+    }
+
+    /// 滑动递推线性回归必须与朴素扫描逐项相等（含不同窗口、序列形态、5 个 mode）。
+    /// The sliding-recurrence linear regression must equal the naïve scan element-wise
+    /// (across windows, series shapes, and all 5 modes).
+    #[test]
+    fn linreg_core_matches_naive() {
+        let close = |a: f64, b: f64| -> bool {
+            if a.is_nan() && b.is_nan() {
+                return true;
+            }
+            (a - b).abs() <= 1e-9
+                || (a.is_finite() && b.is_finite() && (a - b).abs() <= 1e-6 * a.abs().max(b.abs()))
+        };
+        let mut x: u64 = 0x1234_5678_9abc_def0;
+        let mut lcg = || {
+            x = x
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((x >> 11) as f64 / (1u64 << 53) as f64) * 100.0 - 50.0
+        };
+        for &n in &[0usize, 1, 2, 5, 20, 64, 137, 500] {
+            for &p in &[1usize, 2, 3, 7, 20, 30, 64] {
+                if n < p || p < 2 {
+                    // period == 1 是退化情形（denom=0，数学未定义，TA-Lib 要求 period>=2，
+                    // 黄金向量从不使用）；朴素与滑动实现在此产生不可比的 NaN/±inf，跳过。
+                    // period == 1 is degenerate (denom = 0, undefined; TA-Lib requires period>=2
+                    // and golden vectors never use it); skip the comparison.
+                    continue;
+                }
+                let v: Vec<f64> = (0..n).map(|_| lcg()).collect();
+                for mode in 0..5u8 {
+                    let fast = linreg_core(&v, p, mode);
+                    let naive = linreg_core_naive(&v, p, mode);
+                    for i in 0..n {
+                        assert!(
+                            close(fast[i], naive[i]),
+                            "linreg mismatch n={n} p={p} mode={mode} i={i}: {} vs {}",
+                            fast[i],
+                            naive[i]
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// 滑动递推相关系数必须与朴素扫描逐项相等（含不同窗口、序列形态）。
+    /// The sliding-recurrence correlation must equal the naïve scan element-wise
+    /// (across windows and series shapes).
+    #[test]
+    fn correl_core_matches_naive() {
+        let close = |a: f64, b: f64| -> bool {
+            if a.is_nan() && b.is_nan() {
+                return true;
+            }
+            (a - b).abs() <= 1e-9
+                || (a.is_finite() && b.is_finite() && (a - b).abs() <= 1e-6 * a.abs().max(b.abs()))
+        };
+        let mut x: u64 = 0x1357_9bdf_2468_ace0;
+        let mut lcg = || {
+            x = x
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((x >> 11) as f64 / (1u64 << 53) as f64) * 100.0 - 50.0
+        };
+        for &n in &[0usize, 1, 2, 5, 20, 64, 137, 500] {
+            for &p in &[1usize, 2, 3, 7, 20, 30, 64] {
+                if n < p {
+                    continue;
+                }
+                let a: Vec<f64> = (0..n).map(|_| lcg()).collect();
+                let b: Vec<f64> = (0..n).map(|_| lcg()).collect();
+                let fast = correl_core(&a, &b, p);
+                let naive = correl_core_naive(&a, &b, p);
+                for i in 0..n {
+                    assert!(
+                        close(fast[i], naive[i]),
+                        "correl mismatch n={n} p={p} i={i}: {} vs {}",
+                        fast[i],
+                        naive[i]
+                    );
+                }
+            }
+        }
     }
 }

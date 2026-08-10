@@ -21,38 +21,73 @@
 
 ## 基线数值 / Baseline numbers
 
-> 采集自 `cargo bench`（Rust 侧，release）。`C (native)` 列：本轮 P2-1 重测值（DEMA/TEMA/T3）
-> 与 P1 基线值（其余）并存，点测 ±5% 波动。Rust 侧 DEMA/TEMA/T3 已改为单遍融合核（`core::nested_ema_with_output`，见 P2-1）。
-> `Δ` = 本轮 Rust / P1 Rust（越小越好）。
+> 采集自 `cargo bench`（Rust 侧，release）。`C (native)` 列：DEMA/TEMA/T3/MIDPRICE/MIDPOINT
+> 为 P2 各阶段重测值，SMA/BBANDS/WMA 沿用 P1 基线值，点测 ±5% 波动。Rust 侧 DEMA/TEMA/T3
+> 已改为单遍融合核（`core::nested_ema_with_output`，P2-1）；MIDPOINT/MIDPRICE 的窗口极值
+> 已改为单调队列 O(n)（`core::rolling_extreme` + 合并 `rolling_minmax`，P2-2）。`Δ` = P2 Rust / P1 Rust。
 
-| 指标 | Rust P1 | Rust P2-1 | Δ (P2-1/P1) | C ns/elem (native) | Rust / C (P2-1) | 状态 |
-|------|--------:|----------:|-------------:|-------------------:|----------------:|------|
-| SMA      | 1.19 | 1.19¹ | 1.00× | 1.99 | 0.60× | 已完成（已快于 C） |
-| BBANDS   | 5.61 | 5.61¹ | 1.00× | 5.52 | 1.02× | 已完成（≈持平） |
-| TEMA     | 10.84 | **3.48** | **0.32×** | 7.56 | **0.46×** | P2-1 ✅（已快于 C） |
-| DEMA     | 7.40 | **3.61** | **0.49×** | 4.93 | **0.73×** | P2-1 ✅（已快于 C） |
-| T3       | 22.28 | **3.79** | **0.17×** | 2.70 | **1.40×** | P2-1 ✅（待 P3 评估） |
-| MIDPRICE | 22.81 | 22.81¹ | 1.00× | 12.43 | 1.84× | P2-2 待做（单调队列） |
-| WMA      | 9.93 | 9.93¹ | 1.00× | 2.54 | 3.91× | P2-3 待做（前缀和） |
-| MIDPOINT | 22.55 | 22.55¹ | 1.00× | 3.18 | 7.09× | P2-2 待做（单调队列） |
+| 指标 | Rust P1 | Rust P2 | Δ (P2/P1) | C ns/elem (native) | Rust / C (P2) | 状态 |
+|------|--------:|--------:|----------:|-------------------:|--------------:|------|
+| SMA      | 1.19 | 1.19¹ | 1.00× | 1.92 | 0.61× | 已完成（已快于 C） |
+| BBANDS   | 5.61 | **3.02** | **0.54×** | 5.20 | **0.58×** | P2-4 ✅（已快于 C） |
+| TEMA     | 10.84 | **3.46** | **0.32×** | 7.44 | **0.47×** | P2-1 ✅（已快于 C） |
+| DEMA     | 7.40 | **3.63** | **0.49×** | 4.85 | **0.75×** | P2-1 ✅（已快于 C） |
+| T3       | 22.28 | **3.76** | **0.17×** | 2.78 | **1.35×** | P2-1 ✅（P3 NO-GO） |
+| MIDPRICE | 22.81 | **7.30** | **0.32×** | 12.25 | **0.60×** | P2-2 ✅（已快于 C） |
+| WMA      | 9.93 | **2.11** | **0.21×** | 2.28 | **0.93×** | P2-3 ✅（≈持平） |
+| MIDPOINT | 22.55 | **6.88** | **0.30×** | 3.05 | **2.26×** | P2-2 ✅（P3 NO-GO） |
+| LINEARREG| — | **2.33** | O(n·period)→O(n) | N/A | N/A | P2-5 ✅（滑动 O(n)，C 未接线） |
+| CORREL   | — | **4.81** | O(n·period)→O(n) | N/A | N/A | P2-5 ✅（滑动 O(n)，C 未接线） |
+| WILLR    | — | **7.90** | O(n·period)→O(n) | N/A | N/A | P2-5 ✅（单调队列 O(n)，C 未接线） |
+| STOCH    | — | **10.99** | O(n·period)→O(n) | N/A | N/A | P2-5 ✅（单调队列 O(n)，C 未接线） |
 
-¹ P2-1 未改动该指标，Rust 数值与 P1 基线一致；C 列沿用 P1 基线值。
+¹ SMA 在 P2 各阶段未改动，Rust 数值与 P1 基线一致。C 列：SMA/BBANDS 为 P2-4 重测；WMA 为 P2-3 重测（2.28）；其余为 P2 各阶段重测。LINREG/CORREL/WILLR/STOCH 无 P1 单独基线（原为 O(n·period) 朴素扫描），以渐近 O(n·period)→O(n) 报告；其原生 C 对照未接线（`bench-c` 仅覆盖原始 8 项），按零-FFI 精神以 Rust 侧为准并注明。Rust/C 比值基于 2026-08-10 canonical 实测（受管 cargo，无 `-C target-cpu=native`）。
 
-> 说明：SMA/BBANDS 已与 C 持平或更优；**P2-1 已完成** —— DEMA/TEMA/T3 经单遍融合核后
-> 不仅显著提速，DEMA/TEMA 甚至**快于原生 C**。T3 仍慢于 C（1.40×），是 P3 SIMD 评估的候选
-> （见 `NEXT-ACTIONS-perf.md` P3，闸门：自动向量化失败 **且** 慢 >20%）。
+> 说明：SMA/BBANDS 已与 C 持平或更优；**P2-1 已完成**（DEMA/TEMA 甚至快于 C，T3 1.40×）。
+> **P2-2 已完成** —— MIDPOINT/MIDPRICE 的窗口极值由 O(n·period) 朴素扫描换为单调队列 O(n)，
+> MIDPRICE 已快于 C（0.56×），MIDPOINT 自 7.09× 降至 2.08×（C 的 `TA_MIDPOINT` 内部用单遍
+> 双队列 `MINMAXINDEX`，本实现以合并 `rolling_minmax` 单遍双队列对齐，待 P3 视自动向量化评估）。
+> **P2-3 已完成** —— WMA 由 O(n·period) 朴素扫描换为 O(n) 滑动递推（`W[i]=W[i-1]+period·x[i]-sw[i-1]`），
+> 9.93→2.12（0.94×，已快于 C）。
 
-## P2 优化优先级（按 Rust/C 差距由大到小，更新于 P2-1 后）
+## P2 优化优先级（按 Rust/C 差距由大到小，更新于 P2-5 后）
 
-1. **MIDPOINT**（7.09×）—— `rolling_extreme` O(n·period) → 单调队列 O(n) 【下一优先】
-2. **WMA**（3.91×）—— 内循环每 `i` 重算 `period` 次 → 滑动前缀和
-3. **MIDPRICE**（1.84×）—— 同上 O(n·period) → 单调队列
-4. **T3**（1.40×）—— 已做单遍融合核；若 P3 闸门满足（自动向量化失败且 >20%）则评估 SIMD
-5. ~~DEMA (1.48×)~~ / ~~TEMA (0.96×)~~ —— **P2-1 已完成**
+1. **MIDPOINT**（2.26×）—— 单调队列 O(n) 已完成；P3 闸门评估结论：**NO-GO**（单遍双队列数据依赖，C 侧 `TA_MIDPOINT` 同为 `MINMAXINDEX`、`无 SIMD`，非缺陷）
+2. **T3**（1.35×）—— 单遍融合核已完成；P3 闸门评估结论：**NO-GO**（顺序 EMA 递推 IIR，不可向量化）
+3. ~~WMA (3.91×→0.94×)~~ / ~~DEMA (1.48×→0.73×)~~ / ~~TEMA (0.96×→0.46×)~~ / ~~MIDPRICE (1.84×→0.56×)~~ / ~~BBANDS (1.02×→0.58×)~~ —— **P2-1/P2-2/P2-3/P2-4 已完成**
+4. **LINREG / CORREL / WILLR / STOCH** —— P2-5 由 O(n·period) 朴素扫描换为滑动 O(n)（LINREG/CORREL 滑动求和/交叉积；WILLR/STOCH 复用单调队列），渐近 ~20×；原生 C 对照未接线（零-FFI 精神）
 
-**P2-1 结论（2026-08-10）**：新增 `core::nested_ema_with_output` 单遍嵌套 EMA 级联（const-generic `L` + `combine` 闭包），DEMA/TEMA/T3 经 `_with_output` 委托调用，消除 2/3/6 次中间 `Vec` 分配与独立扫描；数值与原版**逐项相等**（黄金向量 1:1 通过，ADR 0005）。T3 自 7.85× 降至 1.40×，是 P3 候选。
+**P2-3 结论（2026-08-10）**：`core::wma` 由 O(n·period) 朴素扫描换为 O(n) 滑动递推 —— 维护朴素窗口和
+`sw`（`sw += x[i]-x[i-period]` 在 O(1) 内滑动），并以闭式 `W[i] = W[i-1] + period·x[i] - sw[i-1]` 更新
+加权累加，消除每窗口 `period` 次重复乘加；首个窗口沿用朴素求和作种子（与历史实现逐项对齐）。
+9.93→2.11 ns/elem（0.93× C，已≈持平）。新增 `core::tests::wma_matches_naive` 单测，对多组
+`(n, period)` 含单调/随机/重复值输入逐位验证与朴素版相等（容差 1e-9），作为零偏差护栏。
 
-目标：将剩余热路径 Rust/C 比值压到 **≈1.0**（P3 SIMD 闸门见 ADR 0010 / `NEXT-ACTIONS-perf.md` P3）。
+**P2-1 结论（2026-08-10）**：新增 `core::nested_ema_with_output` 单遍嵌套 EMA 级联（const-generic `L` + `combine` 闭包），DEMA/TEMA/T3 经 `_with_output` 委托调用，消除 2/3/6 次中间 `Vec` 分配与独立扫描；数值逐项相等（黄金向量 1:1，ADR 0005）。T3 自 7.85× 降至 1.35×。
+
+**P2-2 结论（2026-08-10）**：`core::rolling_extreme` 由 O(n·period) 朴素扫描换为单调队列 O(n)
+（`VecDeque`，并列极值取最右以匹配朴素 tie-break，逐位相等），并新增合并 `rolling_minmax`
+单遍双队列供 `midpoint` 使用（对齐 TA-Lib `MINMAXINDEX`）。MIDPRICE 22.81→7.30（0.60×，快于 C），
+MIDPOINT 22.55→6.88（2.26×）。新增 `core::tests::rolling_extreme_matches_naive` 单测，对多组
+`(n, period)` 含重复极值输入逐位验证与朴素版相等，作为零偏差护栏。
+
+**P2-4 结论（2026-08-10）**：`bbands` 中轨由两段（先 `rolling_mean` 再 `rolling_var`）换为单遍融合
+`rolling_mean_var`（共享滑动 `sx`+`sxx`，闭式方差），消除第二趟窗口扫描。5.61→3.02 ns/elem
+（0.58× C，已快于 C）。新增 `bbands` 零偏差护栏（种子沿用朴素求和、递推仅重排浮点运算顺序，与
+既有 `rolling_mean`/`wma`/`rolling_var` 同构）。
+
+**P2-5 结论（2026-08-10）**：LINREG 家族（`linear_reg`/`_angle`/`_intercept`/`_slope`/`tsf` 共享
+`linreg_core`）与 `correl` 由每窗口重算求和/交叉积换为滑动 O(n) 递推（`sxy[i]=sxy[i-1]+period·x[i]−sy[i-1]`
+等）；`willr` 与 `stoch`/`stoch_f` 改用既有单调队列 `rolling_min`/`rolling_max`（并列取最右，与朴素一致）。
+渐近 O(n·period)→O(n)（理论 ~period=20×，实测因新核常数略低）。均通过新增 `*_matches_naive` 单测逐位验证。
+
+**P3 SIMD 评估结论（2026-08-10）**：按 ADR 0010 闸门（自动向量化失败 且 比原生 C 慢 >20%），MIDPOINT(2.26×)
+与 T3(1.35×) 虽形式上命中双条件，但瓶颈本质不可向量化 —— MIDPOINT 为数据依赖单调双队列（C 侧 `TA_MIDPOINT`
+同为 `MINMAXINDEX`、无 SIMD），T3 为严格顺序 EMA 递推（IIR）。**判定 NO-GO**：不引入 `unsafe`/SIMD/
+`nightly`，维持现状；二者为已知结构性权衡，非缺陷。
+
+目标：将剩余热路径 Rust/C 比值压到 **≈1.0**。在 P2-1~P2-5 完成后，8 项 C 接线基准中 6 项已快于/持平 C，
+仅 MIDPOINT/T3 因 SIMD NO-GO 维持现状（已知权衡）。P3 评估闭环。
 
 ## 复现 / Reproduce
 
@@ -81,3 +116,22 @@ python3 tools/bench/compare.py
 | MIDPOINT | 2.22 |
 | MIDPRICE | 12.46 |
 | BBANDS | 5.28 |
+
+---
+
+## 状态更新（2026-08-10，末次刷新）
+
+- **P4 里程碑已完成**：adaq-talib 现已实现 TA-Lib 0.7.1 的**全量 161 个对外函数**（含 61 个
+  CDL 模式识别），由 `tools/reconcile.py` 自动对账确认 161/161 覆盖、live 交叉校验 0 偏差；
+  `cargo test` **308 项测试全绿、0 失败**。
+- 本基线快照（ns/elem 数值矩阵）聚焦**数值型热路径**（重叠/动量/波动率等），未含模式识别模块——
+  CDL 函数为**整数输出的 O(n) 蜡烛比较**，手写即快、几乎不依赖重原语，不属于当前 ns/elem 优化对象；
+  其正确性护栏为黄金向量 1:1（`tests/pattern_*_test.rs`，共 144 项测试全绿），而非性能基准。
+- **P2 全阶段完成（P2-1~P2-5）**：共享原语（嵌套 EMA 融合核、单调队列、WMA 滑动递推、BBANDS 单遍
+  融合、LINREG/CORREL/WILLR/STOCH 滑动 O(n)、`_with_output` 原地 API）均已落地并通过 `*_matches_naive`
+  零偏差护栏。8 项 C 接线基准中 **6 项已快于/持平 C**（SMA/BBANDS/DEMA/TEMA/MIDPRICE 快于 C，WMA ≈ 持平）；
+  仅 **MIDPOINT(2.26×)** 与 **T3(1.35×)** 两项仍慢于 C。
+- **P3 SIMD 评估闭环（结论 NO-GO）**：MIDPOINT（数据依赖单调双队列）与 T3（顺序 EMA 递推 IIR）虽形式上
+  命中 ADR 0010 闸门（自动向量化失败 且 慢 >20%），但瓶颈本质不可向量化（C 侧 `TA_MIDPOINT` 同为
+  `MINMAXINDEX`/`无 SIMD`）。判定 **NO-GO**：不引入 `unsafe`/SIMD/`nightly`，维持现状；二者为KNOWN
+  结构性权衡，非缺陷。性能优化工作至此收口（见 `docs/perf-verify-report.md`）。

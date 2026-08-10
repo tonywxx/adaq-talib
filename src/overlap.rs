@@ -22,11 +22,12 @@
 //! - [`sar`] / [`sar_default`] — 抛物线转向 / Parabolic SAR
 //! - [`sarext`] / [`sarext_default`] — 扩展抛物线转向 / Parabolic SAR Extended
 //! - [`kama`] / [`kama_default`] — Kaufman 自适应移动平均 / Kaufman Adaptive MA
+//! - [`accbands`] / [`accbands_default`] — 加速带 / Acceleration Bands
 //!
 //! MESA 自适应移动平均与希尔伯特趋势线（MAMA / HT_TRENDLINE）归入 [`crate::cycle`] 模块。
 //! MAMA / HT_TRENDLINE (Hilbert-transform indicators) live in [`crate::cycle`].
 
-use crate::core::defaults::DEFAULT_TIME_PERIOD;
+use crate::core::defaults::{ACCBANDS_PERIOD, DEFAULT_TIME_PERIOD};
 use crate::core::{rolling_max, rolling_mean, rolling_mean_skip, rolling_min};
 use crate::error::{check_period, TaError};
 
@@ -440,8 +441,7 @@ pub fn tema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// ```
 pub fn midpoint(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    let mx = rolling_max(values, time_period);
-    let mn = rolling_min(values, time_period);
+    let (mx, mn) = crate::core::rolling_minmax(values, time_period);
     Ok(mx.iter().zip(&mn).map(|(a, b)| (a + b) / 2.0).collect())
 }
 
@@ -574,27 +574,77 @@ pub fn bbands(
     nb_dev_dn: f64,
     ma_type: MaType,
 ) -> Result<Bbands, TaError> {
+    let n = values.len();
+    let mut out = Bbands {
+        upper: vec![f64::NAN; n],
+        middle: vec![f64::NAN; n],
+        lower: vec![f64::NAN; n],
+    };
+    bbands_with_output(values, time_period, nb_dev_up, nb_dev_dn, ma_type, &mut out)?;
+    Ok(out)
+}
+
+/// 布林带，零拷贝写入 `out`（与 `values` 等长的三轨向量）。
+///
+/// Bollinger Bands, written zero-copy into `out` (three equal-length bands). Reuses the
+/// single-pass [`crate::core::rolling_mean_var`] fused kernel (ADR 0010 P2-4) for the default
+/// SMA middle band, merging the mean+stddev traversal into one pass; non-SMA middle bands
+/// fall back to [`ma`] + [`crate::stat::stddev`]. Numerically identical to [`bbands`].
+///
+/// `out` 的三条带长度均必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// All three bands of `out` must have length equal to `values.len()`; otherwise
+/// [`TaError::BadParam`] is returned.
+pub fn bbands_with_output(
+    values: &[f64],
+    time_period: usize,
+    nb_dev_up: f64,
+    nb_dev_dn: f64,
+    ma_type: MaType,
+    out: &mut Bbands,
+) -> Result<(), TaError> {
     if time_period < 2 {
         return Err(TaError::BadParam(
             "bbands: time_period must be >= 2".into(),
         ));
     }
-    let middle = ma(values, time_period, ma_type)?;
-    let sd = crate::stat::stddev(values, time_period, 1.0)?;
     let n = values.len();
-    let mut upper = vec![f64::NAN; n];
-    let mut lower = vec![f64::NAN; n];
-    for i in 0..n {
-        if let (false, false) = (middle[i].is_nan(), sd[i].is_nan()) {
-            upper[i] = middle[i] + nb_dev_up * sd[i];
-            lower[i] = middle[i] - nb_dev_dn * sd[i];
+    if out.upper.len() != n || out.middle.len() != n || out.lower.len() != n {
+        return Err(TaError::BadParam(
+            "bbands_with_output: out bands must have length == values length".into(),
+        ));
+    }
+    if ma_type == MaType::Sma {
+        // 单遍融合：同一次窗口滑动同时产出 mean 与 var（P2-4，ADR 0010）。
+        // Single-pass fused: one window traversal yields both mean and var.
+        let (middle, var) = crate::core::rolling_mean_var(values, time_period);
+        for i in 0..n {
+            out.middle[i] = middle[i];
+            if var[i].is_nan() {
+                out.upper[i] = f64::NAN;
+                out.lower[i] = f64::NAN;
+            } else {
+                let sd = var[i].sqrt();
+                out.upper[i] = middle[i] + nb_dev_up * sd;
+                out.lower[i] = middle[i] - nb_dev_dn * sd;
+            }
+        }
+    } else {
+        // 非 SMA 中轨：保留原分解（ma + stddev），行为零偏差。
+        // Non-SMA middle: keep the original decomposition (ma + stddev), zero deviation.
+        let middle = ma(values, time_period, ma_type)?;
+        let sd = crate::stat::stddev(values, time_period, 1.0)?;
+        for i in 0..n {
+            out.middle[i] = middle[i];
+            if middle[i].is_nan() || sd[i].is_nan() {
+                out.upper[i] = f64::NAN;
+                out.lower[i] = f64::NAN;
+            } else {
+                out.upper[i] = middle[i] + nb_dev_up * sd[i];
+                out.lower[i] = middle[i] - nb_dev_dn * sd[i];
+            }
         }
     }
-    Ok(Bbands {
-        upper,
-        middle,
-        lower,
-    })
+    Ok(())
 }
 
 /// 布林带结果（三轨等长向量）。/ Bollinger Bands result (three equal-length vectors).
@@ -618,6 +668,83 @@ pub fn bbands_default(values: &[f64]) -> Result<Bbands, TaError> {
         BBANDS_NB_DEV_DN,
         MaType::Sma,
     )
+}
+
+// ───────────────────────────── ACCBANDS ─────────────────────────────
+
+/// 加速带（Acceleration Bands，TA-Lib `TA_ACCBANDS`）。
+///
+/// Acceleration Bands. Three SMA bands over a shared window of `period` bars:
+/// ```text
+/// middle = SMA( close )
+/// upper  = SMA( high * (1 + 4·(high − low) / (high + low)) )
+/// lower  = SMA( low  * (1 − 4·(high − low) / (high + low)) )
+/// ```
+/// When `high + low` is within TA-Lib's `TA_IS_ZERO` epsilon (±1e-8), the upper/lower
+/// maps degenerate to `high` / `low` (the `1 ± …` term drops out), matching the C source.
+/// Lookback is `period − 1` (default 20); the first `period − 1` positions are [`f64::NAN`].
+///
+/// # 参数 / Parameters
+/// - `high` / `low` / `close`：蜡烛数据 `&[f64]`。/ Candle data `&[f64]`.
+/// - `period`：窗口周期（TA-Lib 默认 20，需 `period >= 2`）。/ Window period (default 20).
+///
+/// # 返回值 / Returns
+/// [`AccBands`] 结构体，三轨均与输入等长。/ [`AccBands`] with three equal-length bands.
+pub fn accbands(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    period: usize,
+) -> Result<AccBands, TaError> {
+    check_period(period)?;
+    if period < 2 {
+        return Err(TaError::BadParam("accbands: period must be >= 2".into()));
+    }
+    let n = high.len();
+    if n != low.len() || n != close.len() {
+        return Err(TaError::BadParam(
+            "accbands: high/low/close must share the same length".into(),
+        ));
+    }
+    let mut upper_map = vec![0.0_f64; n];
+    let mut lower_map = vec![0.0_f64; n];
+    for i in 0..n {
+        let hl = high[i] + low[i];
+        // TA-Lib: `if (!TA_IS_ZERO(high+low))` → |hl| >= 1e-8.
+        if hl.abs() >= 1e-8 {
+            let k = 4.0 * (high[i] - low[i]) / hl;
+            upper_map[i] = high[i] * (1.0 + k);
+            lower_map[i] = low[i] * (1.0 - k);
+        } else {
+            upper_map[i] = high[i];
+            lower_map[i] = low[i];
+        }
+    }
+    // 三个共享窗口的 SMA，等价于 C 的 running-sum 三带实现。
+    // Three SMAs over the shared window; bit-identical to C's running-sum form.
+    let upper = rolling_mean(&upper_map, period);
+    let middle = rolling_mean(close, period);
+    let lower = rolling_mean(&lower_map, period);
+    Ok(AccBands {
+        upper,
+        middle,
+        lower,
+    })
+}
+
+/// 加速带结果（三轨等长向量）。/ Acceleration Bands result (three equal-length vectors).
+pub struct AccBands {
+    /// 上轨 / Upper band.
+    pub upper: Vec<f64>,
+    /// 中轨（收盘价 SMA）/ Middle band (SMA of close).
+    pub middle: Vec<f64>,
+    /// 下轨 / Lower band.
+    pub lower: Vec<f64>,
+}
+
+/// 加速带，使用 TA-Lib 默认参数（周期 20）。/ Acceleration Bands with TA-Lib default (period 20).
+pub fn accbands_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<AccBands, TaError> {
+    accbands(high, low, close, ACCBANDS_PERIOD)
 }
 
 // ───────────────────────────── TRIMA ─────────────────────────────

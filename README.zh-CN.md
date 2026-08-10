@@ -36,7 +36,23 @@
 
 ## 已实现功能总览 / Implemented Functions
 
-截至当前版本，已覆盖 TA-Lib 0.7.1 的 **7 大类、共 65 个**指标函数。下表按模块列出全部公开函数、对应的 TA-Lib 原函数、默认参数与返回形态。
+adaq-talib 现已实现完整的 TA-Lib 0.7.1 公开函数面 —— **10 大类、共 161 个**函数，零偏差（逐项对照黄金向量验证，见[验证与基准](#验证与基准--verification--benchmarks)）。下表列出每个公开函数、对应的 TA-Lib 原函数、默认参数与返回形态。
+
+| 类别 | 模块 | 数量 | TA-Lib 分组 |
+| --- | --- | ---: | --- |
+| 重叠研究 | `overlap` | 18 | Overlap Studies |
+| 动量指标 | `momentum` | 31 | Momentum Indicators |
+| 波动率指标 | `volatility` | 3 | Volatility Indicators |
+| 成交量指标 | `volume` | 3 | Volume Indicators |
+| 价格变换 | `price_transform` | 5 | Price Transform |
+| 统计函数 | `stat` | 9 | Statistic Functions |
+| 周期（希尔伯特变换） | `cycle` | 7\* | Cycle Indicators (5) + Overlap (2)† |
+| 数学算子 | `math_ops` | 11 | Math Operators |
+| 数学变换 | `math_trans` | 15 | Math Transform |
+| 模式识别 | `pattern` | 61 | Pattern Recognition |
+| **合计** | | **161** | **161** |
+
+\* `cycle` 模块含 7 个函数；TA-Lib 将其中 5 个归入 *Cycle Indicators*（`HT_DCPERIOD`/`HT_DCPHASE`/`HT_PHASOR`/`HT_SINE`/`HT_TRENDMODE`），2 个归入 *Overlap Studies*（`MAMA`/`HT_TRENDLINE`）。† 分组依据 TA-Lib 权威 `info['group']`。
 
 > 约定：每个函数都提供「显式参数」版本与「`_default`」便捷版本（使用 TA-Lib 默认参数，见 [`src/core/defaults.rs`](src/core/defaults.rs)）。
 
@@ -140,6 +156,92 @@
 | --- | --- | --- | --- |
 | `mama` / `mama_default` | `TA_MAMA` | fast = 0.5, slow = 0.05 | `Mama { mama, fama }` |
 | `ht_trendline` / `ht_trendline_default` | `TA_HT_TRENDLINE` | — | `Vec<f64>`（lookback 63） |
+| `ht_dcperiod` / `ht_dcperiod_default` | `TA_HT_DCPERIOD` | — | `Vec<f64>`（主导周期） |
+| `ht_dcphase` / `ht_dcphase_default` | `TA_HT_DCPHASE` | — | `Vec<f64>`（主导相位） |
+| `ht_phasor` / `ht_phasor_default` | `TA_HT_PHASOR` | — | `Phasor { in_phase, quadrature }` |
+| `ht_sine` / `ht_sine_default` | `TA_HT_SINE` | — | `HtSine { sine, lead_sine }` |
+| `ht_trendmode` / `ht_trendmode_default` | `TA_HT_TRENDMODE` | — | `Vec<f64>`（0/1 趋势模式） |
+
+### 数学算子 / Math Operators — `adaq_talib::math_ops`
+
+对单条或两条等长序列做逐元素 / 数组运算，全部返回 `Vec<f64>`（等长；lookback 0）。二元算子入参 `(&[f64], &[f64])`；`maxindex`/`minindex`/`minmax`/`minmaxindex` 在滑动窗口上做归约。
+
+| 函数 | TA-Lib | 签名 | 返回 |
+| --- | --- | --- | --- |
+| `add` / `add_default` | `TA_ADD` | `(a, b)` | `Vec<f64>` |
+| `sub` / `sub_default` | `TA_SUB` | `(a, b)` | `Vec<f64>` |
+| `mult` / `mult_default` | `TA_MULT` | `(a, b)` | `Vec<f64>` |
+| `div` / `div_default` | `TA_DIV` | `(a, b)` | `Vec<f64>` |
+| `sum` / `sum_default` | `TA_SUM` | `(a, period)` | `Vec<f64>` |
+| `min` / `min_default` | `TA_MIN` | `(a, period)` | `Vec<f64>` |
+| `max` / `max_default` | `TA_MAX` | `(a, period)` | `Vec<f64>` |
+| `min_index` / `min_index_default` | `TA_MININDEX` | `(a, period)` | `Vec<f64>`（最小值索引） |
+| `max_index` / `max_index_default` | `TA_MAXINDEX` | `(a, period)` | `Vec<f64>`（最大值索引） |
+| `minmax` / `minmax_default` | `TA_MINMAX` | `(a, period)` | `MinMax { min, max }` |
+| `minmax_index` / `minmax_index_default` | `TA_MINMAXINDEX` | `(a, period)` | `MinMaxIndex { min_idx, max_idx }` |
+
+### 数学变换 / Math Transform — `adaq_talib::math_trans`
+
+对单条序列做逐元素超越 / 取整变换，全部返回 `Vec<f64>`（等长；lookback 0）。
+
+| 函数 | TA-Lib | 返回 |
+| --- | --- | --- |
+| `acos` / `acos_default` | `TA_ACOS` | `Vec<f64>` |
+| `asin` / `asin_default` | `TA_ASIN` | `Vec<f64>` |
+| `atan` / `atan_default` | `TA_ATAN` | `Vec<f64>` |
+| `ceil` / `ceil_default` | `TA_CEIL` | `Vec<f64>` |
+| `cos` / `cos_default` | `TA_COS` | `Vec<f64>` |
+| `cosh` / `cosh_default` | `TA_COSH` | `Vec<f64>` |
+| `exp` / `exp_default` | `TA_EXP` | `Vec<f64>` |
+| `floor` / `floor_default` | `TA_FLOOR` | `Vec<f64>` |
+| `ln` / `ln_default` | `TA_LN` | `Vec<f64>` |
+| `log10` / `log10_default` | `TA_LOG10` | `Vec<f64>` |
+| `sin` / `sin_default` | `TA_SIN` | `Vec<f64>` |
+| `sinh` / `sinh_default` | `TA_SINH` | `Vec<f64>` |
+| `sqrt` / `sqrt_default` | `TA_SQRT` | `Vec<f64>` |
+| `tan` / `tan_default` | `TA_TAN` | `Vec<f64>` |
+| `tanh` / `tanh_default` | `TA_TANH` | `Vec<f64>` |
+
+### 模式识别 / Pattern Recognition — `adaq_talib::pattern`
+
+全部 **61 个蜡烛形态**（TA-Lib *Pattern Recognition* 组）。每个函数入参
+`(&[f64] open, &[f64] high, &[f64] low, &[f64] close)`，返回等长 `Vec<f64>` 整数信号：
+`+100` 看多 / `0` 中性 / `−100` 看空；前导 `lookback` 个位置为 `0.0`（与 TA-Lib 整数输出约定一致，ADR 0007）。
+仅实现默认 candle settings（ADR 0009）。
+
+| 函数 | TA-Lib | 函数 | TA-Lib |
+| --- | --- | --- | --- |
+| `cdl_2crows` | `CDL2CROWS` | `cdl_identical3crows` | `CDLIDENTICAL3CROWS` |
+| `cdl_3blackcrows` | `CDL3BLACKCROWS` | `cdl_inneck` | `CDLINNECK` |
+| `cdl_3inside` | `CDL3INSIDE` | `cdl_invertedhammer` | `CDLINVERTEDHAMMER` |
+| `cdl_3linestrike` | `CDL3LINESTRIKE` | `cdl_kicking` | `CDLKICKING` |
+| `cdl_3outside` | `CDL3OUTSIDE` | `cdl_kickingbylength` | `CDLKICKINGBYLENGTH` |
+| `cdl_3starsinsouth` | `CDL3STARSINSOUTH` | `cdl_ladderbottom` | `CDLLADDERBOTTOM` |
+| `cdl_3whitesoldiers` | `CDL3WHITESOLDIERS` | `cdl_longleggeddoji` | `CDLLONGLEGGEDDOJI` |
+| `cdl_abandonedbaby` | `CDLABANDONEDBABY` | `cdl_longline` | `CDLLONGLINE` |
+| `cdl_advanceblock` | `CDLADVANCEBLOCK` | `cdl_marubozu` | `CDLMARUBOZU` |
+| `cdl_belthold` | `CDLBELTHOLD` | `cdl_matchinglow` | `CDLMATCHINGLOW` |
+| `cdl_breakaway` | `CDLBREAKAWAY` | `cdl_mathold` | `CDLMATHOLD` |
+| `cdl_closingmarubozu` | `CDLCLOSINGMARUBOZU` | `cdl_morningdojistar` | `CDLMORNINGDOJISTAR` |
+| `cdl_concealbabyswall` | `CDLCONCEALBABYSWALL` | `cdl_morningstar` | `CDLMORNINGSTAR` |
+| `cdl_counterattack` | `CDLCOUNTERATTACK` | `cdl_onneck` | `CDLONNECK` |
+| `cdl_darkcloudcover` | `CDLDARKCLOUDCOVER` | `cdl_piercing` | `CDLPIERCING` |
+| `cdl_doji` | `CDLDOJI` | `cdl_rickshawman` | `CDLRICKSHAWMAN` |
+| `cdl_dojistar` | `CDLDOJISTAR` | `cdl_risefall3methods` | `CDLRISEFALL3METHODS` |
+| `cdl_dragonflydoji` | `CDLDRAGONFLYDOJI` | `cdl_separatinglines` | `CDLSEPARATINGLINES` |
+| `cdl_engulfing` | `CDLENGULFING` | `cdl_shootingstar` | `CDLSHOOTINGSTAR` |
+| `cdl_eveningdojistar` | `CDLEVENINGDOJISTAR` | `cdl_shortline` | `CDLSHORTLINE` |
+| `cdl_eveningstar` | `CDLEVENINGSTAR` | `cdl_spinningtop` | `CDLSPINNINGTOP` |
+| `cdl_gapsidesidewhite` | `CDLGAPSIDESIDEWHITE` | `cdl_stalledpattern` | `CDLSTALLEDPATTERN` |
+| `cdl_gravestonedoji` | `CDLGRAVESTONEDOJI` | `cdl_sticksandwich` | `CDLSTICKSANDWICH` |
+| `cdl_hammer` | `CDLHAMMER` | `cdl_takuri` | `CDLTAKURI` |
+| `cdl_hangingman` | `CDLHANGINGMAN` | `cdl_tasukigap` | `CDLTASUKIGAP` |
+| `cdl_harami` | `CDLHARAMI` | `cdl_thrusting` | `CDLTHRUSTING` |
+| `cdl_haramicross` | `CDLHARAMICROSS` | `cdl_tristar` | `CDLTRISTAR` |
+| `cdl_highwave` | `CDLHIGHWAVE` | `cdl_unique3river` | `CDLUNIQUE3RIVER` |
+| `cdl_hikkake` | `CDLHIKKAKE` | `cdl_upsidegap2crows` | `CDLUPSIDEGAP2CROWS` |
+| `cdl_hikkakemod` | `CDLHIKKAKEMOD` | `cdl_xsidegap3methods` | `CDLXSIDEGAP3METHODS` |
+| `cdl_homingpigeon` | `CDLHOMINGPIGEON` | | |
 
 ### 错误类型 / Error Type
 
@@ -316,11 +418,13 @@ cargo run -- mama
 
 > 注：交互式示例覆盖上述指标。其余已实现的指标（如 `roc`/`rocp`/`rocr`/`rocr100`、`apo`/`ppo`、
 > `stoch_f`/`stoch_rsi`、`aroon_osc`、`plus_dm`/`minus_dm`/`plus_di`/`minus_di`、`adxr`、
-> `macd_fix`/`macd_ext` 等）均可直接在代码中调用，详见上方[功能总览](#已实现功能总览--implemented-functions)。
+> `macd_fix`/`macd_ext`，以及 `math_ops` 数学算子、`math_trans` 数学变换、`pattern` 全部 61 个蜡烛形态等）
+> 均可直接在代码中调用，详见上方[功能总览](#已实现功能总览--implemented-functions)。
 > / The interactive demo covers the indicators above. The remaining implemented functions
 > (e.g. `roc`, `rocp`, `apo`, `ppo`, `stoch_f`, `stoch_rsi`, `aroon_osc`, the directional
-> components, `adxr`, `macd_fix`, `macd_ext`, …) are callable directly in code — see the
-> [function overview](#implemented-functions) above.
+> components, `adxr`, `macd_fix`, `macd_ext`, the math operators in `math_ops`, the math
+> transforms in `math_trans`, and all 61 candlestick patterns in `pattern`, …) are callable
+> directly in code — see the [function overview](#implemented-functions) above.
 
 > 未知指标名会打印支持列表并以退出码 2 结束。/ An unknown name prints the supported list and exits with code 2.
 
@@ -328,10 +432,11 @@ cargo run -- mama
 
 ## 验证与基准 / Verification & Benchmarks
 
-### 正确性验证 / Correctness
+### 正确性验证 / Correctness (1:1 黄金向量)
 
-- 对照已入库的**黄金向量**（由 TA-Lib C 0.7.1 真实输出生成，位于 `tests/fixtures/`，共 63 个）运行 `cargo test`，普通用户**无需** Python 或 TA-Lib C 库。
+- 对照已入库的**黄金向量**（由 TA-Lib C 0.7.1 真实输出生成，位于 `tests/fixtures/`，**159 个 fixture 文件**，覆盖全部 161 个函数面）运行 `cargo test`，普通用户**无需** Python 或 TA-Lib C 库。
 - 容限策略：相对 `1e-8` + 绝对 `1e-10`（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。
+- 全量测试：**308 项测试，0 失败**（22 个测试二进制）；`tools/reconcile.py` 确认 **161/161** 对外函数 1:1 对应 TA-Lib 0.7.1（exit 0）。
 - 黄金向量生成工具见 [`tools/gen_fixtures`](tools/)（需系统安装 TA-Lib C 库 + `TA-Lib` Python 绑定，仅供维护者重生成 fixture）。当前 fixture 状态与已知缺口见 [`tools/README.md`](tools/README.md)。
 
 ```bash
@@ -339,9 +444,40 @@ cargo test                 # 单元 + 黄金向量比对（无需 Python / C）
 cargo test --doc           # 仅运行文档示例
 ```
 
-### 性能基准 / Benchmarks
+### 性能对照 / Performance (Rust vs TA-Lib C)
 
-双轨基准（见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)）：
+双轨基准（见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)）：Rust 侧零依赖（`std::time`，`harness = false`），C 侧在 `--features bench-c` 下 FFI 链接系统 TA-Lib C。环境：Apple Silicon aarch64，N = 1,000,000，PERIOD = 20，ITERS = 20；`ns/elem = elapsed / ITERS / N`。判定：比值 < 0.8 → 更快，0.8–1.2 → 持平，> 1.2 → 更慢。
+
+| 指标 | Rust ns/elem | 原生 C ns/elem | Rust/C 比值 | 状态 |
+|-----------|-------------:|-----------------:|-------------:|--------|
+| SMA      | 1.18 | 1.92  | 0.61 | 快于 C |
+| BBANDS   | 3.02 | 5.20  | 0.58 | 快于 C |
+| DEMA     | 3.63 | 4.85  | 0.75 | 快于 C |
+| TEMA     | 3.46 | 7.44  | 0.47 | 快于 C |
+| T3       | 3.76 | 2.78  | 1.35 | 慢于 C |
+| MIDPRICE | 7.30 | 12.25 | 0.60 | 快于 C |
+| MIDPOINT | 6.88 | 3.05  | 2.26 | 慢于 C |
+| WMA      | 2.11 | 2.28  | 0.93 | ≈ 持平 |
+| LINEARREG| 2.33 | N/A   | N/A  | 未接 C |
+| CORREL   | 4.81 | N/A   | N/A  | 未接 C |
+| WILLR    | 7.90 | N/A   | N/A  | 未接 C |
+| STOCH    | 10.99| N/A   | N/A  | 未接 C |
+
+> **8 个接 C 的指标中有 6 个快于或持平原生 TA-Lib C。** 仅 `MIDPOINT`（2.26×）与 `T3`（1.35×）更慢 —— 二者在结构上不可向量化（数据相关的单调双队列 / 顺序 EMA IIR），故规划的 P3 SIMD 阶段为 **NO-GO**（见 [ADR 0010](docs/adr/0010-performance-strategy.md)）。这是已知且已记录的权衡，并非缺陷。LINEARREG/CORREL/WILLR/STOCH 未接 C 对照（需 `unsafe` + 系统 TA-Lib C，违背零-FFI 精神），其 Rust 侧数值即权威参考。
+
+### 已落地的性能优化 / Optimizations applied
+
+| 任务 | 函数 | 技术 | 优化后 (Rust ns/elem) | 加速 |
+|------|------|------|---------------------:|------|
+| T01 | `bbands`（SMA 中轨） | 单遍 `rolling_mean_var` 融合 | 3.02 | ~1.5–1.6× |
+| T02 | `linear_reg` 家族 | O(n) 滑动 `sy`+`sxy` | 2.33 | ~20×（渐近） |
+| T03 | `correl` | O(n) 滑动协方差求和 | 4.81 | ~20×（渐近） |
+| T04 | `willr` | 单调队列滚动 max/min（O(n)） | 7.90 | ~20×（渐近） |
+| T04 | `stoch`/`stoch_f` | 复用 fast-K 极值队列（O(n)） | 10.99 | ~20×（渐近） |
+
+所有优化均**零偏差**：完整 `cargo test` 套件保持全绿（308/308），每个被重构的函数仍在其容限内复现 TA-Lib 0.7.1 黄金向量。完整的 QA 报告（方法论、残差缺口、Python 绑定参考数值）见 [`docs/perf-verify-report.md`](docs/perf-verify-report.md)。
+
+### 性能基准（如何运行）/ Benchmarks (how to run)
 
 ```bash
 # 1) Rust 侧（默认，零依赖）：std::time 计时，harness = false
@@ -373,9 +509,9 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 ## 路线图 / Roadmap
 
-采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)），**最终全量覆盖 TA-Lib 0.7.1 且不删减任何已发布能力**：
+采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.0（当前）**：重叠研究 + 动量 + 波动率 + 成交量 + 价格变换 + 统计 + 周期（MAMA/HT_TRENDLINE），共 65 个函数。
-- ⏳ **后续里程碑**：模式识别（蜡烛形态，~61，仅默认 candle settings，见 [ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、数学算子（7：ADD/DIV/MAX/MIN/MULT/SUB/SUM）、数学变换（15：ACOS/ASIN/ATAN/CEIL/COS/COSH/EXP/FLOOR/LN/LOG10/SIN/SINH/SQRT/TAN/TANH）。
+- ✅ **0.1.0（当前）：161 / 161 函数** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 308/308 全绿，`reconcile.py` → 161/161）并做了性能优化（见[验证与基准](#验证与基准--verification--benchmarks)）。
+- 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。

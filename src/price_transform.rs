@@ -9,8 +9,8 @@
 //! float tolerance in ADR 0005). These transforms have no lookback (lookback 0) and are
 //! returned at equal length.
 
-use crate::core::check_eq_len;
-use crate::error::TaError;
+use crate::core::{check_eq_len, rolling_mean};
+use crate::error::{check_period, TaError};
 
 /// 平均价（Average Price，TA-Lib `TA_AVGPRICE`）。
 ///
@@ -75,6 +75,48 @@ pub fn wclprice(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, Ta
         out[i] = (high[i] + low[i] + 2.0 * close[i]) / 4.0;
     }
     Ok(out)
+}
+
+/// 平均偏差（Average Deviation，TA-Lib `TA_AVGDEV`）。
+///
+/// 在每个长度为 `period` 的窗口上，先求简单移动平均 `MA`，再求价格相对 `MA` 的
+/// 平均绝对偏差：`AVGDEV[i] = mean_j(|x_{i-period+1+j} − MA[i]|)`。前导 `period-1` 为 [`f64::NAN`]。
+///
+/// Average Deviation: within each trailing window of length `period`, take the SMA `MA`,
+/// then the mean absolute deviation of prices from `MA`. The leading `period - 1` are `NaN`.
+///
+/// # 示例 / Example
+/// ```
+/// use adaq_talib::price_transform::avgdev;
+/// let x = [1.0, 2.0, 3.0, 4.0, 5.0];
+/// let out = avgdev(&x, 5).unwrap();
+/// // MA = 3.0；|1-3|+|2-3|+|3-3|+|4-3|+|5-3| = 2+1+0+1+2 = 6；avgdev = 6/5 = 1.2
+/// assert!((out[4] - 1.2).abs() < 1e-9);
+/// ```
+pub fn avgdev(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    let mut out = vec![f64::NAN; n];
+    if n < time_period {
+        return Ok(out);
+    }
+    let mean = rolling_mean(values, time_period);
+    let p = time_period as f64;
+    for i in (time_period - 1)..n {
+        let m = mean[i];
+        let mut s = 0.0_f64;
+        for j in 0..time_period {
+            s += (values[i - j] - m).abs();
+        }
+        out[i] = s / p;
+    }
+    Ok(out)
+}
+
+/// `avgdev` 便捷版本，默认周期 14（与 TA-Lib 一致）。
+/// `avgdev` with default period (14), matching TA-Lib.
+pub fn avgdev_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    avgdev(values, 14)
 }
 
 #[cfg(test)]

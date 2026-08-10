@@ -10,9 +10,10 @@
 //! returned at equal length (ADR 0007).
 
 use crate::core::defaults::{
-    APO_FAST, APO_SLOW, AROON_PERIOD, ATR_PERIOD, CMO_PERIOD, MACD_FAST, MACD_SIGNAL, MACD_SLOW,
-    MFI_PERIOD, MOM_PERIOD, RSI_PERIOD, STOCH_FAST_K, STOCH_SLOW_D, STOCH_SLOW_K, STOCHRSI_PERIOD,
-    STOCHRSI_RSI_PERIOD, TRIX_PERIOD, ULTOSC_PERIOD1, ULTOSC_PERIOD2, ULTOSC_PERIOD3,
+    APO_FAST, APO_SLOW, AROON_PERIOD, ATR_PERIOD, CMO_PERIOD, DX_PERIOD, IMI_PERIOD, MACD_FAST,
+    MACD_SIGNAL, MACD_SLOW, MFI_PERIOD, MOM_PERIOD, RSI_PERIOD, STOCH_FAST_K, STOCH_SLOW_D,
+    STOCH_SLOW_K, STOCHRSI_PERIOD, STOCHRSI_RSI_PERIOD, TRIX_PERIOD, ULTOSC_PERIOD1,
+    ULTOSC_PERIOD2, ULTOSC_PERIOD3,
 };
 use crate::core::{ema, rolling_mean, rolling_mean_skip, rolling_sum};
 use crate::error::{check_period, TaError};
@@ -646,24 +647,40 @@ pub fn willr(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Re
     check_eq_len(&[high, low, close], "willr")?;
     let n = close.len();
     let mut out = vec![f64::NAN; n];
+    willr_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// Williams' %R，零拷贝写入 `out`（与 `close` 等长）。见 [`willr`]。
+///
+/// Williams' %R, written zero-copy into `out`. See [`willr`]. Uses the already 1:1-verified
+/// monotonic-queue [`crate::core::rolling_max`] / [`crate::core::rolling_min`] (O(n))
+/// instead of the per-window O(n·period) scan, with the same rightmost tie-break.
+pub fn willr_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "willr")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "willr_with_output: out length must equal close length".into(),
+        ));
+    }
+    let hh = crate::core::rolling_max(high, time_period);
+    let ll = crate::core::rolling_min(low, time_period);
+    let n = close.len();
     for i in (time_period - 1)..n {
-        let mut hh = high[i];
-        let mut ll = low[i];
-        for j in 1..time_period {
-            if high[i - j] > hh {
-                hh = high[i - j];
-            }
-            if low[i - j] < ll {
-                ll = low[i - j];
-            }
-        }
-        out[i] = if hh == ll {
+        out[i] = if hh[i] == ll[i] {
             0.0
         } else {
-            -100.0 * (hh - close[i]) / (hh - ll)
+            -100.0 * (hh[i] - close[i]) / (hh[i] - ll[i])
         };
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `willr` 便捷版本，默认周期 14。/ `willr` with default period (14).
@@ -1144,6 +1161,27 @@ pub fn aroon_osc_default(high: &[f64], low: &[f64]) -> Result<Vec<f64>, TaError>
 /// 快速 `%K = 100 * (close - LL) / (HH - LL)`（窗口 `fastK`），
 /// 慢速 `%K = SMA(fastK, slowK)`，慢速 `%D = SMA(slowK, slowD)`。
 /// 三个数组等长、对齐到同一不稳定期的前导 NaN（`lookback = fastK+slowK+slowD-3`）。
+/// 快速 %K 计算（STOCH / STOCHF 共用），使用单调队列 O(n) 极值（P2-6，ADR 0010）。
+///
+/// Fast `%K` (shared by STOCH / STOCHF), using the monotonic-queue O(n) extremes (P2-6, ADR 0010).
+///
+/// `fastK[i] = 100 * (close[i] - LL) / (HH - LL)`，HH/LL 为窗口内最高/最低（最右 tie-break），
+/// 与朴素每窗扫描逐项相等（零偏差，ADR 0005）。前导 `fast_k_period-1` 个为 [`f64::NAN`]。
+fn stoch_fastk(high: &[f64], low: &[f64], close: &[f64], fast_k_period: usize) -> Vec<f64> {
+    let n = close.len();
+    let mut fastk = vec![f64::NAN; n];
+    let hh = crate::core::rolling_max(high, fast_k_period);
+    let ll = crate::core::rolling_min(low, fast_k_period);
+    for i in (fast_k_period - 1)..n {
+        fastk[i] = if hh[i] == ll[i] {
+            0.0
+        } else {
+            100.0 * (close[i] - ll[i]) / (hh[i] - ll[i])
+        };
+    }
+    fastk
+}
+
 pub fn stoch(
     high: &[f64],
     low: &[f64],
@@ -1157,33 +1195,58 @@ pub fn stoch(
     check_period(slow_d_period)?;
     check_eq_len(&[high, low, close], "stoch")?;
     let n = close.len();
-    let mut fastk = vec![f64::NAN; n];
-    for i in (fast_k_period - 1)..n {
-        let mut hh = high[i];
-        let mut ll = low[i];
-        for j in 1..fast_k_period {
-            if high[i - j] > hh {
-                hh = high[i - j];
-            }
-            if low[i - j] < ll {
-                ll = low[i - j];
-            }
-        }
-        fastk[i] = if hh == ll {
-            0.0
-        } else {
-            100.0 * (close[i] - ll) / (hh - ll)
-        };
+    let mut out = Stoch {
+        slow_k: vec![f64::NAN; n],
+        slow_d: vec![f64::NAN; n],
+    };
+    stoch_with_output(
+        high,
+        low,
+        close,
+        fast_k_period,
+        slow_k_period,
+        slow_d_period,
+        &mut out,
+    )?;
+    Ok(out)
+}
+
+/// 慢速随机指标，零拷贝写入 `out`（`slow_k` / `slow_d` 与 `close` 等长）。见 [`stoch`]。
+///
+/// Slow stochastic, written zero-copy into `out`. See [`stoch`]. Uses [`stoch_fastk`] (O(n)
+/// monotonic-queue extremes) instead of the per-window O(n·period) scan. Numerically identical
+/// to [`stoch`].
+pub fn stoch_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    fast_k_period: usize,
+    slow_k_period: usize,
+    slow_d_period: usize,
+    out: &mut Stoch,
+) -> Result<(), TaError> {
+    check_period(fast_k_period)?;
+    check_period(slow_k_period)?;
+    check_period(slow_d_period)?;
+    check_eq_len(&[high, low, close], "stoch")?;
+    let n = close.len();
+    if out.slow_k.len() != n || out.slow_d.len() != n {
+        return Err(TaError::BadParam(
+            "stoch_with_output: out bands must have length == close length".into(),
+        ));
     }
-    let mut slow_k = rolling_mean_skip(&fastk, slow_k_period);
+    let fastk = stoch_fastk(high, low, close, fast_k_period);
+    let slow_k = rolling_mean_skip(&fastk, slow_k_period);
     let slow_d = rolling_mean_skip(&slow_k, slow_d_period);
     // 三数组对齐到同一前导不稳定期（lookback = fastK+slowK+slowD-3），见 ADR 0007。
     // Align all three arrays to the same leading unstable period (lookback = fastK+slowK+slowD-3).
     let lookback = fast_k_period + slow_k_period + slow_d_period - 3;
+    out.slow_k.copy_from_slice(&slow_k);
+    out.slow_d.copy_from_slice(&slow_d);
     for i in 0..lookback.min(n) {
-        slow_k[i] = f64::NAN;
+        out.slow_k[i] = f64::NAN;
     }
-    Ok(Stoch { slow_k, slow_d })
+    Ok(())
 }
 
 /// `stoch` 便捷版本，默认 5 / 3 / 3。/ `stoch` with defaults 5 / 3 / 3.
@@ -1211,35 +1274,47 @@ pub fn stoch_f(
     check_period(fast_d_period)?;
     check_eq_len(&[high, low, close], "stoch_f")?;
     let n = close.len();
-    let mut fastk = vec![f64::NAN; n];
-    for i in (fast_k_period - 1)..n {
-        let mut hh = high[i];
-        let mut ll = low[i];
-        for j in 1..fast_k_period {
-            if high[i - j] > hh {
-                hh = high[i - j];
-            }
-            if low[i - j] < ll {
-                ll = low[i - j];
-            }
-        }
-        fastk[i] = if hh == ll {
-            0.0
-        } else {
-            100.0 * (close[i] - ll) / (hh - ll)
-        };
+    let mut out = StochF {
+        fast_k: vec![f64::NAN; n],
+        fast_d: vec![f64::NAN; n],
+    };
+    stoch_f_with_output(high, low, close, fast_k_period, fast_d_period, &mut out)?;
+    Ok(out)
+}
+
+/// 快速随机指标，零拷贝写入 `out`（`fast_k` / `fast_d` 与 `close` 等长）。见 [`stoch_f`]。
+///
+/// Fast stochastic, written zero-copy into `out`. See [`stoch_f`]. Uses [`stoch_fastk`] (O(n)
+/// monotonic-queue extremes) instead of the per-window O(n·period) scan. Numerically identical
+/// to [`stoch_f`].
+pub fn stoch_f_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    fast_k_period: usize,
+    fast_d_period: usize,
+    out: &mut StochF,
+) -> Result<(), TaError> {
+    check_period(fast_k_period)?;
+    check_period(fast_d_period)?;
+    check_eq_len(&[high, low, close], "stoch_f")?;
+    let n = close.len();
+    if out.fast_k.len() != n || out.fast_d.len() != n {
+        return Err(TaError::BadParam(
+            "stoch_f_with_output: out bands must have length == close length".into(),
+        ));
     }
+    let fastk = stoch_fastk(high, low, close, fast_k_period);
     let fast_d = rolling_mean_skip(&fastk, fast_d_period);
     // 两数组对齐到同一前导不稳定期（lookback = fastK+fastD-2），见 ADR 0007。
     // Align both arrays to the same leading unstable period (lookback = fastK+fastD-2).
     let lookback = fast_k_period + fast_d_period - 2;
+    out.fast_k.copy_from_slice(&fastk);
+    out.fast_d.copy_from_slice(&fast_d);
     for i in 0..lookback.min(n) {
-        fastk[i] = f64::NAN;
+        out.fast_k[i] = f64::NAN;
     }
-    Ok(StochF {
-        fast_k: fastk,
-        fast_d,
-    })
+    Ok(())
 }
 
 /// `stoch_f` 便捷版本，默认 5 / 3。/ `stoch_f` with defaults 5 / 3.
@@ -1331,6 +1406,135 @@ pub fn trix(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
 /// `trix` 便捷版本，默认周期 30。/ `trix` with default period (30).
 pub fn trix_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
     trix(values, TRIX_PERIOD)
+}
+
+// ───────────────────────────── DX ─────────────────────────────
+
+/// 方向性运动指数（DX，TA-Lib `TA_DX`）。
+///
+/// Directional Movement Index. Reuses the Wilder-smoothed ±DI from the shared
+/// `directional` helper and returns `DX = 100·|−DI − +DI| / (+DI + −DI)` per bar.
+/// When the true range (and thus both DI) is zero, or the DI sum is zero, the
+/// previous output is carried forward (matching TA-Lib, which fills the first
+/// such case with 0.0). Lookback is `period` (default 14); the first `period`
+/// positions are [`f64::NAN`].
+///
+/// # 参数 / Parameters
+/// - `high` / `low` / `close`：蜡烛数据 `&[f64]`。/ Candle data `&[f64]`.
+/// - `period`：平滑周期（TA-Lib 默认 14）。/ Smoothing period (default 14).
+///
+/// # 返回值 / Returns
+/// 与输入等长的向量，前导 `period` 个为 [`f64::NAN`]。
+/// Equal-length vector; the first `period` positions are [`f64::NAN`].
+pub fn dx(high: &[f64], low: &[f64], close: &[f64], period: usize) -> Result<Vec<f64>, TaError> {
+    check_period(period)?;
+    check_eq_len(&[high, low, close], "dx")?;
+    let n = high.len();
+    let mut out = vec![f64::NAN; n];
+    if n < period + 1 {
+        return Ok(out);
+    }
+    // 复用共享的 Wilder ±DI。/ Reuse the shared Wilder ±DI.
+    let (_pdm, _mdm, pdi, mdi, _adx, _adxr) = directional(high, low, close, period);
+    let mut last = f64::NAN; // 用于 TR/分母为零时的前向填充。/ carry-forward state.
+    for i in period..n {
+        let pdi_i = pdi[i];
+        let mdi_i = mdi[i];
+        if pdi_i.is_nan() || mdi_i.is_nan() {
+            // 理论不可达（i >= period 时 ±DI 已有效），防御性前向填充。
+            out[i] = last;
+            continue;
+        }
+        let denom = pdi_i + mdi_i;
+        let val = if denom != 0.0 {
+            100.0 * (pdi_i - mdi_i).abs() / denom
+        } else if last.is_nan() {
+            // 首个输出且 TR/分母为零：TA-Lib 填 0.0。/ first output, zero TR/sum => 0.0.
+            0.0
+        } else {
+            last
+        };
+        out[i] = val;
+        last = val;
+    }
+    Ok(out)
+}
+
+/// DX，使用 TA-Lib 默认周期 14。/ DX with TA-Lib default period (14).
+pub fn dx_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
+    dx(high, low, close, DX_PERIOD)
+}
+
+// ───────────────────────────── IMI ─────────────────────────────
+
+/// 日内动量指数（IMI，TA-Lib `TA_IMI`）。
+///
+/// Intraday Momentum Index. For each bar it sums, over a rolling window of
+/// `period` bars, the up-moves `max(close − open, 0)` and down-moves
+/// `max(open − close, 0)`, then returns `100·Σup / (Σup + Σdown)`. If the window
+/// is completely flat (every `close == open`), it returns the neutral center
+/// 50.0 (matching TA-Lib's `#112` fix so a successful call never emits NaN).
+/// Lookback is `period − 1` (default 14); the first `period − 1` positions are
+/// [`f64::NAN`].
+///
+/// # 参数 / Parameters
+/// - `open` / `close`：开盘价 / 收盘价 `&[f64]`（IMI 仅需这两者）。/ Open/close only.
+/// - `period`：窗口周期（TA-Lib 默认 14）。/ Window period (default 14).
+///
+/// # 返回值 / Returns
+/// 与输入等长的向量，前导 `period − 1` 个为 [`f64::NAN`]。
+/// Equal-length vector; the first `period − 1` positions are [`f64::NAN`].
+pub fn imi(open: &[f64], close: &[f64], period: usize) -> Result<Vec<f64>, TaError> {
+    check_period(period)?;
+    check_eq_len(&[open, close], "imi")?;
+    let n = open.len();
+    let lookback = period - 1;
+    let mut out = vec![f64::NAN; n];
+    if n <= lookback {
+        return Ok(out);
+    }
+    // 每根 K 的涨/跌贡献（非负）。/ Per-bar up/down contribution (non-negative).
+    let mut up = vec![0.0_f64; n];
+    let mut down = vec![0.0_f64; n];
+    for i in 0..n {
+        let o = open[i];
+        let c = close[i];
+        if c > o {
+            up[i] = c - o;
+        } else if c < o {
+            down[i] = o - c;
+        }
+    }
+    // 滚动窗口求和。/ Rolling window sum.
+    let mut sum_up = 0.0_f64;
+    let mut sum_down = 0.0_f64;
+    for i in 0..period {
+        sum_up += up[i];
+        sum_down += down[i];
+    }
+    for i in lookback..n {
+        // 减去离开窗口的尾部（当 i >= period 时）。/ drop the trailing bar.
+        if i >= period {
+            sum_up -= up[i - period];
+            sum_down -= down[i - period];
+        }
+        // 加入当前 K 线（i == lookback 时窗口已在上面初始化完毕）。
+        // Add the current bar (window already initialized when i == lookback).
+        if i == lookback {
+            // 初始化窗口已包含 [0, period-1]；此处无需再加。
+        } else {
+            sum_up += up[i];
+            sum_down += down[i];
+        }
+        let total = sum_up + sum_down;
+        out[i] = if total == 0.0 { 50.0 } else { 100.0 * sum_up / total };
+    }
+    Ok(out)
+}
+
+/// IMI，使用 TA-Lib 默认周期 14。/ IMI with TA-Lib default period (14).
+pub fn imi_default(open: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
+    imi(open, close, IMI_PERIOD)
 }
 
 #[cfg(test)]

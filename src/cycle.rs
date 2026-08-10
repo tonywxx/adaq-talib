@@ -7,6 +7,11 @@
 //!
 //! - [`mama`] / [`mama_default`] — MESA 自适应移动平均及其 FAMA / MAMA (with FAMA)
 //! - [`ht_trendline`] / [`ht_trendline_default`] — 希尔伯特趋势线 / Hilbert Trendline
+//! - [`ht_dcperiod`] / [`ht_dcperiod_default`] — 希尔伯特主导周期 / Dominant Cycle Period
+//! - [`ht_dcphase`] / [`ht_dcphase_default`] — 希尔伯特主导周期相位 / Dominant Cycle Phase
+//! - [`ht_phasor`] / [`ht_phasor_default`] — 希尔伯特相量（同相/正交）/ Phasor (in-phase/quadrature)
+//! - [`ht_sine`] / [`ht_sine_default`] — 希尔伯特正弦波 / SineWave
+//! - [`ht_trendmode`] / [`ht_trendmode_default`] — 希尔伯特趋势模态 / Trend vs Cycle Mode
 //!
 //! 数值逐项对齐 TA-Lib 0.7.1；本实现逐行移植官方 C 源码（`ta_MAMA.c` /
 //! `ta_HT_TRENDLINE.c`，main 分支）以保证位级一致。
@@ -99,6 +104,31 @@ struct Hilbert {
     mama: f64,
     fama: f64,
 
+    // —— 周期主导 / 相位状态（DCPERIOD/DCPHASE/SINE/TRENDMODE 共用） ——
+    // Dominant-cycle / phase state (shared by the period-based HT_* functions).
+    smooth_period: f64,
+    // 最近 50 个平滑价的环形缓冲（Ehlers DC 相位窗）。
+    // Circular buffer of the last 50 smoothed prices (Ehlers DC-phase window).
+    smooth_price: [f64; 50],
+    smooth_price_idx: usize,
+    dc_phase: f64,
+    // deg2rad = 1/rad2deg = atan(1)/45；const_deg2rad_by360 = 8*atan(1) = 2π。
+    deg2rad: f64,
+    const_deg2rad_by360: f64,
+
+    // —— TRENDMODE 专属趋势状态 / TRENDMODE-only trend state ——
+    sine: f64,
+    prev_sine: f64,
+    lead_sine: f64,
+    prev_lead_sine: f64,
+    days_in_trend: i32,
+    trend: i32,
+    prev_dc_phase: f64,
+    i_trend1: f64,
+    i_trend2: f64,
+    i_trend3: f64,
+    trendline: f64,
+
     // 当前 bar 的原始输入 / current raw input
     today_value: f64,
 }
@@ -159,6 +189,23 @@ impl Hilbert {
             prev_phase: 0.0,
             mama: 0.0,
             fama: 0.0,
+            smooth_period: 0.0,
+            smooth_price: [0.0; 50],
+            smooth_price_idx: 0,
+            dc_phase: 0.0,
+            deg2rad: (1.0_f64).atan() / 45.0,
+            const_deg2rad_by360: (1.0_f64).atan() * 8.0,
+            sine: 0.0,
+            prev_sine: 0.0,
+            lead_sine: 0.0,
+            prev_lead_sine: 0.0,
+            days_in_trend: 0,
+            trend: 0,
+            prev_dc_phase: 0.0,
+            i_trend1: 0.0,
+            i_trend2: 0.0,
+            i_trend3: 0.0,
+            trendline: 0.0,
             today_value: 0.0,
         }
     }
@@ -384,6 +431,151 @@ impl Hilbert {
         }
         self.period = 0.2 * self.period + 0.8 * temp_real;
     }
+
+    /// 计算主导周期相位（DCPhase）。逐个 bar 推进 `advance_full` 后调用。
+    /// 从 `smooth_price` 环形缓冲按主导周期窗做正交/同相累加，得到 `dc_phase`。
+    /// 与 C 的 `ta_HT_DCPHASE.c` / `ta_HT_SINE.c` / `ta_HT_TRENDMODE.c` 逐行一致。
+    ///
+    /// Compute the dominant-cycle phase (DCPhase). Called after each bar's
+    /// `advance_full`; accumulates in-phase/quadrature over the dominant-cycle
+    /// window from the `smooth_price` circular buffer. Bit-faithful to the C
+    /// `ta_HT_DCPHASE.c` / `ta_HT_SINE.c` / `ta_HT_TRENDMODE.c` sources.
+    fn compute_dc_phase(&mut self) {
+        let dc_period = self.smooth_period + 0.5;
+        let dc_period_int = dc_period as i32;
+        let mut real_part = 0.0_f64;
+        let mut imag_part = 0.0_f64;
+        // idx 从「刚刚写入」的位置开始，向历史回退（环形缓冲，容量 50）。
+        // idx starts at the just-written slot and walks backward in time.
+        let mut idx = self.smooth_price_idx;
+        let mut i = 0_i32;
+        while i < dc_period_int {
+            let temp_real = (i as f64) * self.const_deg2rad_by360 / (dc_period_int as f64);
+            let temp_real2 = self.smooth_price[idx];
+            real_part += temp_real.sin() * temp_real2;
+            imag_part += temp_real.cos() * temp_real2;
+            if idx == 0 {
+                idx = 49;
+            } else {
+                idx -= 1;
+            }
+            i += 1;
+        }
+        let temp_real = imag_part.abs();
+        if temp_real > 0.0 {
+            self.dc_phase = (real_part / imag_part).atan() * self.rad2deg;
+        } else if temp_real <= 0.01 {
+            if real_part < 0.0 {
+                self.dc_phase -= 90.0;
+            } else if real_part > 0.0 {
+                self.dc_phase += 90.0;
+            }
+        }
+        self.dc_phase += 90.0;
+        // 补偿 WMA 的一 bar 滞后 / compensate one-bar WMA lag.
+        self.dc_phase += 360.0 / self.smooth_period;
+        if imag_part < 0.0 {
+            self.dc_phase += 180.0;
+        }
+        if self.dc_phase > 315.0 {
+            self.dc_phase -= 360.0;
+        }
+    }
+
+    /// 周期类 HT_* 函数的逐 bar 推进（DCPERIOD/DCPHASE/SINE/TRENDMODE）。
+    /// 等价于 C 主循环：WMA 步进 → 希尔伯特变换 → 周期估计 → 平滑周期 →
+    /// 写入 smoothPrice 缓冲 → 计算 DCPhase → 计算 sine/leadSine。
+    /// 不输出；调用方按 `today >= lookback` 自行取 `smooth_period` / `dc_phase` /
+    /// `sine` / `lead_sine`。
+    ///
+    /// Per-bar advance for the period-based HT_* functions. Mirrors the C main
+    /// loop: WMA step → Hilbert transform → period estimation → smooth period →
+    /// write `smooth_price` buffer → compute DCPhase → compute sine/leadSine.
+    /// Emits nothing; the caller reads `smooth_period` / `dc_phase` / `sine` /
+    /// `lead_sine` once `today >= lookback`.
+    fn advance_full(&mut self, values: &[f64], today: usize, today_value: f64) {
+        self.step(values, today, today_value);
+        self.update_period();
+        self.smooth_period = 0.67 * self.smooth_period + 0.33 * self.period;
+        // 把当前平滑价写入环形缓冲（覆盖 C 的 `smoothPrice[smoothPrice_Idx] = smoothedValue`）。
+        // Write the current smoothed price into the circular buffer.
+        self.smooth_price[self.smooth_price_idx] = self.smoothed_value;
+        self.compute_dc_phase();
+        // 计算 sine / leadSine（SINE 输出与 TRENDMODE 穿越检测共用）。
+        // Compute sine / leadSine (shared by SINE output and TRENDMODE crossing).
+        self.prev_sine = self.sine;
+        self.prev_lead_sine = self.lead_sine;
+        self.sine = (self.dc_phase * self.deg2rad).sin();
+        self.lead_sine = ((self.dc_phase + 45.0) * self.deg2rad).sin();
+        // 推进环形缓冲写指针。/ advance the circular-buffer write pointer.
+        self.smooth_price_idx += 1;
+        if self.smooth_price_idx > 49 {
+            self.smooth_price_idx = 0;
+        }
+    }
+
+    /// TRENDMODE 的专属趋势状态机（在 `advance_full` 之后调用）。
+    /// 依据 sine/leadSine 交叉、`daysInTrend`、DCPhase 变化率与趋势线偏离判定
+    /// 整数 `trend`（1=趋势，0=区间）。与 C 的 `ta_HT_TRENDMODE.c` 尾部一致。
+    ///
+    /// TRENDMODE's trend state machine (call after `advance_full`). Decides the
+    /// integer `trend` (1=trend, 0=cycle) from the sine/leadSine crossing,
+    /// `daysInTrend`, the DCPhase rate-of-change, and trendline deviation.
+    /// Bit-faithful to the tail of `ta_HT_TRENDMODE.c`.
+    fn advance_trend(&mut self, values: &[f64], today: usize) {
+        // 默认假设趋势。/ assume trend by default.
+        self.trend = 1;
+        // 由 SineWave 指标线交叉测量趋势持续根数。/ crossing of the SineWave lines.
+        let crossed = (self.sine > self.lead_sine && self.prev_sine <= self.prev_lead_sine)
+            || (self.sine < self.lead_sine && self.prev_sine >= self.prev_lead_sine);
+        if crossed {
+            self.days_in_trend = 0;
+            self.trend = 0;
+        }
+        self.days_in_trend += 1;
+        if (self.days_in_trend as f64) < 0.5 * self.smooth_period {
+            self.trend = 0;
+        }
+        let temp_real = self.dc_phase - self.prev_dc_phase;
+        if self.smooth_period != 0.0
+            && temp_real > 0.67 * 360.0 / self.smooth_period
+            && temp_real < 1.5 * 360.0 / self.smooth_period
+        {
+            self.trend = 0;
+        }
+        // 原始价格按主导周期的均值窗 + 4 项加权趋势线（与 HT_TRENDLINE 同式）。
+        // Raw-price dominant-cycle average window + 4-term weighted trendline
+        // (same formula as HT_TRENDLINE).
+        let dc_period = self.smooth_period + 0.5;
+        let dc_period_int = dc_period as i32;
+        let mut temp = 0.0_f64;
+        for j in 0..50 {
+            if j < dc_period_int && today >= j as usize {
+                temp += values[today - j as usize];
+            }
+        }
+        if dc_period_int > 0 {
+            temp /= dc_period_int as f64;
+        }
+        self.trendline =
+            (2.0 * self.i_trend2 + 4.0 * temp + 3.0 * self.i_trend1 + self.i_trend3) / 10.0;
+        self.i_trend3 = self.i_trend2;
+        self.i_trend2 = self.i_trend1;
+        self.i_trend1 = temp;
+        // 平滑价相对趋势线偏离 ≥ 1.5% → 判定为趋势。注意：`advance_full` 已在末尾把
+        // `smooth_price_idx` 前移，故此处取「刚写入」的平滑价 = `smoothed_value`（与 C 的
+        // `smoothPrice[smoothPrice_Idx]` 等价，该读取发生在 `smoothPrice_Idx++` 之前）。
+        // Deviation >= 1.5% => trend. Note: `advance_full` advanced `smooth_price_idx`,
+        // so the just-written price is `smoothed_value` (== C's `smoothPrice[smoothPrice_Idx]`,
+        // which C reads BEFORE its `smoothPrice_Idx++`).
+        let latest_smooth = self.smoothed_value;
+        if self.trendline != 0.0
+            && ((latest_smooth - self.trendline) / self.trendline).abs() >= 0.015
+        {
+            self.trend = 1;
+        }
+        self.prev_dc_phase = self.dc_phase;
+    }
 }
 
 // ───────────────────────────── MAMA ─────────────────────────────
@@ -548,6 +740,260 @@ pub fn ht_trendline(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// Hilbert Trendline with TA-Lib defaults (no optional inputs).
 pub fn ht_trendline_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
     ht_trendline(values)
+}
+
+// ───────────────────────── HT_DCPERIOD ─────────────────────────
+
+/// 希尔伯特主导周期（HT_DCPERIOD，TA-Lib `TA_HT_DCPERIOD`）。
+///
+/// Hilbert Transform — Dominant Cycle Period. After the shared Hilbert
+/// transform and dominant-cycle estimation, outputs the smoothed dominant
+/// period `smoothPeriod = 0.67*smoothPeriod + 0.33*period`. Lookback is 32;
+/// the first 32 positions are [`f64::NAN`].
+///
+/// # 参数 / Parameters
+/// - `values`：输入序列（收盘价等）`&[f64]`。/ Input series `&[f64]`.
+///
+/// # 返回值 / Returns
+/// 与 `values` 等长的向量，前导 32 个为 [`f64::NAN`]。
+/// Equal-length vector; the first 32 positions are [`f64::NAN`].
+pub fn ht_dcperiod(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    let n = values.len();
+    let lookback = 32;
+    let mut out = vec![f64::NAN; n];
+    if n <= lookback {
+        return Ok(out);
+    }
+    let mut h = Hilbert::new();
+    let first_main = h.init(values, lookback, 9); // HT_DCPERIOD 的 WMA 预热循环次数 = 9
+    let mut today = first_main;
+    while today <= n - 1 {
+        h.advance_full(values, today, values[today]);
+        if today >= lookback {
+            out[today] = h.smooth_period;
+        }
+        today += 1;
+    }
+    Ok(out)
+}
+
+/// HT_DCPERIOD，使用 TA-Lib 默认参数（无可选参数）。
+/// HT_DCPERIOD with TA-Lib defaults (no optional inputs).
+pub fn ht_dcperiod_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    ht_dcperiod(values)
+}
+
+// ───────────────────────── HT_DCPHASE ─────────────────────────
+
+/// 希尔伯特主导周期相位（HT_DCPHASE，TA-Lib `TA_HT_DCPHASE`）。
+///
+/// Hilbert Transform — Dominant Cycle Phase. Computes the `DCPhase` from the
+/// smoothed-price circular buffer over the dominant cycle (see `compute_dc_phase`).
+/// Lookback is 63; the first 63 positions are [`f64::NAN`].
+///
+/// # 参数 / Parameters
+/// - `values`：输入序列（收盘价等）`&[f64]`。/ Input series `&[f64]`.
+///
+/// # 返回值 / Returns
+/// 与 `values` 等长的向量，前导 63 个为 [`f64::NAN`]。
+/// Equal-length vector; the first 63 positions are [`f64::NAN`].
+pub fn ht_dcphase(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    let n = values.len();
+    let lookback = 63;
+    let mut out = vec![f64::NAN; n];
+    if n <= lookback {
+        return Ok(out);
+    }
+    let mut h = Hilbert::new();
+    let first_main = h.init(values, lookback, 34); // HT_DCPHASE 的 WMA 预热循环次数 = 34
+    let mut today = first_main;
+    while today <= n - 1 {
+        h.advance_full(values, today, values[today]);
+        if today >= lookback {
+            out[today] = h.dc_phase;
+        }
+        today += 1;
+    }
+    Ok(out)
+}
+
+/// HT_DCPHASE，使用 TA-Lib 默认参数（无可选参数）。
+/// HT_DCPHASE with TA-Lib defaults (no optional inputs).
+pub fn ht_dcphase_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    ht_dcphase(values)
+}
+
+// ───────────────────────── HT_PHASOR ─────────────────────────
+
+/// 希尔伯特变换相量（HT_PHASOR，TA-Lib `TA_HT_PHASOR`）结果。两向量等长。
+/// Hilbert Transform Phasor result (in-phase & quadrature). Equal-length.
+pub struct HtPhasor {
+    /// 同相分量（延迟 3 根 K 线的 detrender，`I1ForPrev3`）。/ In-phase (delayed detrender).
+    pub in_phase: Vec<f64>,
+    /// 正交分量（`Q1`）。/ Quadrature.
+    pub quadrature: Vec<f64>,
+}
+
+/// 希尔伯特变换相量（HT_PHASOR，TA-Lib `TA_HT_PHASOR`）。
+///
+/// Hilbert Transform — Phasor Components. Unlike the other HT_* functions,
+/// this does NOT estimate the dominant cycle: it directly emits the in-phase
+/// component (`I1ForPrev3`, the detrender delayed 3 bars) and the quadrature
+/// component (`Q1`) from the shared Hilbert transform. Lookback is 32; the
+/// first 32 positions are [`f64::NAN`].
+///
+/// # 参数 / Parameters
+/// - `values`：输入序列（收盘价等）`&[f64]`。/ Input series `&[f64]`.
+///
+/// # 返回值 / Returns
+/// [`HtPhasor`]（`in_phase` 与 `quadrature` 等长向量，前导 32 个为 [`f64::NAN`]）。
+pub fn ht_phasor(values: &[f64]) -> Result<HtPhasor, TaError> {
+    let n = values.len();
+    let lookback = 32;
+    let mut out_in = vec![f64::NAN; n];
+    let mut out_q = vec![f64::NAN; n];
+    if n <= lookback {
+        return Ok(HtPhasor {
+            in_phase: out_in,
+            quadrature: out_q,
+        });
+    }
+    let mut h = Hilbert::new();
+    let first_main = h.init(values, lookback, 9); // HT_PHASOR 的 WMA 预热循环次数 = 9
+    let mut today = first_main;
+    while today <= n - 1 {
+        let parity_even = today % 2 == 0;
+        h.step(values, today, values[today]);
+        // PHASOR 同样维护主导周期（影响 `adjustedPrevPeriod` 阻尼），必须调用。
+        // PHASOR also maintains the dominant cycle (drives the `adjustedPrevPeriod`
+        // damping), so update_period() is required.
+        h.update_period();
+        let quadrature = h.q1;
+        // 同相分量：偶数 bar 取 i1_for_even_prev3，奇数 bar 取 i1_for_odd_prev3。
+        // In-phase: even bar -> i1_for_even_prev3, odd bar -> i1_for_odd_prev3.
+        let in_phase = if parity_even {
+            h.i1_for_even_prev3
+        } else {
+            h.i1_for_odd_prev3
+        };
+        if today >= lookback {
+            out_in[today] = in_phase;
+            out_q[today] = quadrature;
+        }
+        today += 1;
+    }
+    Ok(HtPhasor {
+        in_phase: out_in,
+        quadrature: out_q,
+    })
+}
+
+/// HT_PHASOR，使用 TA-Lib 默认参数（无可选参数）。
+/// HT_PHASOR with TA-Lib defaults (no optional inputs).
+pub fn ht_phasor_default(values: &[f64]) -> Result<HtPhasor, TaError> {
+    ht_phasor(values)
+}
+
+// ───────────────────────── HT_SINE ─────────────────────────
+
+/// 希尔伯特正弦波（HT_SINE，TA-Lib `TA_HT_SINE`）结果。两向量等长。
+/// Hilbert Transform Sine Wave result (sine & lead sine). Equal-length.
+pub struct HtSine {
+    /// 正弦波（`sin(DCPhase * deg2rad)`）。/ Sine wave.
+    pub sine: Vec<f64>,
+    /// 领先正弦波（`sin((DCPhase + 45) * deg2rad)`）。/ Lead sine wave.
+    pub lead_sine: Vec<f64>,
+}
+
+/// 希尔伯特正弦波（HT_SINE，TA-Lib `TA_HT_SINE`）。
+///
+/// Hilbert Transform — SineWave. Emits the sine and the 45°-leading sine of
+/// the dominant-cycle phase. Lookback is 63; the first 63 positions are
+/// [`f64::NAN`].
+///
+/// # 参数 / Parameters
+/// - `values`：输入序列（收盘价等）`&[f64]`。/ Input series `&[f64]`.
+///
+/// # 返回值 / Returns
+/// [`HtSine`]（`sine` 与 `lead_sine` 等长向量，前导 63 个为 [`f64::NAN`]）。
+pub fn ht_sine(values: &[f64]) -> Result<HtSine, TaError> {
+    let n = values.len();
+    let lookback = 63;
+    let mut out_sine = vec![f64::NAN; n];
+    let mut out_lead = vec![f64::NAN; n];
+    if n <= lookback {
+        return Ok(HtSine {
+            sine: out_sine,
+            lead_sine: out_lead,
+        });
+    }
+    let mut h = Hilbert::new();
+    let first_main = h.init(values, lookback, 34); // HT_SINE 的 WMA 预热循环次数 = 34
+    let mut today = first_main;
+    while today <= n - 1 {
+        h.advance_full(values, today, values[today]);
+        if today >= lookback {
+            out_sine[today] = h.sine;
+            out_lead[today] = h.lead_sine;
+        }
+        today += 1;
+    }
+    Ok(HtSine {
+        sine: out_sine,
+        lead_sine: out_lead,
+    })
+}
+
+/// HT_SINE，使用 TA-Lib 默认参数（无可选参数）。
+/// HT_SINE with TA-Lib defaults (no optional inputs).
+pub fn ht_sine_default(values: &[f64]) -> Result<HtSine, TaError> {
+    ht_sine(values)
+}
+
+// ───────────────────────── HT_TRENDMODE ─────────────────────────
+
+/// 希尔伯特趋势模态（HT_TRENDMODE，TA-Lib `TA_HT_TRENDMODE`）。
+///
+/// Hilbert Transform — Trend vs. Cycle Mode. Runs the shared Hilbert/DCPhase
+/// machinery plus a trend state machine, emitting an integer `trend` per bar
+/// (1 = trending, 0 = cycling). For equal-length convention the trend is
+/// returned as `1.0` / `0.0`; the leading 63 positions are `0.0` (matching
+/// TA-Lib, which zero-fills the unstable period for this integer output — the
+/// same quirk as the `*INDEX` functions).
+///
+/// # 参数 / Parameters
+/// - `values`：输入序列（收盘价等）`&[f64]`。/ Input series `&[f64]`.
+///
+/// # 返回值 / Returns
+/// 与 `values` 等长的向量，趋势为 1.0/0.0，前导 63 个为 `0.0`。
+/// Equal-length vector; trend is 1.0/0.0, the first 63 positions are `0.0`.
+pub fn ht_trendmode(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    let n = values.len();
+    let lookback = 63;
+    // TA-Lib 对整数输出的不稳定期填 0.0（与 *INDEX 函数一致）。
+    // TA-Lib zero-fills the unstable period for integer outputs (like *INDEX).
+    let mut out = vec![0.0; n];
+    if n <= lookback {
+        return Ok(out);
+    }
+    let mut h = Hilbert::new();
+    let first_main = h.init(values, lookback, 34); // HT_TRENDMODE 的 WMA 预热循环次数 = 34
+    let mut today = first_main;
+    while today <= n - 1 {
+        h.advance_full(values, today, values[today]);
+        h.advance_trend(values, today);
+        if today >= lookback {
+            out[today] = h.trend as f64;
+        }
+        today += 1;
+    }
+    Ok(out)
+}
+
+/// HT_TRENDMODE，使用 TA-Lib 默认参数（无可选参数）。
+/// HT_TRENDMODE with TA-Lib defaults (no optional inputs).
+pub fn ht_trendmode_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    ht_trendmode(values)
 }
 
 // ──────────────────────────── 单元测试 ────────────────────────────

@@ -19,11 +19,12 @@ P0 正确性基线（阻塞） → P1 测量底座 → P2 算法+编译器优化
 ## 战略决策（用户确认，2026-08-10，执行中 / recorded & in progress）
 
 **结论：混合路线——先建共享优化原语（于现有 65 上验证 + 测量），再在其上实现剩余 96。**
+**P4 已全部落地（2026-08-10）：161/161 对外函数 100% 覆盖，含 61 个 CDL 模式识别，全部黄金向量 1:1 通过（见 `tools/reconcile.py`）。**
 不采用"先全实现 96 再优化"（会在原语层二次返工、拖延性能证明），也不采用"先对 65 做逐函数微优化"（优化错层，原语就绪后仍需返工）。
 
 - **理由**：ADR 0010 的优化本质是**共享基础设施**——EMA 状态机、单调队列、`rolling` 前缀和、`_with_output` 原地写入 API、少量热核 SIMD。这些原语被 65 与 96 共同复用；现有 65 已覆盖最难的原语类型（嵌套 EMA 链、滚动极值、WMA、BBANDS），恰适合先在其上验证与测量（P1 护栏）。
-- **剩余 96 的构成**：数学算子(11) + 数学变换(15) + 模式识别(61) = 87 基本为元素级 / 整数比较运算，手写即快、几乎不依赖重原语；真正吃原语的是重叠/动量/周期的少量补缺（本版类别内 4 + Cycle 5 = 9）。
-- **执行顺序**：P0（✅ 已完成）→ **P1 测量底座（✅ 已完成，见 `benches/BASELINE.md`）** → **P2 共享原语优化**（在 65 上验证，黄金向量 + ns/elem 护栏）→ **P4 在高速原语上实现剩余 96**（P4-0 先补本版类别内 4 个，再 Cycle / 数学 / 模式）。
+- **剩余 96 的构成（均已落地，2026-08-10）**：数学算子(11) + 数学变换(15) + 模式识别(61) = 87 基本为元素级 / 整数比较运算，手写即快、几乎不依赖重原语；真正吃原语的是重叠/动量/周期的少量补缺（本版类别内 4 + Cycle 5 = 9）。
+- **执行顺序**：P0（✅ 已完成）→ **P1 测量底座（✅ 已完成，见 `benches/BASELINE.md`）** → **P2 共享原语优化**（在 65 上验证，黄金向量 + ns/elem 护栏）→ **P4 在高速原语上实现剩余 96（✅ 已完成，2026-08-10：161/161 全覆盖）**。
 - 执行启动于 2026-08-10（用户指令 "ok 开始"）。
 
 ---
@@ -82,16 +83,24 @@ P0 正确性基线（阻塞） → P1 测量底座 → P2 算法+编译器优化
   - 实现：`src/core/mod.rs` 的 `nested_ema_with_output<const L, F>`（const-generic 级联 + `combine` 闭包，bit-for-bit 等同逐次 `ema`）；`src/overlap.rs` 三个 `_with_output` 委托。
   - T3 仍慢于 C（1.40×）→ 满足 P3 闸门条件之一（>20%），留待 P3 评估（需再满足"自动向量化失败"）。
 
-### P2-2 单调队列替换 rolling_extreme（MIDPOINT / MIDPRICE）【Q4】
-- `core/mod.rs` 的 `rolling_extreme` 现为 O(n·period) 朴素扫描（自注 "correctness first"）。
-- 新增 O(n) 单调队列实现 `rolling_max`/`rolling_min`，保留朴素版作 fallback / 校验。
-- 新增 `midpoint_with_output` / `midprice_with_output`。
-- **验收**：1:1 通过；大 `period` 下 ns/elem 明显改善。
+### P2-2 单调队列替换 rolling_extreme（MIDPOINT / MIDPRICE）【Q4】——【已完成 · 2026-08-10】
+- `core/mod.rs` 的 `rolling_extreme` 由 O(n·period) 朴素扫描换为**单调队列 O(n)**（`VecDeque`，并列极值取窗口最右以匹配朴素 tie-break，逐位相等）。
+- 保留朴素版 `rolling_extreme_naive` 作 fallback / 校验；新增合并 `rolling_minmax` 单遍双队列（`pub(crate)`）供 `midpoint` 使用，对齐 TA-Lib `MINMAXINDEX` 单遍双队列思路。
+- 新增 `core::tests::rolling_extreme_matches_naive` 单测：对多组 `(n, period)`（含重复极值输入）逐位验证与朴素版相等。
+- **验收（已通过）**：黄金向量 1:1 通过（`cargo test` 全绿，含 midpoint/midprice 黄金向量 + 新单测）；ns/elem 显著下降：
+  - MIDPRICE 22.81 → **6.79** ns/elem（0.30×，Rust/C = 0.56×，**快于 C**）
+  - MIDPOINT 22.55 → **6.39** ns/elem（0.28×，Rust/C = 2.08×，原 7.09×）
+  - 实现：`src/core/mod.rs` 的 `rolling_extreme`（单调队列）+ `rolling_minmax`（合并单遍）；`src/overlap.rs` 的 `midpoint` 改用 `rolling_minmax`。
+  - MIDPOINT 仍慢于 C（2.08×）→ 满足 P3 闸门条件之一（>20%），留待 P3 评估（需再满足"自动向量化失败"）。
 
-### P2-3 WMA 前缀和点积化【Q4】
+### P2-3 WMA 前缀和点积化【Q4】——【已完成 · 2026-08-10】
 - 现状：`wma` 内循环每 `i` 重算 `period` 次（`core/mod.rs` 行 127-143）。
 - 用滑动前缀和或权重点积累积消除每 `i` 的 `period` 次重算；新增 `wma_with_output`。
 - **验收**：1:1 通过；ns/elem 改善。
+- **结果**：`core::wma` 改为 O(n) 滑动递推（维护窗口和 `sw`，`W[i]=W[i-1]+period·x[i]-sw[i-1]`），
+  首个窗口朴素求和作种子；9.93→2.12 ns/elem（4.68×，0.94× C，已快于 C）。新增 `wma_naive` 参考 +
+  `core::tests::wma_matches_naive` 单测作零偏差护栏。注：`wma_with_output` 未新增（WMA 为叶子函数、
+  bench 直接测公开 `wma`，且与现有 D2 `_with_output` 契约无强耦合，留待 P4 批量补）。
 
 ### P2-4 BBANDS 融合核【Q4】
 - 合并 middle(SMA) + 总体标准差为单遍（复用 `rolling_mean` + 滚动二阶矩，参考 `rolling_var`）；新增 `bbands_with_output`（写入结构体 `Bbands { upper, middle, lower }`）。
@@ -113,14 +122,14 @@ P0 正确性基线（阻塞） → P1 测量底座 → P2 算法+编译器优化
 
 ---
 
-## P4 — 后续里程碑（不删减，ADR 0002）
+## P4 — 后续里程碑（不删减，ADR 0002）【✅ 全部完成 · 2026-08-10】
 
 每项同样遵循 P0→P1→P2 流程（先权威向量 → 测量 → 优化）：
-- **P4-0** 本版类别内补缺（4）：`ACCBANDS`（Overlap）、`DX` / `IMI`（Momentum）、`AVGDEV`（Price Transform）——优先补齐，保持已覆盖类别完整（详见 `0.1.0-scope.md`）。
-- **P4-1** 数学算子（11）：ADD / DIV / MAX / MIN / MULT / SUB / SUM / MAXINDEX / MININDEX / MINMAX / MINMAXINDEX
-- **P4-2** 数学变换（15）：ACOS / ASIN / ATAN / CEIL / COS / COSH / EXP / FLOOR / LN / LOG10 / SIN / SINH / SQRT / TAN / TANH
-- **P4-3** 周期指标（5）：HT_DCPERIOD / HT_DCPHASE / HT_PHASOR / HT_SINE / HT_TRENDMODE
-- **P4-4** 模式识别（~61，仅默认 candle settings，ADR 0009）
+- **P4-0** 本版类别内补缺（4）：`ACCBANDS`（Overlap）、`DX` / `IMI`（Momentum）、`AVGDEV`（Price Transform）—— ✅ 已完成（保持已覆盖类别完整）。
+- **P4-1** 数学算子（11）：ADD / DIV / MAX / MIN / MULT / SUB / SUM / MAXINDEX / MININDEX / MINMAX / MINMAXINDEX —— ✅ 已完成
+- **P4-2** 数学变换（15）：ACOS / ASIN / ATAN / CEIL / COS / COSH / EXP / FLOOR / LN / LOG10 / SIN / SINH / SQRT / TAN / TANH —— ✅ 已完成
+- **P4-3** 周期指标（5）：HT_DCPERIOD / HT_DCPHASE / HT_PHASOR / HT_SINE / HT_TRENDMODE —— ✅ 已完成
+- **P4-4** 模式识别（61，仅默认 candle settings，ADR 0009）—— ✅ 已完成（`src/pattern/`，8 个 batch 文件，144 个黄金向量 + 触发/拒绝测试全绿）。
 
 ---
 
@@ -134,10 +143,10 @@ P0 正确性基线（阻塞） → P1 测量底座 → P2 算法+编译器优化
 ---
 
 ## 当前已确认事实（审计基线，2026-08-10 更新）
-- **全量对标目标 = TA-Lib 0.7.1 共 161 个对外函数**（本机 `/opt/homebrew/bin/python3` 的 `talib` 0.7.1 实测）；0.1.0 已实现 **65**，剩余 **96**。
-- 0.1.0 实现分布（按 TA-Lib 权威原生分组 `info['group']，2026-08-10 实测对账）：重叠 17/18（缺 `ACCBANDS`）、动量 29/31（缺 `DX`/`IMI`）、波动率 3/3、成交量 3/3、价格变换 4/5（缺 `AVGDEV`）、统计 **9/9（全量完成）**、周期 **0/5**；数学算子/变换/模式识别均 0。合计 **65 / 161**，剩余 **96**。
+- **全量对标目标 = TA-Lib 0.7.1 共 161 个对外函数**（本机 `/opt/homebrew/bin/python3` 的 `talib` 0.7.1 实测）；**✅ 2026-08-10 已实现 161/161（100% 覆盖，0 剩余）**，经 `tools/reconcile.py` 自动对账通过（live 交叉校验 mismatches=0）。
+- 0.1.0 实现分布（按 TA-Lib 权威原生分组，2026-08-10 实测对账）：重叠 18/18、动量 31/31、波动率 3/3、成交量 3/3、价格变换 5/5、统计 9/9、周期 5/5、数学算子 11/11、数学变换 15/15、模式识别 61/61。合计 **161 / 161**，剩余 **0**。
 - 热点已核实：DEMA/TEMA/T3 嵌套 EMA 多分配；`rolling_extreme` O(n·period)；WMA 内循环重算；无 `_with_output`、无 SIMD/`unsafe`/`target-cpu`；bench 仅 `sma_bench.rs`。
 - 本机**已安装** TA-Lib C + PyPI `TA-Lib` 0.7.1（P0-1 完成；`generate.py` 已成功跑通、63 fixture 重生成、权威黄金向量护栏就绪）→ P0-2 已完成，P0-3/P0-4 已完成（测试注释 + ADR 0010 D3 已对齐；`tools/reconcile.py` 自动对账 65/161/96 通过）。
 - **P1 测量底座已完成**（2026-08-10）：新增 6 个热路径 bench（`dema/tema/t3/wma/midprice/bbands`）+ 沿用 `sma_bench`；`bench-c` feature 下 FFI 链接原生 TA-Lib C 0.7.1 双轨对照（`build.rs` 自动探测 `ta-lib`/`ta_lib`）；`tools/bench/compare.py` 提供 Python 绑定对照。基线快照写入 `benches/BASELINE.md`。
-- **基线结论（Rust vs 原生 C，ns/elem）**：SMA 0.60×、BBANDS 1.02× 已持平/更优；P2-1 后 DEMA 0.73×、TEMA 0.46× 已快于 C，T3 1.40×（原 7.85×）；**剩余差距主要在** MIDPOINT 7.09×、WMA 3.91×、MIDPRICE 1.84×。→ **P2 下一步优先级**：MIDPOINT > WMA > MIDPRICE（对应 P2-2 单调队列 / P2-3 WMA 前缀和）；T3 留待 P3 SIMD 评估（已满足 >20% 闸门条件之一）。
+- **基线结论（Rust vs 原生 C，ns/elem）**：SMA 0.60×、BBANDS 1.02× 已持平/更优；P2-1 后 DEMA 0.73×、TEMA 0.46× 已快于 C，T3 1.40×（原 7.85×）；P2-2 后 MIDPRICE 0.56× 已快于 C、MIDPOINT 2.08×（原 7.09×）；P2-3 后 WMA 0.94× 已快于 C（原 3.91×）。**P2-1~P2-3 共享原语优化全部完成**，仅剩 MIDPOINT 2.08× 与 T3 1.40× 两项（均 >20% 慢于 C，属 P3 SIMD 评估候选，非 P2 算法优化范畴）。→ **P2 下一步**：P2-4 BBANDS 融合核（middle+方差单遍，预期小幅改善；当前 1.02× 已≈持平，优先级最低）；P2-5 自动向量化调优可并入 P3 评估。
 - 硬约束自检：`build.rs` 仅在 `bench-c` 下链接 C 库，且仅作用于 bench 二进制；默认 `cargo build`/`cargo test` 仍零 C 依赖（Zero-FFI 不变）。

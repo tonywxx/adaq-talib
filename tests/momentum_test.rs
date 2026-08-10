@@ -282,3 +282,22 @@ fn stoch_f_matches_golden_vector() {
     assert!(approx_eq_slice(&s.fast_k, &fast_k));
     assert!(approx_eq_slice(&s.fast_d, &fast_d));
 }
+
+#[test]
+fn dx_matches_golden_vector() {
+    let json = common::load_json("dx_basic.json").unwrap();
+    let high = common::load_f64_array(&json, "high").unwrap();
+    let low = common::load_f64_array(&json, "low").unwrap();
+    let close = common::load_f64_array(&json, "close").unwrap();
+    let expected = common::load_f64_array(&json, "expected").unwrap();
+    assert!(approx_eq_slice(&dx_default(&high, &low, &close).unwrap(), &expected));
+}
+
+#[test]
+fn imi_matches_golden_vector() {
+    let json = common::load_json("imi_basic.json").unwrap();
+    let open = common::load_f64_array(&json, "open").unwrap();
+    let close = common::load_f64_array(&json, "close").unwrap();
+    let expected = common::load_f64_array(&json, "expected").unwrap();
+    assert!(approx_eq_slice(&imi_default(&open, &close).unwrap(), &expected));
+}

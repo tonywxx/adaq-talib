@@ -82,7 +82,8 @@ fn run_c_bench(prices: &[f64]) {
                 out.as_mut_ptr(),
             );
             assert_eq!(rc, 0, "TA_SMA failed");
-            checksum += out[out.len() - 1];
+            // Last valid element is `nb - 1` (TA-Lib writes `nb` outputs from `out_beg_idx`).
+            checksum += out[nb as usize - 1];
         }
         let elapsed = start.elapsed();
         println!("C SMA (native): {ITERS} iters x {N} elems = {elapsed:?}");

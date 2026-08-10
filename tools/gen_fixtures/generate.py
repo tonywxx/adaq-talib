@@ -449,6 +449,35 @@ def gen_stoch_f():
     )
 
 
+def gen_dx():
+    # DX reuses the Wilder ±DI and returns 100·|−DI − +DI| / (+DI + −DI).
+    out = talib.DX(OHLC["high"], OHLC["low"], OHLC["close"], timeperiod=14)
+    write_payload(
+        {
+            "name": "dx_basic",
+            "params": {"period": 14},
+            "high": to_jsonable(OHLC["high"]),
+            "low": to_jsonable(OHLC["low"]),
+            "close": to_jsonable(OHLC["close"]),
+            "expected": to_jsonable(list(out)),
+        }
+    )
+
+
+def gen_imi():
+    # TA-Lib's IMI takes (open, close, timeperiod); it does not use high/low.
+    out = talib.IMI(OHLC["open"], OHLC["close"], timeperiod=14)
+    write_payload(
+        {
+            "name": "imi_basic",
+            "params": {"period": 14},
+            "open": to_jsonable(OHLC["open"]),
+            "close": to_jsonable(OHLC["close"]),
+            "expected": to_jsonable(list(out)),
+        }
+    )
+
+
 # ---------------------------------------------------------------------------
 # 波动率 / Volatility (authoritative TA-Lib C generators)
 # ---------------------------------------------------------------------------
@@ -744,6 +773,209 @@ def gen_ht_trendline():
     write_fixture("ht_trendline_basic", {}, OHLC["close"], list(out))
 
 
+def gen_ht_dcperiod():
+    out = talib.HT_DCPERIOD(OHLC["close"])
+    write_fixture("ht_dcperiod_basic", {}, OHLC["close"], list(out))
+
+
+def gen_ht_dcphase():
+    out = talib.HT_DCPHASE(OHLC["close"])
+    write_fixture("ht_dcphase_basic", {}, OHLC["close"], list(out))
+
+
+def gen_ht_phasor():
+    in_phase, quadrature = talib.HT_PHASOR(OHLC["close"])
+    write_payload(
+        {
+            "name": "ht_phasor_basic",
+            "params": {},
+            "input": to_jsonable(OHLC["close"]),
+            "in_phase": to_jsonable(list(in_phase)),
+            "quadrature": to_jsonable(list(quadrature)),
+        }
+    )
+
+
+def gen_ht_sine():
+    sine, lead_sine = talib.HT_SINE(OHLC["close"])
+    write_payload(
+        {
+            "name": "ht_sine_basic",
+            "params": {},
+            "input": to_jsonable(OHLC["close"]),
+            "sine": to_jsonable(list(sine)),
+            "lead_sine": to_jsonable(list(lead_sine)),
+        }
+    )
+
+
+def gen_ht_trendmode():
+    out = talib.HT_TRENDMODE(OHLC["close"])
+    write_fixture("ht_trendmode_basic", {}, OHLC["close"], list(out))
+
+
+
+# ---------------------------------------------------------------------------
+# 数学变换 / Math Transform
+# ---------------------------------------------------------------------------
+def _mt_general():
+    return npa([0.5, -0.3, 1.2, 2.0, -1.5, 0.0, 3.1, -2.2, 0.8, 1.0, -0.7, 4.0, 0.25, -3.3])
+
+def _mt_unit():  # in [-1, 1] for acos/asin
+    return npa([0.5, -0.3, 1.0, -1.0, 0.0, 0.8, -0.9, 0.2, -0.6, 0.95, -0.4, 0.1, -1.0, 0.6])
+
+def _mt_pos():  # > 0 for ln/log10
+    return npa([1.0, 2.5, 0.3, 10.0, 0.01, 4.2, 1.7, 0.5, 3.3, 8.0, 0.2, 6.1, 2.0, 0.9])
+
+def _mt_nonneg():  # >= 0 for sqrt
+    return npa([0.0, 2.5, 0.3, 10.0, 4.2, 1.7, 0.5, 3.3, 8.0, 0.2, 6.1, 2.0, 0.9, 1.0])
+
+def gen_acos():
+    s = _mt_unit(); write_fixture("acos_basic", {}, s, list(talib.ACOS(s)))
+def gen_asin():
+    s = _mt_unit(); write_fixture("asin_basic", {}, s, list(talib.ASIN(s)))
+def gen_atan():
+    s = _mt_general(); write_fixture("atan_basic", {}, s, list(talib.ATAN(s)))
+def gen_ceil():
+    s = _mt_general(); write_fixture("ceil_basic", {}, s, list(talib.CEIL(s)))
+def gen_cos():
+    s = _mt_general(); write_fixture("cos_basic", {}, s, list(talib.COS(s)))
+def gen_cosh():
+    s = _mt_general(); write_fixture("cosh_basic", {}, s, list(talib.COSH(s)))
+def gen_exp():
+    s = _mt_general(); write_fixture("exp_basic", {}, s, list(talib.EXP(s)))
+def gen_floor():
+    s = _mt_general(); write_fixture("floor_basic", {}, s, list(talib.FLOOR(s)))
+def gen_ln():
+    s = _mt_pos(); write_fixture("ln_basic", {}, s, list(talib.LN(s)))
+def gen_log10():
+    s = _mt_pos(); write_fixture("log10_basic", {}, s, list(talib.LOG10(s)))
+def gen_sin():
+    s = _mt_general(); write_fixture("sin_basic", {}, s, list(talib.SIN(s)))
+def gen_sinh():
+    s = _mt_general(); write_fixture("sinh_basic", {}, s, list(talib.SINH(s)))
+def gen_sqrt():
+    s = _mt_nonneg(); write_fixture("sqrt_basic", {}, s, list(talib.SQRT(s)))
+def gen_tan():
+    s = _mt_general(); write_fixture("tan_basic", {}, s, list(talib.TAN(s)))
+def gen_tanh():
+    s = _mt_general(); write_fixture("tanh_basic", {}, s, list(talib.TANH(s)))
+
+# ---------------------------------------------------------------------------
+# 数学运算符 / Math Operators
+# ---------------------------------------------------------------------------
+OP_A = npa([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
+OP_B = npa([2.0, 1.5, 0.5, 3.0, -2.0, 1.0, 4.0, 1.0, 0.25, 2.0, -1.0, 5.0])
+OP_REAL = npa([3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 8.0, 7.0, 2.0, 1.0, 4.0])
+
+def gen_add():
+    out = talib.ADD(OP_A, OP_B)
+    write_payload({"name": "add_basic", "params": {},
+                   "real0": to_jsonable(OP_A), "real1": to_jsonable(OP_B),
+                   "expected": to_jsonable(list(out))})
+def gen_sub():
+    out = talib.SUB(OP_A, OP_B)
+    write_payload({"name": "sub_basic", "params": {},
+                   "real0": to_jsonable(OP_A), "real1": to_jsonable(OP_B),
+                   "expected": to_jsonable(list(out))})
+def gen_mult():
+    out = talib.MULT(OP_A, OP_B)
+    write_payload({"name": "mult_basic", "params": {},
+                   "real0": to_jsonable(OP_A), "real1": to_jsonable(OP_B),
+                   "expected": to_jsonable(list(out))})
+def gen_div():
+    out = talib.DIV(OP_A, OP_B)
+    write_payload({"name": "div_basic", "params": {},
+                   "real0": to_jsonable(OP_A), "real1": to_jsonable(OP_B),
+                   "expected": to_jsonable(list(out))})
+
+def gen_max():
+    out = talib.MAX(OP_REAL, timeperiod=5)
+    write_fixture("max_basic", {"time_period": 5}, OP_REAL, list(out))
+def gen_min():
+    out = talib.MIN(OP_REAL, timeperiod=5)
+    write_fixture("min_basic", {"time_period": 5}, OP_REAL, list(out))
+def gen_sum():
+    out = talib.SUM(OP_REAL, timeperiod=5)
+    write_fixture("sum_basic", {"time_period": 5}, OP_REAL, list(out))
+def gen_max_index():
+    out = talib.MAXINDEX(OP_REAL, timeperiod=5)
+    write_fixture("max_index_basic", {"time_period": 5}, OP_REAL, list(out))
+def gen_min_index():
+    out = talib.MININDEX(OP_REAL, timeperiod=5)
+    write_fixture("min_index_basic", {"time_period": 5}, OP_REAL, list(out))
+def gen_minmax():
+    mn, mx = talib.MINMAX(OP_REAL, timeperiod=5)
+    write_payload({"name": "minmax_basic", "params": {"time_period": 5},
+                   "input": to_jsonable(OP_REAL),
+                   "min": to_jsonable(list(mn)), "max": to_jsonable(list(mx))})
+def gen_minmax_index():
+    mni, mxi = talib.MINMAXINDEX(OP_REAL, timeperiod=5)
+    write_payload({"name": "minmax_index_basic", "params": {"time_period": 5},
+                   "input": to_jsonable(OP_REAL),
+                   "min_idx": to_jsonable(list(mni)), "max_idx": to_jsonable(list(mxi))})
+
+# ---------------------------------------------------------------------------
+# 价格变换补充 / Price Transform (AVGDEV)
+# ---------------------------------------------------------------------------
+def gen_avgdev():
+    out = talib.AVGDEV(OHLC["close"], timeperiod=14)
+    write_fixture("avgdev_basic", {"time_period": 14}, OHLC["close"], list(out))
+
+
+# ---------------------------------------------------------------------------
+# 重叠研究补充 / Overlap Studies (ACCBANDS)
+# ---------------------------------------------------------------------------
+def gen_accbands():
+    upper, middle, lower = talib.ACCBANDS(
+        OHLC["high"], OHLC["low"], OHLC["close"], timeperiod=20
+    )
+    write_payload(
+        {
+            "name": "accbands_basic",
+            "params": {"period": 20},
+            "high": to_jsonable(OHLC["high"]),
+            "low": to_jsonable(OHLC["low"]),
+            "close": to_jsonable(OHLC["close"]),
+            "upper": to_jsonable(list(upper)),
+            "middle": to_jsonable(list(middle)),
+            "lower": to_jsonable(list(lower)),
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# 形态识别 / Pattern Recognition (all 61 CDL_* candlestick functions)
+# ---------------------------------------------------------------------------
+def gen_all_cdl():
+    """Generate golden-vector fixtures for every TA-Lib candlestick pattern.
+
+    TA-Lib exposes 61 CDL_* functions; each takes (open, high, low, close) and
+    returns an integer vector (-100 bearish / 0 neutral / +100 bullish). We
+    enumerate them dynamically so the fixture set stays in lock-step with the
+    installed TA-Lib C 0.7.1.
+    """
+    cdl_names = sorted(
+        n for n in dir(talib) if n.startswith("CDL") and callable(getattr(talib, n))
+    )
+    for name in cdl_names:
+        fn = getattr(talib, name)
+        out = fn(OHLC["open"], OHLC["high"], OHLC["low"], OHLC["close"])
+        # TA-Lib returns numpy int64; serialize as JSON numbers (100 / -100 / 0).
+        write_payload(
+            {
+                "name": f"cdl_{name.lower()}",
+                "params": {},
+                "open": to_jsonable(OHLC["open"]),
+                "high": to_jsonable(OHLC["high"]),
+                "low": to_jsonable(OHLC["low"]),
+                "close": to_jsonable(OHLC["close"]),
+                # ints -> numbers so the hand-rolled JSON loader keeps them as f64
+                "expected": [None if (v != v) else float(int(v)) for v in out],
+            }
+        )
+
+
 GENERATORS = [
     gen_sma, gen_ema, gen_wma, gen_dema, gen_tema, gen_midpoint, gen_midprice,
     # ---- 动量指标 / Momentum ----
@@ -751,6 +983,7 @@ GENERATORS = [
     gen_stoch_rsi, gen_apo, gen_ppo, gen_macd, gen_cci, gen_mfi, gen_willr, gen_bop,
     gen_ultosc, gen_plus_dm, gen_minus_dm, gen_plus_di, gen_minus_di, gen_adx,
     gen_adxr, gen_aroon, gen_aroon_osc, gen_stoch, gen_stoch_f,
+    gen_dx, gen_imi,
     # ---- 波动率 / Volatility ----
     gen_trange, gen_atr, gen_natr,
     # ---- 成交量 / Volume ----
@@ -764,6 +997,20 @@ GENERATORS = [
     gen_bbands, gen_trima, gen_t3, gen_ma, gen_mavp, gen_kama, gen_sar, gen_sarext,
     # ---- 周期类 / Cycle ----
     gen_mama, gen_ht_trendline,
+    gen_ht_dcperiod, gen_ht_dcphase, gen_ht_phasor, gen_ht_sine, gen_ht_trendmode,
+    # ---- 数学变换 / Math Transform ----
+    gen_acos, gen_asin, gen_atan, gen_ceil, gen_cos, gen_cosh, gen_exp, gen_floor,
+    gen_ln, gen_log10, gen_sin, gen_sinh, gen_sqrt, gen_tan, gen_tanh,
+    # ---- 数学运算符 / Math Operators ----
+    gen_add, gen_sub, gen_mult, gen_div,
+    gen_max, gen_min, gen_sum, gen_max_index, gen_min_index,
+    gen_minmax, gen_minmax_index,
+    # ---- 价格变换补充 / Price Transform (AVGDEV) ----
+    gen_avgdev,
+    # ---- 重叠研究补充 / Overlap Studies (ACCBANDS) ----
+    gen_accbands,
+    # ---- 形态识别 / Pattern Recognition (all 61 CDL_*) ----
+    gen_all_cdl,
 ]
 
 

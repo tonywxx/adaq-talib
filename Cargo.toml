@@ -48,3 +48,19 @@ harness = false
 name = "bbands_bench"
 harness = false
 
+[[bench]]
+name = "linreg_bench"
+harness = false
+
+[[bench]]
+name = "correl_bench"
+harness = false
+
+[[bench]]
+name = "willr_bench"
+harness = false
+
+[[bench]]
+name = "stoch_bench"
+harness = false
+

@@ -26,7 +26,8 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Public indicator modules (do NOT include `core` / `utils` internal primitives).
 MODULES = [
     "overlap", "momentum", "volatility", "volume",
-    "price_transform", "stat", "cycle",
+    "price_transform", "stat", "cycle", "math_ops", "math_trans",
+    "pattern",
 ]
 
 # Authoritative TA-Lib 0.7.1 function → group, captured live from the installed
@@ -80,10 +81,16 @@ NAME_ALIASES = {
     "macd_fix": "MACDFIX",
     "stoch_f": "STOCHF",
     "stoch_rsi": "STOCHRSI",
+    "max_index": "MAXINDEX",
+    "min_index": "MININDEX",
+    "minmax_index": "MINMAXINDEX",
 }
 
-# Current published scope target (see `0.1.0-scope.md`). Soft-checked; bump as P4 lands.
-TARGET_PUB_FN = 65
+# Current published scope target (see `0.1.0-scope.md`). Informational; the real
+# invariants are the unmatched/covered checks below. Bump as P4 lands.
+# P4 (all 61 CDL_* pattern functions) has landed — the project now implements the full
+# TA-Lib 0.7.1 public surface (161 functions). 100 indicator fns + 61 pattern fns = 161.
+TARGET_PUB_FN = 161
 
 
 def collect_project_functions():
@@ -96,11 +103,20 @@ def collect_project_functions():
             with open(path, encoding="utf-8") as fh:
                 src = fh.read()
             names += re.findall(r"^\s*pub\s+fn\s+(\w+)", src, re.M)
-        per_module[mod] = [n for n in names if not n.endswith("_default")]
+        kept = [n for n in names if not n.endswith("_default") and not n.endswith("_with_output")]
+        # The `pattern` module also exposes internal candle primitives (`real_body`,
+        # `upper_shadow`, …) that are NOT TA-Lib public functions; only count the 61
+        # `cdl_*` pattern functions so reconciliation stays 1:1 with TA-Lib 0.7.1.
+        if mod == "pattern":
+            kept = [n for n in kept if n.startswith("cdl_")]
+        per_module[mod] = kept
     return per_module
 
 
 def to_talib_name(project_fn: str) -> str:
+    # Pattern functions: `cdl_2crows` → `CDL2CROWS` (TA-Lib drops the underscore after CDL).
+    if project_fn.startswith("cdl_"):
+        return "CDL" + project_fn[len("cdl_"):].upper().replace("_", "")
     return NAME_ALIASES.get(project_fn, project_fn.upper())
 
 
@@ -169,9 +185,7 @@ def main() -> int:
     print(f"\n[1] 项目对外函数（7 模块 pub fn，剔除 _default）")
     for mod in MODULES:
         print(f"    {mod:15s} {len(per_module[mod]):3d}")
-    print(f"    {'TOTAL':15s} {non_default_total:3d}   (target {TARGET_PUB_FN})")
-    if non_default_total != TARGET_PUB_FN:
-        print(f"    ⚠ 与 TARGET_PUB_FN={TARGET_PUB_FN} 不一致（随 P4 推进会变化，请同步更新）")
+    print(f"    {'TOTAL':15s} {non_default_total:3d}   (mapped {len(covered)} / 161)")
 
     print(f"\n[2] TA-Lib 0.7.1 覆盖（source: {live_note}）")
     print(f"    {'Group':20s} {'Done':>5s}/{'Total':<5s}  Missing")

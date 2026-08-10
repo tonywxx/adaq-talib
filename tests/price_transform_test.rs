@@ -64,3 +64,10 @@ fn wclprice_matches_golden_vector() {
         &expected
     ));
 }
+
+#[test]
+fn avgdev_matches_golden_vector() {
+    let (input, expected) = common::load_fixture("avgdev_basic.json").expect("load");
+    let out = avgdev(&input, 14).expect("avgdev");
+    assert!(approx_eq_slice(&out, &expected), "AVGDEV deviates");
+}
