@@ -1,0 +1,7 @@
+/target
+.workbuddy
+.codegraph
+tony
+.env
+.agent
+tools/gen_fixtures/__pycache__

@@ -1,0 +1,26 @@
+[package]
+name = "adaq-talib"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Pure-Rust, zero-FFI, no-dependency reimplementation of TA-Lib 0.7.1 technical-analysis indicators."
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/tonywxx/adaq-talib"
+homepage = "https://github.com/tonywxx/adaq-talib"
+documentation = "https://docs.rs/adaq-talib"
+keywords = ["technical-analysis", "ta-lib", "indicators", "quantitative", "finance", "rust"]
+categories = ["finance", "algorithms", "science"]
+authors = ["tonywxx"]
+
+[dependencies]
+
+[features]
+# 启用后，benches 通过 FFI 链接系统 TA-Lib C 库做原生对照（见 ADR 0004）。
+# When enabled, benches FFI-link the system TA-Lib C library for native comparison (ADR 0004).
+bench-c = []
+
+[[bench]]
+name = "sma_bench"
+harness = false
+
