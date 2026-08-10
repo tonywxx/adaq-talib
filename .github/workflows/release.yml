@@ -11,7 +11,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 # 发布流程不需要写权限；只读取源码即可。
 # Least privilege: read-only contents is sufficient for the publish step.
