@@ -24,3 +24,27 @@ bench-c = []
 name = "sma_bench"
 harness = false
 
+[[bench]]
+name = "dema_bench"
+harness = false
+
+[[bench]]
+name = "tema_bench"
+harness = false
+
+[[bench]]
+name = "t3_bench"
+harness = false
+
+[[bench]]
+name = "wma_bench"
+harness = false
+
+[[bench]]
+name = "midprice_bench"
+harness = false
+
+[[bench]]
+name = "bbands_bench"
+harness = false
+

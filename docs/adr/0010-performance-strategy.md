@@ -15,8 +15,9 @@ Zero-FFI、No-Dependencies（`[dependencies]` 为空）、`f64`、API 模型 B�
 2. 当前实现为"正确性优先"：每调用分配 `Vec<f64>`；DEMA/TEMA 各做 3 次独立全量 EMA
    扫描并各分配 `Vec`；`rolling_extreme` 为 O(n·period) 朴素窗口（`src/core/mod.rs` 自注
    "correctness first"）；WMA 内循环每 `i` 重算 `period` 次；无 SIMD、无 `unsafe`、仅少量 `#[inline]`。
-3. 黄金向量当前为"对照 TA-Lib 0.7.1 文档算法的参考值"，**非真实 TA-Lib 0.7.1 C 库输出**
-   （见 `tests/overlap_test.rs` 及各 fixture 的 `_note`）。性能重构的数值漂移风险无防护。
+3. 黄金向量已于 **2026-08-10** 由 `tools/gen_fixtures/generate.py` 基于真实 TA-Lib C 0.7.1
+   输出全量重生成（共 63 个 fixture），是**权威黄金向量**，不再携带 `_note` 字段
+   （见 `tools/README.md` / ADR 0003）。性能重构的数值漂移风险由全量黄金向量比对兜底。
 
 ## 决策
 
@@ -43,10 +44,11 @@ Zero-FFI、No-Dependencies（`[dependencies]` 为空）、`f64`、API 模型 B�
 - 多输出指标（BBANDS 等）同样提供写入式结构体变体。
 - **不采用**"以调用方缓冲区为主 API"——避免改变 ADR 0001 既定形态、避免 SemVer 断裂。
 
-### D3 正确性前置：性能重构前先生成权威黄金向量
+### D3 正确性前置：性能重构前先生成权威黄金向量【已完成 · 2026-08-10】
 
-- 本机运行 `tools/gen_fixtures/generate.py`（需系统 TA-Lib C + PyPI `TA-Lib`）生成
-  **真实 0.7.1 输出**，替换当前参考值 fixture；C 库版本登记于 `tools/README`。
+- **状态**：本机已安装 TA-Lib C 0.7.1 + PyPI `TA-Lib`；`tools/gen_fixtures/generate.py`
+  已运行，全量重生成 63 个 fixture 为**真实 0.7.1 输出**的权威黄金向量（不再含 `_note`）；
+  C 库版本登记于 `tools/README.md`（0.7.1）。全量 `cargo test` 1:1 通过（ADR 0005 容限）。
 - 任何性能改动须通过全量黄金向量比对（ADR 0003 / ADR 0005）；数值敏感指标按 ADR 0005
   逐指标放宽容限（如 `1e-6`）以吸收合法的浮点重排（重排顺序 ≠ 偏差）。
 
@@ -69,5 +71,5 @@ Zero-FFI、No-Dependencies（`[dependencies]` 为空）、`f64`、API 模型 B�
 - 新建本 ADR；`CONTEXT.md` 增补性能术语（单调队列 / 融合单遍核 / 原地写入 / 自动向量化 / 对齐）。
 - 下一步行动项（见本会话产出）：P0 正确性基线 → P1 测量底座 → P2 算法 + 编译器优化
   → P3（评估项）SIMD → P4 后续里程碑（数学类 + 模式识别）。
-- `0.1.0-scope.md` 的函数计数（宣称 66 / 动量 30）与实际实现（63 / 动量 27）存在出入，
-  需对账（见 P0-A0.2）。
+- `0.1.0-scope.md` 的函数计数出入（历史宣称 66 / 动量 30 vs 实际 63 / 动量 27）已于 2026-08-10
+  对账闭合：实测 **65 / 161**（对外函数 65，TA-Lib 0.7.1 共 161），详见 P0-A0.2 与 `0.1.0-scope.md` 对账日志。

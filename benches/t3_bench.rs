@@ -1,23 +1,22 @@
-//! SMA 基准测速（Rust 侧，零依赖）。/ SMA benchmark (Rust side, dependency-free).
+//! T3 基准测速（Rust 侧，零依赖）。/ T3 benchmark (Rust side, dependency-free).
 //!
 //! 运行 / Run:
 //! ```text
-//! cargo bench --bench sma_bench
+//! cargo bench --bench t3_bench
 //! ```
 //! 对照原生 C（需系统安装 TA-Lib C 库）:
 //! ```text
-//! cargo bench --bench sma_bench --features bench-c
+//! cargo bench --bench t3_bench --features bench-c
 //! ```
 
-use adaq_talib::overlap::sma;
+use adaq_talib::overlap::t3;
 use std::time::Instant;
 
 const N: usize = 1_000_000;
 const PERIOD: usize = 20;
+const V_FACTOR: f64 = 0.7; // TA-Lib 默认
 const ITERS: usize = 20;
 
-/// 确定性伪随机输入（LCG），避免 benchmark 间输入变化。
-/// Deterministic pseudo-random input (LCG) to keep runs comparable.
 fn sample_prices(n: usize) -> Vec<f64> {
     let mut prices = Vec::with_capacity(n);
     let mut x = 12345.0f64;
@@ -34,31 +33,31 @@ fn main() {
     let start = Instant::now();
     let mut checksum = 0.0;
     for _ in 0..ITERS {
-        let out = sma(&prices, PERIOD).unwrap();
+        let out = t3(&prices, PERIOD, V_FACTOR).unwrap();
         checksum += out[out.len() - 1];
     }
     let elapsed = start.elapsed();
-    println!("Rust SMA:  {ITERS} iters x {N} elems = {elapsed:?}");
+    println!("Rust T3:  {ITERS} iters x {N} elems = {elapsed:?}");
     println!("  avg/call: {:?}", elapsed / ITERS as u32);
+    println!("  ns/elem : {:.2}", elapsed.as_nanos() as f64 / ITERS as f64 / N as f64);
     println!("  checksum (anti-optimize): {checksum}\n");
 
     #[cfg(feature = "bench-c")]
     run_c_bench(&prices);
 }
 
-/// FFI 对照原生 TA-Lib C。仅在 `bench-c` feature 下编译，需系统安装 `libta_lib`（见 ADR 0004）。
-/// FFI comparison against native TA-Lib C. Compiled only under `bench-c`; requires system `libta_lib`.
 #[cfg(feature = "bench-c")]
 fn run_c_bench(prices: &[f64]) {
     unsafe {
         unsafe extern "C" {
             fn TA_Initialize() -> i32;
             fn TA_Shutdown() -> i32;
-            fn TA_SMA(
+            fn TA_T3(
                 start_idx: i32,
                 end_idx: i32,
                 in_real: *const f64,
                 opt_in_time_period: i32,
+                opt_in_v_factor: f64,
                 out_beg_idx: *mut i32,
                 out_nb_element: *mut i32,
                 out_real: *mut f64,
@@ -72,21 +71,23 @@ fn run_c_bench(prices: &[f64]) {
         for _ in 0..ITERS {
             let mut beg = 0i32;
             let mut nb = 0i32;
-            let rc = TA_SMA(
+            let rc = TA_T3(
                 0,
                 n - 1,
                 prices.as_ptr(),
                 PERIOD as i32,
+                V_FACTOR,
                 &mut beg,
                 &mut nb,
                 out.as_mut_ptr(),
             );
-            assert_eq!(rc, 0, "TA_SMA failed");
-            checksum += out[out.len() - 1];
+            assert_eq!(rc, 0, "TA_T3 failed");
+            checksum += out[(nb - 1) as usize];
         }
         let elapsed = start.elapsed();
-        println!("C SMA (native): {ITERS} iters x {N} elems = {elapsed:?}");
+        println!("C T3 (native): {ITERS} iters x {N} elems = {elapsed:?}");
         println!("  avg/call: {:?}", elapsed / ITERS as u32);
+        println!("  ns/elem : {:.2}", elapsed.as_nanos() as f64 / ITERS as f64 / N as f64);
         println!("  checksum (anti-optimize): {checksum}");
         TA_Shutdown();
     }

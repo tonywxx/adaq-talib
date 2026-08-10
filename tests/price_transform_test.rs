@@ -2,13 +2,13 @@
 //!
 //! Price-transform golden-vector comparison tests (ADR 0003 / ADR 0005).
 //!
-//! 注意：当前 fixture 为对照 TA-Lib 0.7.1 文档算法的参考值（见各 fixture 内 `_note`），
-//! 待用户本机以 `tools/gen_fixtures/generate.py`（需 TA-Lib C）重新生成权威基准后，
-//! 此处比对即等价于与原版逐项校验。
+//! 注意：fixture 为 `tools/gen_fixtures/generate.py` 基于 **TA-Lib C 0.7.1** 真实输出生成的
+//! 权威黄金向量（2026-08-10 重生成，不再携带 `_note` 字段；见 ADR 0003 / `tools/README.md`）。
+//! 此处比对即等价于与原版逐项 **1:1** 校验。
 //!
-//! NOTE: fixtures currently hold reference values derived from the TA-Lib 0.7.1 documented
-//! algorithm (see each fixture's `_note`). Once regenerated authoritatively via
-//! `tools/gen_fixtures/generate.py` (requires TA-Lib C), these become 1:1 checks.
+//! NOTE: fixtures are authoritative golden vectors generated from real TA-Lib C 0.7.1
+//! output via `tools/gen_fixtures/generate.py` (regenerated 2026-08-10, no `_note` field;
+//! see ADR 0003 / `tools/README.md`). These comparisons are 1:1 checks against the original.
 
 #[path = "common/mod.rs"]
 mod common;

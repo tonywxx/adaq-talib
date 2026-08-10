@@ -104,6 +104,98 @@ pub fn ema(values: &[f64], period: usize) -> Vec<f64> {
     out
 }
 
+/// 嵌套 EMA 级联（单遍融合核，DEMA / TEMA / T3 共用）。
+///
+/// Nested EMA cascade — a single forward pass that produces `E1..EL` so that DEMA / TEMA /
+/// T3 can be combined without allocating `L` intermediate `Vec<f64>` or scanning the series
+/// `L` times. At each index `i` we compute `E1[i]`, feed it into `E2`, `E2[i]` into `E3`, …
+/// all in one loop, holding only `O(L)` scalar state.
+///
+/// 每层 `k` 以其输入（上一层输出）的**首个 `period` 个有限值**的算术均值作 SMA 种子，
+/// 之后按 `k = 2/(period+1)` 递推 —— 与逐次调用 [`ema`] 完全一致（同一次求和顺序、同一
+/// 递推），数值逐项相等、零偏差（ADR 0005）。
+///
+/// Each level `k` seeds with the SMA of the first `period` finite values of its input (the
+/// previous level's output), then recurses with `k = 2/(period+1)` — identical to calling
+/// [`ema`] repeatedly (same summation order, same recursion), bit-for-bit equal (ADR 0005).
+///
+/// `combine` 接收当前索引的全部 `E1..EL`，写出最终组合值（如 DEMA: `2*E1 - E2`）。
+/// `combine` receives the full `E1..EL` at the current index and writes the final combined
+/// value. The output is [`f64::NAN`] until the deepest level `EL` first becomes valid.
+///
+/// # Panics
+/// 调用方须保证 `period >= 1` 且 `out.len() == values.len()`。/ Caller must ensure
+/// `period >= 1` and `out.len() == values.len()`.
+#[inline]
+pub fn nested_ema_with_output<const L: usize, F>(
+    values: &[f64],
+    period: usize,
+    mut combine: F,
+    out: &mut [f64],
+) where
+    F: FnMut(&[f64; L]) -> f64,
+{
+    debug_assert!(period >= 1);
+    debug_assert_eq!(out.len(), values.len());
+    let n = values.len();
+    if n == 0 {
+        return;
+    }
+    let k = 2.0 / (period as f64 + 1.0);
+    let pk = period as f64;
+    let nan = f64::NAN;
+    // 每层状态：当前值、递推上一值、种子累加和、种子计数、是否已播种。
+    // Per-level state: current value, previous (recursion) value, seed accumulator,
+    // seed count, seeded flag.
+    let mut e = [nan; L];
+    let mut prev = [nan; L];
+    let mut seed_sum = [0.0f64; L];
+    let mut seed_n = [0usize; L];
+    let mut seeded = [false; L];
+
+    for i in 0..n {
+        // Level 1: raw input series. Before seeding, only finite values accumulate the seed.
+        let v1 = values[i];
+        if !seeded[0] {
+            if !v1.is_nan() {
+                seed_sum[0] += v1;
+                seed_n[0] += 1;
+                if seed_n[0] == period {
+                    e[0] = seed_sum[0] / pk;
+                    seeded[0] = true;
+                    prev[0] = e[0];
+                }
+            }
+        } else {
+            // Once seeded, every index recurses (a NaN input propagates NaN, matching `ema`).
+            e[0] = (v1 - prev[0]) * k + prev[0];
+            prev[0] = e[0];
+        }
+
+        // Levels 2..=L: each consumes the previous level's freshly computed output.
+        for l in 1..L {
+            let src = e[l - 1];
+            if !seeded[l] {
+                if !src.is_nan() {
+                    seed_sum[l] += src;
+                    seed_n[l] += 1;
+                    if seed_n[l] == period {
+                        e[l] = seed_sum[l] / pk;
+                        seeded[l] = true;
+                        prev[l] = e[l];
+                    }
+                }
+            } else {
+                e[l] = (src - prev[l]) * k + prev[l];
+                prev[l] = e[l];
+            }
+        }
+
+        // Combine only once the deepest level is valid; otherwise keep NaN.
+        out[i] = if seeded[L - 1] { combine(&e) } else { nan };
+    }
+}
+
 /// 加权移动平均（TA-Lib `TA_WMA`），与输入等长的全索引向量。
 ///
 /// Weighted moving average (TA-Lib `TA_WMA`), a full-indexed vector with the same length

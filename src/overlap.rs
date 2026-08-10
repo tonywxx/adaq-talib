@@ -227,11 +227,68 @@ pub fn wma_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// // 首个有效值在索引 2*(period-1) = 4 / first valid at index 2*(period-1) = 4
 /// assert!(!out[4].is_nan());
 /// ```
+/// 双指数移动平均，零拷贝写入 `out`（与 `values` 等长）。
+///
+/// Double Exponential Moving Average (TA-Lib `TA_DEMA`), written zero-copy into `out`.
+/// Reuses the [`crate::core::nested_ema_with_output`] single-pass fused kernel (ADR 0010
+/// P2-1), eliminating the 2 independent `ema` scans and `Vec` allocations of the naive
+/// version. Numerically identical to [`dema`] (1:1 with TA-Lib).
+///
+/// `out` 长度必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// `out` must have length equal to `values.len()`; otherwise [`TaError::BadParam`] is returned.
+pub fn dema_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "dema_with_output: out length must equal values length".into(),
+        ));
+    }
+    crate::core::nested_ema_with_output::<2, _>(values, time_period, |e| 2.0 * e[0] - e[1], out);
+    Ok(())
+}
+
+/// 双指数移动平均（Double Exponential Moving Average, DEMA）。
+///
+/// Double Exponential Moving Average (DEMA). Replicates TA-Lib `TA_DEMA`.
+///
+/// # 参数 / Parameters
+/// - `values`：输入序列 `&[f64]`。/ Input series `&[f64]`.
+/// - `time_period`：窗口长度 `period >= 1`，对应 `optInTimePeriod`（默认 30）。
+///
+/// # 返回值 / Returns
+/// 与 `values` 等长，前导 `2*(period-1)` 为 [`f64::NAN`]。由两层 EMA 组合：
+/// `DEMA = 2*EMA(x) - EMA(EMA(x))`，嵌套 EMA 作用于上一层有效（非 NaN）部分
+/// （见 [`crate::core::ema`]），与原版对齐一致。
+///
+/// Same length as `values`; the leading `2*(period-1)` positions are [`f64::NAN`].
+/// Composed of two EMAs: `DEMA = 2*EMA(x) - EMA(EMA(x))`, where the nested EMA operates
+/// on the valid (non-NaN) portion of the previous EMA (see [`crate::core::ema`]), matching
+/// the original.
+///
+/// # 公式 / Formula
+/// ```text
+/// E1 = EMA(values, period)
+/// E2 = EMA(E1, period)          // 仅作用于 E1 的有效段 / over valid E1
+/// DEMA[i] = 2*E1[i] - E2[i]
+/// ```
+/// 来源 / Source: TA-Lib `ta_dema.c`.
+///
+/// # 错误 / Errors
+/// - [`TaError::BadParam`]：`time_period == 0`。
+///
+/// # 示例 / Example
+/// ```rust
+/// use adaq_talib::overlap::dema;
+/// let out = dema(&[1.0, 2.0, 4.0, 8.0, 16.0, 32.0], 3).unwrap();
+/// assert!(out[0].is_nan() && out[1].is_nan() && out[2].is_nan() && out[3].is_nan());
+/// // 首个有效值在索引 2*(period-1) = 4 / first valid at index 2*(period-1) = 4
+/// assert!(!out[4].is_nan());
+/// ```
 pub fn dema(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    let e1 = crate::core::ema(values, time_period);
-    let e2 = crate::core::ema(&e1, time_period);
-    Ok(e1.iter().zip(&e2).map(|(a, b)| 2.0 * a - b).collect())
+    let mut out = vec![f64::NAN; values.len()];
+    dema_with_output(values, time_period, &mut out)?;
+    Ok(out)
 }
 
 /// 双指数移动平均，使用 TA-Lib 默认周期（30）。
@@ -279,17 +336,68 @@ pub fn dema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// assert!(out[5].is_nan());
 /// assert!(!out[6].is_nan());
 /// ```
+/// 三指数移动平均，零拷贝写入 `out`（与 `values` 等长）。
+///
+/// Triple Exponential Moving Average (TA-Lib `TA_TEMA`), written zero-copy into `out`.
+/// Reuses the [`crate::core::nested_ema_with_output`] single-pass fused kernel (ADR 0010
+/// P2-1), eliminating the 3 independent `ema` scans and `Vec` allocations of the naive
+/// version. Numerically identical to [`tema`] (1:1 with TA-Lib).
+///
+/// `out` 长度必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// `out` must have length equal to `values.len()`; otherwise [`TaError::BadParam`] is returned.
+pub fn tema_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "tema_with_output: out length must equal values length".into(),
+        ));
+    }
+    crate::core::nested_ema_with_output::<3, _>(values, time_period, |e| 3.0 * e[0] - 3.0 * e[1] + e[2], out);
+    Ok(())
+}
+
+/// 三指数移动平均（Triple Exponential Moving Average, TEMA）。
+///
+/// Triple Exponential Moving Average (TEMA). Replicates TA-Lib `TA_TEMA`.
+///
+/// # 参数 / Parameters
+/// - `values`：输入序列 `&[f64]`。/ Input series `&[f64]`.
+/// - `time_period`：窗口长度 `period >= 1`，对应 `optInTimePeriod`（默认 30）。
+///
+/// # 返回值 / Returns
+/// 与 `values` 等长，前导 `3*(period-1)` 为 [`f64::NAN`]。由三层 EMA 组合：
+/// `TEMA = 3*EMA1 - 3*EMA2 + EMA3`，每层嵌套 EMA 作用于上一层有效段
+/// （见 [`crate::core::ema`]），与原版对齐一致。
+///
+/// Same length as `values`; the leading `3*(period-1)` positions are [`f64::NAN`].
+/// Composed of three EMAs: `TEMA = 3*EMA1 - 3*EMA2 + EMA3`, each nested EMA over the
+/// previous valid portion (see [`crate::core::ema`]), matching the original.
+///
+/// # 公式 / Formula
+/// ```text
+/// E1 = EMA(values, period)
+/// E2 = EMA(E1, period)
+/// E3 = EMA(E2, period)
+/// TEMA[i] = 3*E1[i] - 3*E2[i] + E3[i]
+/// ```
+/// 来源 / Source: TA-Lib `ta_tema.c`.
+///
+/// # 错误 / Errors
+/// - [`TaError::BadParam`]：`time_period == 0`。
+///
+/// # 示例 / Example
+/// ```rust
+/// use adaq_talib::overlap::tema;
+/// let out = tema(&[1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0], 3).unwrap();
+/// // 首个有效值在索引 3*(period-1) = 6 / first valid at index 3*(period-1) = 6
+/// assert!(out[5].is_nan());
+/// assert!(!out[6].is_nan());
+/// ```
 pub fn tema(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    let e1 = crate::core::ema(values, time_period);
-    let e2 = crate::core::ema(&e1, time_period);
-    let e3 = crate::core::ema(&e2, time_period);
-    Ok(e1
-        .iter()
-        .zip(&e2)
-        .zip(&e3)
-        .map(|((a, b), c)| 3.0 * a - 3.0 * b + c)
-        .collect())
+    let mut out = vec![f64::NAN; values.len()];
+    tema_with_output(values, time_period, &mut out)?;
+    Ok(out)
 }
 
 /// 三指数移动平均，使用 TA-Lib 默认周期（30）。
@@ -571,30 +679,60 @@ pub fn trima_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// c1 = -v^3;  c2 = 3v^2 + 3v^3;  c3 = -6v^2 - 3v - 3v^3;  c4 = 3v^2 + 3v + 1 + v^3
 /// T3 = c1*e6 + c2*e5 + c3*e4 + c4*e3
 /// ```
-pub fn t3(values: &[f64], time_period: usize, v_factor: f64) -> Result<Vec<f64>, TaError> {
+/// 三指数移动平均（T3，Tillson），零拷贝写入 `out`（与 `values` 等长）。
+///
+/// Triple Exponential Moving Average (T3, Tillson) — TA-Lib `TA_T3` — written zero-copy
+/// into `out`. Reuses the [`crate::core::nested_ema_with_output`] single-pass fused kernel
+/// (ADR 0010 P2-1) with `L = 6`, eliminating the 6 independent `ema` scans and `Vec`
+/// allocations of the naive version. Numerically identical to [`t3`] (1:1 with TA-Lib).
+///
+/// `out` 长度必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// `out` must have length equal to `values.len()`; otherwise [`TaError::BadParam`] is returned.
+pub fn t3_with_output(
+    values: &[f64],
+    time_period: usize,
+    v_factor: f64,
+    out: &mut [f64],
+) -> Result<(), TaError> {
     check_period(time_period)?;
-    use crate::core::ema;
-    let n = values.len();
-    let mut out = vec![f64::NAN; n];
-    if n < 6 * (time_period - 1) + 1 {
-        return Ok(out);
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "t3_with_output: out length must equal values length".into(),
+        ));
     }
-    let e1 = ema(values, time_period);
-    let e2 = ema(&e1, time_period);
-    let e3 = ema(&e2, time_period);
-    let e4 = ema(&e3, time_period);
-    let e5 = ema(&e4, time_period);
-    let e6 = ema(&e5, time_period);
     let v = v_factor;
     let c1 = -v * v * v;
     let c2 = 3.0 * (v * v - c1);
     let c3 = -6.0 * v * v - 3.0 * (v - c1);
     let c4 = (3.0 * v * v + 3.0 * v + 1.0) - c1;
-    for i in 0..n {
-        if !e6[i].is_nan() {
-            out[i] = c1 * e6[i] + c2 * e5[i] + c3 * e4[i] + c4 * e3[i];
-        }
-    }
+    crate::core::nested_ema_with_output::<6, _>(
+        values,
+        time_period,
+        |e| c1 * e[5] + c2 * e[4] + c3 * e[3] + c4 * e[2],
+        out,
+    );
+    Ok(())
+}
+
+/// 三指数移动平均（T3，Tillson，TA-Lib `TA_T3`）。
+///
+/// Triple Exponential Moving Average (T3, Tillson). Six nested EMAs combined with the
+/// v-factor coefficients `c1..c4`. The leading `6*(period-1)` positions are [`f64::NAN`].
+///
+/// # 参数 / Parameters
+/// - `time_period`：窗口长度 `period >= 1`（TA-Lib 默认 5）。/ Window length (default 5).
+/// - `v_factor`：平滑因子（TA-Lib 默认 0.7）。/ Smoothing factor (default 0.7).
+///
+/// # 公式 / Formula
+/// ```text
+/// e1 = EMA(x); e2 = EMA(e1); ... e6 = EMA(e5)   (each period `period`)
+/// c1 = -v^3;  c2 = 3v^2 + 3v^3;  c3 = -6v^2 - 3v - 3v^3;  c4 = 3v^2 + 3v + 1 + v^3
+/// T3 = c1*e6 + c2*e5 + c3*e4 + c4*e3
+/// ```
+pub fn t3(values: &[f64], time_period: usize, v_factor: f64) -> Result<Vec<f64>, TaError> {
+    check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    t3_with_output(values, time_period, v_factor, &mut out)?;
     Ok(out)
 }
 
