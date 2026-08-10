@@ -18,9 +18,11 @@
 - [Usage](#usage)
 - [Interactive Demo](#interactive-demo)
 - [Verification & Benchmarks](#verification--benchmarks)
+- [Known Issues & Deprecations](#known-issues--deprecations)
 - [Documentation](#documentation)
 - [License](#license)
 - [Roadmap](#roadmap)
+- [Changelog](#changelog)
 
 ---
 
@@ -409,8 +411,9 @@ Skip the unstable period with `f64::is_nan()` before consuming the valid segment
 
 ### 5. Reuse outside the library
 
-`src/utils.rs` is a `doc(hidden)` internal implementation detail (alignment, range checks)
-and is **not** part of the public API — do not depend on it externally.
+`src/utils.rs` and `src/core/` are `doc(hidden)` internal implementation details (alignment,
+range checks, and shared rolling primitives) and are **not** part of the public API — do not
+depend on them externally.
 
 ---
 
@@ -501,18 +504,26 @@ dependency-free (`std::time`, `harness = false`), the C track FFI-links system T
 
 ### Performance optimizations applied
 
-| Task | Function(s) | Technique | After (Rust ns/elem) | Speed-up |
-|------|-------------|-----------|---------------------:|---------:|
-| T01 | `bbands` (SMA middle) | single-pass `rolling_mean_var` fusion | 3.02 | ~1.5–1.6× |
-| T02 | `linear_reg` family | O(n) sliding `sy`+`sxy` | 2.33 | ~20× asymptotic |
-| T03 | `correl` | O(n) sliding covariance sums | 4.81 | ~20× asymptotic |
-| T04 | `willr` | monotonic-queue rolling max/min (O(n)) | 7.90 | ~20× asymptotic |
-| T04 | `stoch`/`stoch_f` | shared fast-K extreme queue (O(n)) | 10.99 | ~20× asymptotic |
+All optimizations below are **zero-deviation** — verified 1:1 against TA-Lib 0.7.1 golden
+vectors (see [`benches/BASELINE.md`](benches/BASELINE.md) for the full per-indicator write-up).
+`ns/elem` measured on Apple Silicon aarch64, `N = 1_000_000`, `PERIOD = 20`, `ITERS = 20`
+(spot measurement, ±5% jitter).
 
-Every optimization is **zero-deviation**: the full `cargo test` suite stays green (308/308),
-and each refactored function still reproduces its TA-Lib 0.7.1 golden vector within tolerance.
-The full QA write-up (methodology, residual gaps, Python-binding reference numbers) lives in
-[`docs/perf-verify-report.md`](docs/perf-verify-report.md).
+| Phase | Function(s) | Technique | After (Rust ns/elem) | Speed-up vs naive |
+|-------|-------------|-----------|---------------------:|------------------:|
+| P2-1 | `dema` / `tema` / `t3` | single-pass nested-EMA fusion core (`core::nested_ema_with_output`) | 3.63 / 3.46 / 3.76 | ~2× / ~3× / ~6× |
+| P2-2 | `midpoint` / `midprice` | monotonic-queue `core::rolling_extreme` O(n) | 6.88 / 7.30 | ~3× / ~3× |
+| P2-3 | `wma` | O(n) sliding recurrence (`W[i] = W[i-1] + period·x[i] − sw[i-1]`) | 2.11 | ~4.7× |
+| P2-4 | `bbands` (SMA middle) | single-pass `rolling_mean_var` fusion | 3.02 | ~1.5–1.6× |
+| P2-5 | `linear_reg` family / `correl` | O(n) sliding sum / cross-product | 2.33 / 4.81 | ~20× asymptotic |
+| P2-5 | `willr` / `stoch` / `stoch_f` | shared monotonic extreme queue O(n) | 7.90 / 10.99 | ~20× asymptotic |
+| P1② | `minmax` | reuse single-pass `core::rolling_minmax` (consolidation; perf-neutral) | 6.76 | ≈ (accuracy-only) |
+| P1③ | `max_index` / `min_index` / `minmax_index` | single-pass `core::rolling_extreme_index` O(n) | 3.43 / 3.31 / 6.79 | ~1.9× (index) |
+
+Every optimization keeps the full `cargo test` suite green (308/308) and each refactored function
+still reproduces its TA-Lib 0.7.1 golden vector within tolerance
+([ADR 0005](docs/adr/0005-error-tolerance.md)). The full QA write-up (methodology, residual gaps,
+Python-binding reference numbers) lives in [`docs/perf-verify-report.md`](docs/perf-verify-report.md).
 
 ### Benchmarks (how to run)
 
@@ -527,6 +538,22 @@ cargo bench --bench sma_bench --features bench-c
 > The second form needs the TA-Lib C library installed (`brew install ta-lib` / build from
 > source); `build.rs` links it only under `bench-c`, so the build is unaffected otherwise.
 > Reports must clearly distinguish the two tracks.
+
+---
+
+## Known Issues & Deprecations
+
+### Known issues
+- **Two indicators are still slower than native TA-Lib C** — `MIDPOINT` (~2.26×) and `T3` (~1.35×). Both are structurally non-vectorizable (a data-dependent monotonic deque and a sequential EMA IIR respectively), so the planned P3 SIMD pass is a documented **NO-GO** ([ADR 0010](docs/adr/0010-performance-strategy.md)). This is a known, accepted trade-off, **not a defect**.
+- **No native-C wiring for `linear_reg` / `correl` / `willr` / `stoch`** — their Rust-side numbers are the canonical reference. A C comparison would require `unsafe` plus the system TA-Lib C library, which goes against the zero-FFI design; their Rust results are authoritative.
+- **Pattern recognition uses TA-Lib's default candle settings only** ([ADR 0009](docs/adr/0009-candle-settings-default-only.md)); no configuration API is exposed. There is **no functional coverage gap** against TA-Lib 0.7.1 — all 61 candlestick patterns are implemented.
+- **`aroon` / `aroon_osc` output order** — adaq-talib follows the canonical TA-Lib C 0.7.1 `outAroonUp` / `outAroonDown` order (the authoritative golden vectors). If you cross-check against the `talib` Python wheel (0.7.1), note that build historically swaps these two outputs; see [ADR 0003](docs/adr/0003-verification-golden-fixtures.md).
+
+### Dependencies
+- **No runtime dependencies.** The published crate's `[dependencies]` is and remains empty. All recent work adds only *dev* benchmarks (`benches/`), a release workflow, and internal `core` primitives — no new external crates are introduced.
+
+### Deprecated features
+- **None.** This release introduces no deprecations and removes no published capability ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 
 ---
 
@@ -553,7 +580,7 @@ Milestone-based release ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 ships the complete TA-Lib 0.7.1 public surface — all 161 functions across 10 categories — with no
 deletion of published capabilities.**
 
-- ✅ **0.1.0 (current): 161 / 161 functions** — Overlap Studies (18), Momentum (31), Volatility
+- ✅ **0.1.1 (current): 161 / 161 functions** — Overlap Studies (18), Momentum (31), Volatility
   (3), Volume (3), Price Transform (5), Statistic (9), Cycle / Hilbert Transform (7), Math
   Operators (11), Math Transform (15), and Pattern Recognition (61 candlestick patterns). Every
   function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` → 308/308 green,
@@ -565,3 +592,17 @@ deletion of published capabilities.**
   documentation/CI polish. **No functional coverage gap remains against TA-Lib 0.7.1.**
 
 Once those land, adaq-talib reaches full coverage equivalent to TA-Lib 0.7.1.
+
+---
+
+## Changelog
+
+### 0.1.1 (current)
+- **Math operators — O(n) extreme-index functions**: `max_index` / `min_index` / `minmax_index` now use a single-pass monotonic-queue (`core::rolling_extreme_index`), replacing the former O(n·period) nested scan — ~1.9× faster while remaining 1:1 with TA-Lib 0.7.1 ([ADR 0005](docs/adr/0005-error-tolerance.md)). Added `benches/index_bench.rs` and `benches/minmax_bench.rs`.
+- **`minmax` consolidation**: `math_ops::minmax` now reuses the single-pass `core::rolling_minmax` core (the same one used by `midpoint`), eliminating duplicated extreme logic. Performance-neutral; accuracy unchanged.
+- **Full P2 performance sweep (verified 1:1)**: nested-EMA fusion for `dema` / `tema` / `t3` (P2-1); monotonic-queue `midpoint` / `midprice` (P2-2); O(n) sliding `wma` (P2-3); single-pass `bbands` middle (P2-4); sliding O(n) `linear_reg` family / `correl` / `willr` / `stoch` (P2-5). See [`benches/BASELINE.md`](benches/BASELINE.md).
+- **Release tooling & docs**: added `.github/workflows/release.yml` (release automation) and CI; doc-comment and publish-`exclude` fixes; version bumped to `0.1.1`.
+- **Pattern Recognition + Math Operations modules**: all 61 candlestick patterns and the full `math_ops` / `math_trans` surface are implemented, with comprehensive golden-vector fixtures (P4 milestone — 161/161 functions).
+
+### 0.1.0
+- Initial public milestone: the complete TA-Lib 0.7.1 public surface — 161 functions across 10 categories — with zero-deviation golden-vector verification.

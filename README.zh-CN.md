@@ -18,9 +18,11 @@
 - [使用说明](#使用说明--usage)
 - [交互式示例](#交互式示例--interactive-demo)
 - [验证与基准](#验证与基准--verification--benchmarks)
+- [已知问题与非推荐特性](#已知问题与非推荐特性--known-issues--deprecations)
 - [文档](#文档--documentation)
 - [许可证](#许可证--license)
 - [路线图](#路线图--roadmap)
+- [变更日志](#变更日志--changelog)
 
 ---
 
@@ -315,7 +317,7 @@ assert!(!out[13].is_nan()); // 首个有效位于索引 period-1 = 13
 若已发布到 crates.io：
 
 ```bash
-cargo add adaq_talib
+cargo add adaq-talib
 ```
 
 或手动在 `Cargo.toml` 中加入：
@@ -386,7 +388,7 @@ match sma(&[1.0, 2.0], 0) {
 
 ### 5. 在代码库之外复用 / Outside the library
 
-`src/utils.rs` 仅作 `doc(hidden)` 内部实现细节（对齐、范围检查等），不属于公开 API，请勿在外部依赖。
+`src/utils.rs` 与 `src/core/` 仅作 `doc(hidden)` 内部实现细节（对齐、范围检查与共享滚动原语等），不属于公开 API，请勿在外部依赖。
 
 ---
 
@@ -467,15 +469,20 @@ cargo test --doc           # 仅运行文档示例
 
 ### 已落地的性能优化 / Optimizations applied
 
-| 任务 | 函数 | 技术 | 优化后 (Rust ns/elem) | 加速 |
-|------|------|------|---------------------:|------|
-| T01 | `bbands`（SMA 中轨） | 单遍 `rolling_mean_var` 融合 | 3.02 | ~1.5–1.6× |
-| T02 | `linear_reg` 家族 | O(n) 滑动 `sy`+`sxy` | 2.33 | ~20×（渐近） |
-| T03 | `correl` | O(n) 滑动协方差求和 | 4.81 | ~20×（渐近） |
-| T04 | `willr` | 单调队列滚动 max/min（O(n)） | 7.90 | ~20×（渐近） |
-| T04 | `stoch`/`stoch_f` | 复用 fast-K 极值队列（O(n)） | 10.99 | ~20×（渐近） |
+所有下述优化均**零偏差** —— 逐项对照 TA-Lib 0.7.1 黄金向量验证（完整逐指标说明见 [`benches/BASELINE.md`](benches/BASELINE.md)）。`ns/elem` 采集于 Apple Silicon aarch64，`N = 1_000_000`，`PERIOD = 20`，`ITERS = 20`（点测，±5% 波动）。
 
-所有优化均**零偏差**：完整 `cargo test` 套件保持全绿（308/308），每个被重构的函数仍在其容限内复现 TA-Lib 0.7.1 黄金向量。完整的 QA 报告（方法论、残差缺口、Python 绑定参考数值）见 [`docs/perf-verify-report.md`](docs/perf-verify-report.md)。
+| 阶段 | 函数 | 技术 | 优化后 (Rust ns/elem) | 相对朴素加速 |
+|------|------|------|---------------------:|------------:|
+| P2-1 | `dema` / `tema` / `t3` | 单遍嵌套 EMA 融合核（`core::nested_ema_with_output`） | 3.63 / 3.46 / 3.76 | ~2× / ~3× / ~6× |
+| P2-2 | `midpoint` / `midprice` | 单调队列 `core::rolling_extreme` O(n) | 6.88 / 7.30 | ~3× / ~3× |
+| P2-3 | `wma` | O(n) 滑动递推（`W[i] = W[i-1] + period·x[i] − sw[i-1]`） | 2.11 | ~4.7× |
+| P2-4 | `bbands`（SMA 中轨） | 单遍 `rolling_mean_var` 融合 | 3.02 | ~1.5–1.6× |
+| P2-5 | `linear_reg` 家族 / `correl` | O(n) 滑动求和 / 交叉积 | 2.33 / 4.81 | ~20×（渐近） |
+| P2-5 | `willr` / `stoch` / `stoch_f` | 复用单调极值队列 O(n) | 7.90 / 10.99 | ~20×（渐近） |
+| P1② | `minmax` | 复用单遍 `core::rolling_minmax`（收敛；性能中性） | 6.76 | ≈（仅精度收益） |
+| P1③ | `max_index` / `min_index` / `minmax_index` | 单遍 `core::rolling_extreme_index` O(n) | 3.43 / 3.31 / 6.79 | ~1.9×（索引） |
+
+每个优化都保持完整 `cargo test` 套件全绿（308/308），且每个被重构的函数仍在其容限内复现 TA-Lib 0.7.1 黄金向量（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。完整的 QA 报告（方法论、残差缺口、Python 绑定参考数值）见 [`docs/perf-verify-report.md`](docs/perf-verify-report.md)。
 
 ### 性能基准（如何运行）/ Benchmarks (how to run)
 
@@ -488,6 +495,22 @@ cargo bench --bench sma_bench --features bench-c
 ```
 
 > 第 2 种需系统已安装 TA-Lib C 库（`brew install ta-lib` / 源码编译）；`build.rs` 仅在 `bench-c` 下链接，未启用时构建不受影响。报告须明确区分两种口径。
+
+---
+
+## 已知问题与非推荐特性 / Known Issues & Deprecations
+
+### 已知问题 / Known issues
+- **两个指标仍慢于原生 TA-Lib C** —— `MIDPOINT`（约 2.26×）与 `T3`（约 1.35×）。二者在结构上均不可向量化（分别为数据依赖的单调双队列与顺序 EMA IIR），故规划的 P3 SIMD 阶段为已记录的 **NO-GO**（见 [ADR 0010](docs/adr/0010-performance-strategy.md)）。这是已知且已接受的权衡，**并非缺陷**。
+- **`linear_reg` / `correl` / `willr` / `stoch` 未接原生 C 对照** —— 其 Rust 侧数值即权威参考。若要接 C 对照需引入 `unsafe` 与系统 TA-Lib C 库，违背零-FFI 设计；因此以 Rust 结果为准。
+- **模式识别仅采用 TA-Lib 默认 candle settings**（见 [ADR 0009](docs/adr/0009-candle-settings-default-only.md)），不暴露配置 API。针对 TA-Lib 0.7.1 **无任何功能性覆盖缺口** —— 全部 61 个蜡烛形态均已实现。
+- **`aroon` / `aroon_osc` 输出顺序** —— adaq-talib 遵循权威 TA-Lib C 0.7.1 的 `outAroonUp` / `outAroonDown` 顺序（即权威黄金向量）。若与 `talib` Python 绑定（0.7.1）交叉核对，需注意该构建 historically 将二者互换；见 [ADR 0003](docs/adr/0003-verification-golden-fixtures.md)。
+
+### 依赖 / Dependencies
+- **无运行时依赖。** 发布的库 `[dependencies]` 始终为空。近期改动仅新增*开发期*基准（`benches/`）、发布工作流与内部 `core` 原语 —— 未引入任何外部 crate。
+
+### 非推荐 / 废弃特性 / Deprecated features
+- **无。** 本版本未引入任何废弃特性，也未删减任何已发布能力（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
 
 ---
 
@@ -511,7 +534,21 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.0（当前）：161 / 161 函数** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 308/308 全绿，`reconcile.py` → 161/161）并做了性能优化（见[验证与基准](#验证与基准--verification--benchmarks)）。
+- ✅ **0.1.1（当前）：161 / 161 函数** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 308/308 全绿，`reconcile.py` → 161/161）并做了性能优化（见[验证与基准](#验证与基准--verification--benchmarks)）。
 - 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。
+
+---
+
+## 变更日志 / Changelog
+
+### 0.1.1（当前 / current）
+- **数学算子 —— O(n) 极值索引函数**：`max_index` / `min_index` / `minmax_index` 现采用单遍单调队列（`core::rolling_extreme_index`），替换原先 O(n·period) 的嵌套扫描 —— 提速约 1.9×，且与 TA-Lib 0.7.1 仍逐项 1:1（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。新增 `benches/index_bench.rs` 与 `benches/minmax_bench.rs`。
+- **`minmax` 收敛**：`math_ops::minmax` 现复用单遍 `core::rolling_minmax` 核（与 `midpoint` 同源），消除重复的极值逻辑。性能中性，精度不变。
+- **P2 全阶段性能优化（1:1 验证）**：`dema` / `tema` / `t3` 嵌套 EMA 融合（P2-1）；`midpoint` / `midprice` 单调队列（P2-2）；`wma` O(n) 滑动递推（P2-3）；`bbands` 中轨单遍融合（P2-4）；`linear_reg` 家族 / `correl` / `willr` / `stoch` 滑动 O(n)（P2-5）。详见 [`benches/BASELINE.md`](benches/BASELINE.md)。
+- **发布工具与文档**：新增 `.github/workflows/release.yml`（发布自动化）与 CI；修复 doc-comment 与发布 `exclude`；版本号提升至 `0.1.1`。
+- **模式识别与数学运算模块**：全部 61 个蜡烛形态与完整的 `math_ops` / `math_trans` 函数面均已实现，并补齐黄金向量 fixture（P4 里程碑 —— 161/161 函数）。
+
+### 0.1.0
+- 首个公开里程碑：完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类共 161 个函数，并以零偏差黄金向量验证。
