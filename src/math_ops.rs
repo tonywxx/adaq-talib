@@ -284,9 +284,90 @@ pub fn minmax_with_output(
             "minmax_with_output: out vectors must have length == values length".into(),
         ));
     }
+    // 数据量足够且启用 `parallel` feature 时走多核分块；内核与串行逐字节一致，输出 1:1。
+    // Under the `parallel` feature with enough data, use multi-core chunking; the kernel is
+    // byte-identical to the serial path, so output is 1:1.
+    #[cfg(feature = "parallel")]
+    {
+        if n >= 8192 {
+            return minmax_parallel_with_output(values, time_period, out);
+        }
+    }
+    minmax_serial_with_output(values, time_period, out)
+}
+
+/// 滚动窗口最小/最大值串行内核（与 TA-Lib `TA_MINMAX` 逐项 1:1）。见 [`minmax_with_output`]。
+/// Serial kernel for rolling min/max (1:1 with TA-Lib `TA_MINMAX`). See [`minmax_with_output`].
+fn minmax_serial_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut MinMax,
+) -> Result<(), TaError> {
     let (mx, mn) = rolling_minmax(values, time_period);
     out.max.copy_from_slice(&mx);
     out.min.copy_from_slice(&mn);
+    Ok(())
+}
+
+/// 滚动窗口最小/最大值串行版本（feature 无关，供并行对照测试作黄金参考）。见 [`minmax`]。
+/// Serial rolling min/max (feature-agnostic; golden reference for the parallel equality test). See [`minmax`].
+pub fn minmax_serial(values: &[f64], time_period: usize) -> Result<MinMax, TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    let mut out = MinMax {
+        min: vec![f64::NAN; n],
+        max: vec![f64::NAN; n],
+    };
+    minmax_serial_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最小/最大值多核并行版本（需 `parallel` feature）。复用 [`minmax_serial_with_output`]
+/// 的单遍双队列内核，以 `period-1` 前导重叠播种各分块的单调双端队列，输出与串行逐项 1:1。
+/// Multi-core parallel rolling min/max (requires the `parallel` feature). Reuses the single-pass
+/// dual-deque kernel of [`minmax_serial_with_output`] with `period-1` leading overlap to seed each
+/// chunk's monotonic deques; output is 1:1 with the serial path.
+#[cfg(feature = "parallel")]
+pub fn minmax_parallel(values: &[f64], time_period: usize) -> Result<MinMax, TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    let mut out = MinMax {
+        min: vec![f64::NAN; n],
+        max: vec![f64::NAN; n],
+    };
+    minmax_parallel_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最小/最大值并行内核（零拷贝写入 `out`）。见 [`minmax_parallel`]。
+/// Parallel kernel for rolling min/max (zero-copy into `out`). See [`minmax_parallel`].
+#[cfg(feature = "parallel")]
+fn minmax_parallel_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut MinMax,
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    if out.min.len() != n || out.max.len() != n {
+        return Err(TaError::BadParam(
+            "minmax_parallel_with_output: out vectors must have length == values length".into(),
+        ));
+    }
+    let p = time_period;
+    // `parallel_index_map_2`：单遍内核一次算 min/max 两路，省去双队列二次并行扫描。
+    // `parallel_index_map_2`: one-pass kernel computes both min/max streams, avoiding a second
+    // parallel scan of the dual deque.
+    crate::parallel::parallel_index_map_2(
+        n,
+        p - 1,
+        &mut out.min,
+        &mut out.max,
+        |start, end| {
+            let (mx, mn) = rolling_minmax(&values[start..end], p);
+            (mn, mx)
+        },
+    );
     Ok(())
 }
 
@@ -335,9 +416,102 @@ pub fn minmax_index_with_output(
             "minmax_index_with_output: out vectors must have length == values length".into(),
         ));
     }
+    // 数据量足够且启用 `parallel` feature 时走多核分块；内核与串行逐字节一致，输出 1:1。
+    // Under the `parallel` feature with enough data, use multi-core chunking; the kernel is
+    // byte-identical to the serial path, so output is 1:1.
+    #[cfg(feature = "parallel")]
+    {
+        if n >= 8192 {
+            return minmax_index_parallel_with_output(values, time_period, out);
+        }
+    }
+    minmax_index_serial_with_output(values, time_period, out)
+}
+
+/// 滚动窗口最小/最大索引串行内核（与 TA-Lib `TA_MINMAXINDEX` 逐项 1:1）。见 [`minmax_index_with_output`]。
+/// Serial kernel for rolling min/max indices (1:1 with TA-Lib `TA_MINMAXINDEX`). See [`minmax_index_with_output`].
+fn minmax_index_serial_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut MinMaxIndex,
+) -> Result<(), TaError> {
     let min_idx = rolling_extreme_index(values, time_period, false);
     let max_idx = rolling_extreme_index(values, time_period, true);
     out.min_idx.copy_from_slice(&min_idx);
     out.max_idx.copy_from_slice(&max_idx);
+    Ok(())
+}
+
+/// 滚动窗口最小/最大索引串行版本（feature 无关，供并行对照测试作黄金参考）。见 [`minmax_index`]。
+/// Serial rolling min/max indices (feature-agnostic; golden reference for the parallel equality test). See [`minmax_index`].
+pub fn minmax_index_serial(values: &[f64], time_period: usize) -> Result<MinMaxIndex, TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    let mut out = MinMaxIndex {
+        min_idx: vec![f64::NAN; n],
+        max_idx: vec![f64::NAN; n],
+    };
+    minmax_index_serial_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最小/最大索引多核并行版本（需 `parallel` feature）。复用 [`minmax_index_serial_with_output`]
+/// 的最左 tie-break 单遍单调队列，以 `period-1` 前导重叠播种各分块，输出与串行逐项 1:1。
+/// Multi-core parallel rolling min/max indices (requires the `parallel` feature). Reuses the
+/// leftmost tie-break single-pass monotonic queue of [`minmax_index_serial_with_output`] with
+/// `period-1` leading overlap; output is 1:1 with the serial path.
+#[cfg(feature = "parallel")]
+pub fn minmax_index_parallel(values: &[f64], time_period: usize) -> Result<MinMaxIndex, TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    let mut out = MinMaxIndex {
+        min_idx: vec![f64::NAN; n],
+        max_idx: vec![f64::NAN; n],
+    };
+    minmax_index_parallel_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最小/最大索引并行内核（零拷贝写入 `out`）。见 [`minmax_index_parallel`]。
+/// Parallel kernel for rolling min/max indices (zero-copy into `out`). See [`minmax_index_parallel`].
+#[cfg(feature = "parallel")]
+fn minmax_index_parallel_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut MinMaxIndex,
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    if out.min_idx.len() != n || out.max_idx.len() != n {
+        return Err(TaError::BadParam(
+            "minmax_index_parallel_with_output: out vectors must have length == values length".into(),
+        ));
+    }
+    let p = time_period;
+    crate::parallel::parallel_index_map_2(
+        n,
+        p - 1,
+        &mut out.min_idx,
+        &mut out.max_idx,
+        |start, end| {
+            let off = start as f64;
+            let mut min_idx = rolling_extreme_index(&values[start..end], p, false);
+            let mut max_idx = rolling_extreme_index(&values[start..end], p, true);
+            // 切片使索引变为相对值，须平移回绝对位置；前导 `period-1` 个固定为 0.0（与原版一致）。
+            // The slice makes indices relative; shift them back to absolute. The leading
+            // `period-1` positions stay 0.0 (matches TA-Lib).
+            for (i, v) in min_idx.iter_mut().enumerate() {
+                if i >= p - 1 {
+                    *v += off;
+                }
+            }
+            for (i, v) in max_idx.iter_mut().enumerate() {
+                if i >= p - 1 {
+                    *v += off;
+                }
+            }
+            (min_idx, max_idx)
+        },
+    );
     Ok(())
 }

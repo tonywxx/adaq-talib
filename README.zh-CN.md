@@ -456,6 +456,8 @@ cargo test --doc           # 仅运行文档示例
 
 **总览：** 相比原生 C，**85 个更快**、**60 个持平**、**16 个更慢**；几何均值 **Rust/C = 0.786×**（adaq-talib 平均约为 C 的 **1.27× 快**；在 0.1.3 优化之前为 1.50× 慢）。其中 **145 / 161 个指标与 C 持平或更优**（Rust/C ≤ 1.2）；仅 16 个仍慢于 C，且均为孤立个案。
 
+**可选 `parallel` 特性：** `parallel` 特性（默认关闭）对 5 个 A 类窗口函数（`midpoint`、`minmax`、`minmax_index`、`willr`、`stoch_f`）采用重叠播种并行分块，将其移出“更慢”桶。在 `--features parallel` 下，合计变为 **88 更快 / 63 持平 / 10 更慢**（几何均值 **Rust/C = 0.734×**，约为 C 的 1.36× 快）；默认（串行）构建仍为 85/60/16（0.786×）。对其余 156 个函数该特性为 no-op。详见已落地优化表（P3-2b）与 `docs/validation-and-performance-report.md` §3.5。
+
 | TA-Lib 分组 | 指标数 | 更快 (<0.8) | 持平 (0.8–1.2) | 更慢 (>1.2) | 几何均值 Rust/C |
 |---|---:|---:|---:|---:|---:|
 | 周期 / 希尔伯特变换 | 5 | 2 | 2 | 1 | 0.980× |
@@ -484,6 +486,7 @@ adaq-talib 现已在 **全部 10 个分组上平均快于 C**（每个分组的�
 | P3-4 (0.1.3) | `ht_dcphase` / `ht_sine` / `ht_trendmode` | 正弦/余弦角度加法递推（`sin(θ+w)`、`cos(θ+w)`） | 1.216→0.786 / 0.840→0.687 / 1.432→1.122 | — |
 | P3-5 (0.1.3) | `mfi` | 单遍滑动窗口融合（两个环形缓冲运行和） | 2.563× → 1.406×（仍慢 —— 逐 bar 除法主导） | 约 1.8× 接近 C |
 | P3-6 (0.1.3) | `ema` / `kama` / `apo` / `ppo` / `t3` / `adosc`（递推点） | 在每一处递推显式使用 `.mul_add()` FMA（与 GCC `-ffp-contract=fast` 等价） | `ema` 1.488→0.977、`kama` 1.484→1.069、`apo` 1.529→1.085、`ppo` 1.425→1.077、`t3` 1.325→0.999（均达持平）；传递性使 `trix`/`ultosc` 更快、`adx`/`adxr`/`dx` 持平 | 补齐 EMA 家族缺口 |
+| P3-2b (0.1.3) | `midpoint` / `minmax` / `minmax_index` / `willr` / `stoch_f` | 重叠播种并行分块（`std::thread::scope` + `available_parallelism`，零依赖，默认关闭 `parallel` 特性） | `midpoint` 1.620→0.901、`minmax` 1.523→0.844、`minmax_index` 1.434→0.915（均达持平）；`willr` 1.455→0.748、`stoch_f` 1.228→0.579（更快）；合计 85/60/16 → 88/63/10，几何均值 0.786×→0.734× | 将 5 个可播种的 A 类下限移出“更慢” |
 | P2-1 | `dema` / `tema` / `t3` | 单遍嵌套 EMA 融合核（`core::nested_ema_with_output`） | 3.63 / 3.46 / 3.76 ns/elem | ~2× / ~3× / ~6×（相对朴素） |
 | P2-2 | `midpoint` / `midprice` | 单调队列 `core::rolling_extreme` O(n) | 6.88 / 7.30 | ~3× / ~3× |
 | P2-3 | `wma` | O(n) 滑动递推（`W[i] = W[i-1] + period·x[i] − sw[i-1]`） | 2.11 | ~4.7× |
@@ -509,6 +512,7 @@ cargo bench --bench sma_bench --features bench-c
 # 3) 全部 161 个指标对照原生 C（自动生成套件）：
 cargo bench --bench all161_bench
 cargo bench --bench all161_bench --features bench-c   # 含 C 参考口径
+cargo bench --bench all161_bench --features bench-c,parallel   # 并行重叠播种阶段
 ```
 
 > 第 2 种需系统已安装 TA-Lib C 库（`brew install ta-lib` / 源码编译）；`build.rs` 仅在 `bench-c` 下链接，未启用时构建不受影响。报告须明确区分两种口径。
@@ -551,7 +555,7 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.3（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.26× 快**（几何均值 Rust/C = 0.792×；82 更快 / 54 持平 / 25 更慢）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
+- ✅ **0.1.3（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
 - 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。
@@ -563,6 +567,7 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 ### 0.1.3
 - **模式识别性能推广**：将 `cdl_hammer` 的内联运行和累加器模板推广到**全部 61 个蜡烛函数**（零偏差 transformer `tools/opt_pattern.py`）；把逐函数的 `CandleAvg::new`+`value`+`advance` 替换为内联 `sum_*`/`trail_*`/`cur_*`/`val_*` 累加器（跳过无 `CandleAvg` 的函数，如 `cdl_engulfing`/`cdl_3outside`/`cdl_hikkake`/`cdl_tristar`）。模式识别几何均值 **Rust/C 由 2.98× → 0.677×**（43 快 / 13 持平 / 5 慢，原为 1/3/57）—— 本次发布的最大单项收益。
 - **P2 算法优化（零偏差，0 回退）**：以环形缓冲 `MonoQueue` 替换 `VecDeque` 滚动极值（`min`/`max`/`min_index`/`max_index`，每极值约快 32%）；为 `ht_dcperiod` 增加跳过未用 `compute_dc_phase` 正弦/余弦窗口的循环-IIR 快路径（3.59× → 1.19×，已持平）；在 `compute_dc_phase` 中改用正弦/余弦角度加法递推（`ht_dcphase`/`ht_sine`/`ht_trendmode`）；并将 `mfi` 改写为单遍滑动窗口融合（2.56× → 1.41×）。合计 **82 快 / 54 持平 / 25 慢，几何均值 Rust/C = 0.792×** —— adaq-talib 平均现为 C 的约 1.26× 快（此前为 1.50× 慢）。
+- **P3-2b 并行重叠播种（零偏差，0 回退）**：新增默认关闭的 `parallel` 特性，对 5 个可重叠播种的 A 类窗口函数（`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`）采用 `std::thread::scope` + `available_parallelism` 的重叠播种并行分块（纯 `std`，零外部依赖）；每块以 `period-1`（或 `stoch_f` 的 `fk+fd-2`）个前导元素重叠，复用与串行逐字节一致的核，输出 1:1。合计由 **85 快 / 60 持平 / 16 慢（0.786×）** 变为 **88 快 / 63 持平 / 10 慢（0.734×，约 1.36× 快于 C）**；对其余 156 个函数该特性为 no-op。详见 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md) §3.5。
 - **报告与工具**：更新 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)（新分组 / 逐指标表，三次取中位方法学）与交互式 `docs/benchmarks/adaq-vs-talib-161.html`；新增 `benches/extreme_ab.rs`、`tools/opt_pattern.py` 与 `docs/research/perf-161-analysis.md`。
 - **发布**：版本号提升至 `0.1.3`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
 

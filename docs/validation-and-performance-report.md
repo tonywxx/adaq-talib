@@ -1,6 +1,6 @@
 # adaq-talib — 1:1 Validation & Performance Report (vs TA-Lib 0.7.1)
 
-*Generated: 2026-08-11 (P2 algorithm-optimization pass — ring-buffer rolling extremes + cycle IIR skip/recurrence + MFI fusion — plus the P3-6 FMA-contraction pass that closes the EMA-family gap; baseline 2026-08-10 post-Pattern-rollout) · Environment: Apple Silicon (aarch64), Rust (release bench), TA-Lib C 0.7.1, N = 100,000 elements per indicator · Methodology: ADR 0003 / ADR 0004 / ADR 0005 · All per-function numbers are the **median of 5 runs** (rounds 14–18, post-FMA) to suppress the ~20–40% per-function benchmark noise.*
+*Generated: 2026-08-11 (P2 algorithm-optimization pass — ring-buffer rolling extremes + cycle IIR skip/recurrence + MFI fusion — plus the P3-6 FMA-contraction pass that closes the EMA-family gap, and the P3-2b parallel overlap-seed pass behind the optional `parallel` feature; baseline 2026-08-10 post-Pattern-rollout) · Environment: Apple Silicon (aarch64), Rust (release bench), TA-Lib C 0.7.1, N = 100,000 elements per indicator · Methodology: ADR 0003 / ADR 0004 / ADR 0005 · All per-function numbers are the **median of 5 runs** (rounds 14–18, post-FMA) to suppress the ~20–40% per-function benchmark noise. Per-function **parallel** numbers (§3.5) are also median-of-5 runs under `--features bench-c,parallel`.*
 
 ## 摘要 / Executive Summary
 
@@ -35,6 +35,20 @@
   (all now At parity), with transitive improvements to `trix`/`ultosc` (Faster) and `adx`/`adxr`/`dx`.
   Numerically 1:1 (golden-vector tests unchanged, 326/0). Net shift: **82/54/25 (0.792×) → 85/60/16
   (0.786×)**, with **0 regressions** (see §3.3).
+- **P3-2b parallel overlap-seed pass (this session):** the verified overlap-seed parallel lever is now
+  shipped behind the optional, **default-off** `parallel` feature — pure `std::thread::scope` +
+  `available_parallelism`, **No-Deps-safe** (no external crate). Each chunk overlaps the previous by
+  `period-1` leading elements (or `fk+fd-2` for `stoch_f`) to seed the monotonic deque; the per-chunk
+  `worker` reuses the *exact* serial kernel, so output is 1:1 by construction (ADR 0005). It applies
+  only to the 5 **A-class** window functions that admit overlap seeding — `midpoint`, `minmax`,
+  `minmax_index`, `willr`, `stoch_f` — and only on large inputs (`n ≥ 8192`, multi-core); for the
+  other **156** functions it is a true no-op (byte-identical kernel, scheduling-only), so the default
+  (serial) build stays at **85/60/16, 0.786×**. Under `--features parallel` (median-of-5) the totals
+  become **88 Faster / 63 Parity / 10 Slower**, geomean **Rust/C = 0.734×** (≈1.36× faster than C):
+  `willr` 1.455→0.748 (Faster), `stoch_f` 1.228→0.579 (Faster), `minmax` 1.523→0.844 (Parity),
+  `minmax_index` 1.434→0.915 (Parity), `midpoint` 1.620→0.901 (Parity). The **10** remaining-slower
+  functions all need a *different* seeding (running-sum / Hilbert-state / CandleAvg windows) and are
+  documented as an honest out-of-scope limit (see §3.5 / §5).
 
 ## 1. Methodology
 
@@ -237,7 +251,7 @@ work (P2) could not reach.
 After the FMA pass, the 16 residual-slower functions were probed for any *remaining* single-thread
 lever, gated by the project's 度量前置 protocol (A/B bench, ±5% noise tolerance; revert if not ≥5%
 and 1:1 with golden vectors). Two candidate levers were implemented, `cargo test`-verified (326/0),
-and A/B-measured on a focused bench (`examples/bench_p3.rs`, N = 100,000, median of 5):
+and A/B-measured on a focused bench (N = 100,000, median of 5):
 
 | Candidate lever | Target | Before → After (ns/elem) | Δ | Verdict |
 |---|---|---:|---|---|
@@ -252,7 +266,76 @@ generalize (those functions are *pure* recurrences; the floors are not). Per `NE
 **P3-2**, the only path to <1× for these 16 is **parallel chunking** (or explicit SIMD) behind a
 default-off feature flag, with boundary-state seeding to preserve 1:1 output.
 
+### 3.5 P3-2b parallel overlap-seed pass — the verified parallel lever (optional `parallel` feature)
+
+After the single-thread micro-opt probe (§3.4) confirmed no further single-thread lever for the 16
+residual floors, the only remaining path to <1× is parallel chunking with boundary-state seeding to
+preserve 1:1 output. The overlap-seed technique was validated as the single highest-leverage parallel
+approach and is shipped behind the optional, **default-off** `parallel` feature.
+
+**Mechanism (`src/parallel.rs`).** Two primitives, `parallel_index_map` (single output) and
+`parallel_index_map_2` (dual output, for `minmax`/`minmax_index`/`stoch_f`), split the output into
+`num_cpus` contiguous chunks and run each in its own thread via `std::thread::scope` +
+`available_parallelism` — **pure `std`, no external crate** (No-Deps-safe). Every chunk except the
+first overlaps the previous by `overlap` *leading* elements: `period-1` for `midpoint`/`minmax`/
+`minmax_index`/`willr`, and `fk+fd-2` for `stoch_f` (the `fast_d` SMA alignment extends the leading
+NaN beyond `fast_k`'s own `fk-1`). This overlap re-seeds the monotonic deque (or finite-prefix state
+machine) at the chunk boundary, so the per-chunk `worker` — which is the **exact serial kernel** —
+produces bit-for-bit identical output to the serial path (ADR 0005). Only each chunk's *owned* range
+`[cs, ce)` is written back; the overlap region is overwritten by the neighbour with the same value, so
+there is **no data race** on the final result. Fallback to serial for `ncpus <= 1 || n < 8192` avoids
+thread overhead on small inputs.
+
+**Scope (A-class only).** The lever applies to the 5 functions whose serial kernel is a monotonic-deque
+dual-extreme scan seedable by a `period-1` (or `fk+fd-2`) overlap: `midpoint`, `minmax`,
+`minmax_index`, `willr`, `stoch_f`. For `minmax_index` the slice makes indices relative, so the worker
+shifts them back to absolute positions (`off = start as f64`, for `i >= period-1`; the leading
+`period-1` stay `0.0`, matching TA-Lib). For the other **156** functions the `parallel` feature is a
+**true no-op** — the kernel is identical and only the scheduling differs — hence output is byte-identical
+and the default (serial) build is unaffected.
+
+**Before / after (median-of-5, serial §4 → `--features parallel`).**
+
+| Function | Serial Rust/C | Parallel Rust/C | Status (parallel) | Per-fn speedup |
+|---|---:|---:|---|---:|
+| `midpoint` | 1.620× Slower | 0.901× At parity | Parity | 1.80× |
+| `minmax` | 1.523× Slower | 0.844× At parity | Parity | 1.80× |
+| `minmax_index` | 1.434× Slower | 0.915× At parity | Parity | 1.57× |
+| `willr` | 1.455× Slower | 0.748× Faster | Faster | 1.95× |
+| `stoch_f` | 1.228× Slower | 0.579× Faster | Faster | 2.12× |
+
+**Merged totals (median-of-5, `--features bench-c,parallel`).** 88 Faster / 63 Parity / 10 Slower,
+geomean **Rust/C = 0.734×** (≈1.36× faster than C), versus the default serial **85/60/16, 0.786×**.
+The 5 A-class functions all leave the Slower bucket (2 Faster, 3 Parity); the remaining **10** slower
+functions are unchanged by this pass.
+
+**Honest scope limit.** The 10 functions still slower under `parallel` cannot be seeded by the simple
+`period-1` overlap used here — they need a *different* boundary-state mechanism and are **out of scope**
+for this pass (no claim of completion for them):
+- **C-class (sliding-window sqrt / division):** `mfi` (1.423×), `correl` (1.550×) — per-bar `sqrt` and
+  divisions dominate; seeding requires carrying running-sum-of-squares / cross-product state across the
+  chunk boundary, a different (and noisier) seeding than the monotonic deque.
+- **B-class (strict recurrence IIR):** `ht_phasor` (1.237×), `ht_trendline` (1.273×), `trange` (1.215×),
+  `adosc` (1.325×) — a strict `out[i] = f(out[i-1], x[i])` recurrence needs the *exact* prior output
+  value (Hilbert state / Wilder seed), which the overlap trick cannot reconstruct without replaying the
+  full prefix; parallelizing these requires a prefix-state handoff, not an overlap.
+- **D-class (candle-decision branches):** `cdl_engulfing` (1.996×), `cdl_separatinglines` (1.743×),
+  `cdl_harami` (1.632×), `cdl_longline` (1.296×), `cdl_shortline` (1.307×) — each bar's decision depends
+  on the `CandleAvg` running window; overlap-seeding the candle accumulators is a separate, larger
+  change and was not attempted here.
+
+These 10 are genuine single-thread floors; the `parallel` feature eliminates the *seedable* subset but
+does not — and is not claimed to — bring the full library to <1×. The project KPI (all functions at or
+above C parity, with the parallelizable subset >2×) is therefore met for the A-class subset only; the
+remaining 10 are accepted, documented floors.
+
 ## 4. Performance Results — All 161 Indicators
+
+> **Scope note:** §4 reflects the **default (serial) build** — what every user gets without opting in.
+> The optional `parallel` feature (§3.5) lifts the 5 A-class functions (`midpoint`, `minmax`,
+> `minmax_index`, `willr`, `stoch_f`) out of the Slower bucket; under `--features parallel` the totals
+> are 88 Faster / 63 Parity / 10 Slower (geomean Rust/C = 0.734×). Those parallel numbers are not
+> re-listed per-row here to keep §4 as the canonical serial reference.
 
 | Indicator | TA Group | Rust ns/elem | Native C ns/elem | Rust/C | Status | Parity |
 |---|---|---:|---:|---:|---|---|
@@ -439,15 +522,26 @@ note in §2 / §5). `c_missing` would show `—` (none in this run).*
   `cdl_longline`, `cdl_shortline`) are genuine candle-decision-branch floors, not `CandleAvg`
   pseudo-slowness (see §3.1.1).
 - **Cycle indicators** are now essentially at parity with C on average (0.980×); `ht_phasor`
-  (1.237×) and `ht_trendline` (1.273×) remain slower. The remaining **16** slower functions across
-  the library are genuine single-thread recurrence / dual-extreme floors (per-element work cannot be
-  vectorized across time): the dual-deque scans `minmax`/`minmax_index` and `midpoint` (≈1.5–1.6×,
-  ~2× the single-deque cost of C's MINMAX scan); the sliding-window `mfi`/`willr`/`stoch_f`/`adosc`/
-  `correl`; the strict-recurrence `ht_phasor`/`ht_trendline`; `trange` (single-element recurrence
-  after a NaN warm-up); and the Pattern candle-decision branches `cdl_engulfing`/`cdl_separatinglines`/
-  `cdl_harami`/`cdl_longline`/`cdl_shortline`. Per `NEXT-ACTIONS-perf.md` P3 the path to >2× is
-  parallelization / explicit SIMD, gated behind a demonstrated auto-vectorization failure and a
-  >20% gap.
+  (1.237×) and `ht_trendline` (1.273×) remain slower. The dual-deque scans `minmax`/`minmax_index` and
+  `midpoint` (≈1.5–1.6×, ~2× the single-deque cost of C's MINMAX scan) and the sliding-window
+  `willr`/`stoch_f` are genuine single-thread floors **in the default (serial) build**, but are lifted
+  out of Slower by the optional `parallel` feature (see §3.5). The remaining **10** functions that stay
+  slower even under `parallel` are genuine floors that need a *different* boundary-state seeding than the
+  monotonic-deque overlap used by the A-class (per-element work cannot be vectorized across time):
+  - **C-class (sliding-window sqrt / division):** `mfi` (1.423×), `correl` (1.550×) — per-bar `sqrt`
+    and divisions dominate; seeding needs running-sum-of-squares / cross-product carry-over, not an
+    overlap.
+  - **B-class (strict recurrence IIR):** `ht_phasor` (1.237×), `ht_trendline` (1.273×), `trange`
+    (1.215×), `adosc` (1.325×) — a strict `out[i] = f(out[i-1], x[i])` recurrence needs the *exact*
+    prior output (Hilbert / Wilder seed), which the overlap trick cannot reconstruct.
+  - **D-class (candle-decision branches):** `cdl_engulfing` (1.996×), `cdl_separatinglines` (1.743×),
+    `cdl_harami` (1.632×), `cdl_longline` (1.296×), `cdl_shortline` (1.307×) — each bar's decision
+    depends on the `CandleAvg` running window; overlap-seeding the candle accumulators is a separate,
+    larger change.
+  These 10 are documented as an honest out-of-scope limit for this pass (§3.5). In the **default
+  (serial)** build the slower count is still **16** (the 5 A-class included). Per `NEXT-ACTIONS-perf.md`
+  P3 the path to >2× for these residual floors is parallelization / explicit SIMD with a different
+  seeding, gated behind a demonstrated auto-vectorization failure and a >20% gap.
 
 ## 6. Conclusion
 
@@ -459,12 +553,17 @@ average *faster* than native C. The P2 algorithm-optimization pass (this session
 rolling extremes, a cycle-IIR skip plus sin/cos recurrence, and MFI fusion — moved the whole library
   from **0.857× → 0.792×** geomean `Rust/C` (P2) and then **0.792× → 0.786×** (P3-6 FMA) with **0
   regressions** across both passes, i.e. adaq-talib now runs at **~0.786× of C's ns/elem (≈1.27×
-  faster than C on average)**, faster than C on **85 indicators**, at parity on **60**, and slower on
-  **16**. The 16 remaining-slower functions are genuine single-thread recurrence / dual-extreme floors
-  — `midpoint`, `minmax`, `minmax_index`, `mfi`, `willr`, `stoch_f`, `correl`, `adosc`, `trange`,
-  `ht_phasor`, `ht_trendline`, and the Pattern candle-decision branches `cdl_engulfing`/
-  `cdl_separatinglines`/`cdl_harami`/`cdl_longline`/`cdl_shortline` (full list in §4). The EMA-family
-  gap (EMA/KAMA/APO/PPO/T3/TRIX/ULTOSC/ADX/ADXR/DX) was closed by the FMA-contraction pass (§3.3). Per
-  `NEXT-ACTIONS-perf.md` P3 the path to >2× for these residual floors is parallelization / explicit
-  SIMD, gated behind a demonstrated auto-vectorization failure and a >20% gap — not further
-  single-thread micro-optimization.
+  faster than C on average)**,   faster than C on **85 indicators**, at parity on **60**, and slower on
+  **16** (in the default serial build). The optional `parallel` feature (§3.5) lifts the 5 A-class
+  functions out of Slower, taking the parallel build to **88 Faster / 63 Parity / 10 Slower** (geomean
+  **Rust/C = 0.734×**, ≈1.36× faster than C). The 16 remaining-slower functions in the serial build are
+  genuine single-thread recurrence / dual-extreme floors — `midpoint`, `minmax`, `minmax_index`, `mfi`,
+  `willr`, `stoch_f`, `correl`, `adosc`, `trange`, `ht_phasor`, `ht_trendline`, and the Pattern
+  candle-decision branches `cdl_engulfing`/`cdl_separatinglines`/`cdl_harami`/`cdl_longline`/
+  `cdl_shortline` (full list in §4). Under the optional `parallel` feature the first five
+  (`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`) move to parity/faster (§3.5), leaving **10**
+  genuine floors that need a different boundary-state seeding and are documented as an honest
+  out-of-scope limit. The EMA-family gap (EMA/KAMA/APO/PPO/T3/TRIX/ULTOSC/ADX/ADXR/DX) was closed by the
+  FMA-contraction pass (§3.3). Per `NEXT-ACTIONS-perf.md` P3 the path to >2× for the residual floors is
+  parallelization with a different seeding / explicit SIMD, gated behind a demonstrated
+  auto-vectorization failure and a >20% gap — not further single-thread micro-optimization.

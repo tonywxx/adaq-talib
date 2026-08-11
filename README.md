@@ -492,6 +492,13 @@ Status: ratio < 0.8 → Faster, 0.8–1.2 → At parity, > 1.2 → Slower.
 **1.50× slower** prior to the 0.1.3 optimization pass). **145 of 161 indicators are at-or-faster
 than C** (Rust/C ≤ 1.2); only 16 remain slower, all isolated cases.
 
+**Optional `parallel` feature:** the `parallel` feature (default-off) applies overlap-seed parallel
+chunking to the 5 **A-class** window functions (`midpoint`, `minmax`, `minmax_index`, `willr`,
+`stoch_f`), lifting them out of the Slower bucket. Under `--features parallel` the totals become
+**88 faster / 63 at parity / 10 slower** (geomean **Rust/C = 0.734×**, ≈1.36× faster than C); the
+default (serial) build stays at 85/60/16 (0.786×). For the other 156 functions the feature is a no-op.
+See the Optimizations table (P3-2b) and `docs/validation-and-performance-report.md` §3.5.
+
 | TA-Lib Group | Indicators | Faster (<0.8) | At parity (0.8–1.2) | Slower (>1.2) | Geomean Rust/C |
 |---|---:|---:|---:|---:|---:|
 | Cycle Indicators | 5 | 2 | 2 | 1 | 0.980× |
@@ -537,6 +544,7 @@ vectors (see [`benches/BASELINE.md`](benches/BASELINE.md) for the full per-indic
 | P3-4 (0.1.3) | `ht_dcphase` / `ht_sine` / `ht_trendmode` | sin/cos angle-addition recurrence (`sin(θ+w)`, `cos(θ+w)`) | 1.216→0.786 / 0.840→0.687 / 1.432→1.122 | — |
 | P3-5 (0.1.3) | `mfi` | single-pass sliding-window fusion (two ring-buffer running sums) | 2.563× → 1.406× (still slower — per-bar divisions dominate) | ~1.8× closer to C |
 | P3-6 (0.1.3) | `ema` / `kama` / `apo` / `ppo` / `t3` / `adosc` (recurrence sites) | explicit `.mul_add()` FMA at every recurrence (GCC `-ffp-contract=fast` parity) | `ema` 1.488→0.977, `kama` 1.484→1.069, `apo` 1.529→1.085, `ppo` 1.425→1.077, `t3` 1.325→0.999 (all At parity); transitive `trix`/`ultosc` Faster, `adx`/`adxr`/`dx` At parity | closed the EMA-family gap |
+| P3-2b (0.1.3) | `midpoint` / `minmax` / `minmax_index` / `willr` / `stoch_f` | overlap-seed parallel chunking (`std::thread::scope` + `available_parallelism`, No-Deps, default-off `parallel` feature) | `midpoint` 1.620→0.901, `minmax` 1.523→0.844, `minmax_index` 1.434→0.915 (all At parity); `willr` 1.455→0.748, `stoch_f` 1.228→0.579 (Faster); totals 85/60/16 → 88/63/10, geomean 0.786×→0.734× | lifts the 5 A-class seedable floors out of Slower |
 | P2-1 | `dema` / `tema` / `t3` | single-pass nested-EMA fusion core (`core::nested_ema_with_output`) | 3.63 / 3.46 / 3.76 ns/elem | ~2× / ~3× / ~6× vs naive |
 | P2-2 | `midpoint` / `midprice` | monotonic-queue `core::rolling_extreme` O(n) | 6.88 / 7.30 | ~3× / ~3× |
 | P2-3 | `wma` | O(n) sliding recurrence (`W[i] = W[i-1] + period·x[i] − sw[i-1]`) | 2.11 | ~4.7× |
@@ -566,6 +574,7 @@ cargo bench --bench sma_bench --features bench-c
 # 3) All 161 indicators vs native C (auto-generated suite):
 cargo bench --bench all161_bench
 cargo bench --bench all161_bench --features bench-c   # with the C reference track
+cargo bench --bench all161_bench --features bench-c,parallel   # parallel overlap-seed pass
 ```
 
 > The second form needs the TA-Lib C library installed (`brew install ta-lib` / build from
@@ -578,7 +587,11 @@ cargo bench --bench all161_bench --features bench-c   # with the C reference tra
 
 ### Known issues
 - **16 indicators remain slower than native TA-Lib C** — all genuine single-thread recurrence /
-  dual-extreme floors, not correctness gaps. The clearest structural case is `MIDPOINT` (~1.62×), a
+  dual-extreme floors, not correctness gaps (in the default serial build). The optional `parallel`
+  feature lifts the 5 A-class functions (`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`) to
+  parity/faster via overlap-seed parallel chunking, so the effective slower count drops to **10**
+  (geomean Rust/C = 0.734×, ≈1.36× faster than C); the **16** figure is what the default serial build
+  reports. The clearest structural case is `MIDPOINT` (~1.62×), a
   data-dependent monotonic structure costing ~2× C's single MINMAX scan; `minmax`/`minmax_index`
   (~1.52×/1.43×) carry the same dual-deque cost. The strict-recurrence `ht_phasor`/`ht_trendline`
   (~1.24×/1.27×), sliding-window `mfi`/`willr`/`stoch_f`/`adosc`/`correl` (~1.23–1.55×), `trange`

@@ -991,6 +991,27 @@ pub fn willr_with_output(
             "willr_with_output: out length must equal close length".into(),
         ));
     }
+    // 数据量足够且启用 `parallel` feature 时走多核分块；内核与串行逐字节一致，输出 1:1。
+    // Under the `parallel` feature with enough data, use multi-core chunking; the kernel is
+    // byte-identical to the serial path, so output is 1:1.
+    #[cfg(feature = "parallel")]
+    {
+        if close.len() >= 8192 {
+            return willr_parallel_with_output(high, low, close, time_period, out);
+        }
+    }
+    willr_serial_with_output(high, low, close, time_period, out)
+}
+
+/// Williams' %R 串行内核（与 TA-Lib `TA_WILLR` 逐项 1:1）。见 [`willr_with_output`]。
+/// Serial kernel for Williams' %R (1:1 with TA-Lib `TA_WILLR`). See [`willr_with_output`].
+fn willr_serial_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
     let n = close.len();
     if n < time_period {
         for v in out.iter_mut() {
@@ -1030,6 +1051,72 @@ pub fn willr_with_output(
             out[i] = f64::NAN;
         }
     }
+    Ok(())
+}
+
+/// Williams' %R 串行版本（feature 无关，供并行对照测试作黄金参考）。见 [`willr`]。
+/// Serial Williams' %R (feature-agnostic; golden reference for the parallel equality test). See [`willr`].
+pub fn willr_serial(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+) -> Result<Vec<f64>, TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "willr")?;
+    let mut out = vec![f64::NAN; close.len()];
+    willr_serial_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// Williams' %R 多核并行版本（需 `parallel` feature）。复用 [`willr_serial_with_output`] 的单遍
+/// 双队列内核，以 `period-1` 前导重叠播种各分块的单调双端队列，输出与串行逐项 1:1。
+/// Multi-core parallel Williams' %R (requires the `parallel` feature). Reuses the single-pass
+/// dual-deque kernel of [`willr_serial_with_output`] with `period-1` leading overlap; output is
+/// 1:1 with the serial path.
+#[cfg(feature = "parallel")]
+pub fn willr_parallel(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+) -> Result<Vec<f64>, TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "willr")?;
+    let mut out = vec![f64::NAN; close.len()];
+    willr_parallel_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// Williams' %R 并行内核（零拷贝写入 `out`）。见 [`willr_parallel`]。
+/// Parallel kernel for Williams' %R (zero-copy into `out`). See [`willr_parallel`].
+#[cfg(feature = "parallel")]
+fn willr_parallel_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "willr")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "willr_parallel_with_output: out length must equal close length".into(),
+        ));
+    }
+    let p = time_period;
+    crate::parallel::parallel_index_map(close.len(), p - 1, out, |start, end| {
+        let mut local = vec![f64::NAN; end - start];
+        let _ = willr_serial_with_output(
+            &high[start..end],
+            &low[start..end],
+            &close[start..end],
+            p,
+            &mut local,
+        );
+        local
+    });
     Ok(())
 }
 
@@ -2146,6 +2233,29 @@ pub fn stoch_f_with_output(
             "stoch_f_with_output: out bands must have length == close length".into(),
         ));
     }
+    // 数据量足够且启用 `parallel` feature 时走多核分块；内核与串行逐字节一致，输出 1:1。
+    // Under the `parallel` feature with enough data, use multi-core chunking; the kernel is
+    // byte-identical to the serial path, so output is 1:1.
+    #[cfg(feature = "parallel")]
+    {
+        if n >= 8192 {
+            return stoch_f_parallel_with_output(high, low, close, fast_k_period, fast_d_period, out);
+        }
+    }
+    stoch_f_serial_with_output(high, low, close, fast_k_period, fast_d_period, out)
+}
+
+/// 快速随机指标串行内核（与 TA-Lib `TA_STOCHF` 逐项 1:1）。见 [`stoch_f_with_output`]。
+/// Serial kernel for fast stochastic (1:1 with TA-Lib `TA_STOCHF`). See [`stoch_f_with_output`].
+fn stoch_f_serial_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    fast_k_period: usize,
+    fast_d_period: usize,
+    out: &mut StochF,
+) -> Result<(), TaError> {
+    let n = close.len();
     let fastk = stoch_fastk(high, low, close, fast_k_period);
     let fast_d = rolling_mean_skip(&fastk, fast_d_period);
     // 两数组对齐到同一前导不稳定期（lookback = fastK+fastD-2），见 ADR 0007。
@@ -2156,6 +2266,104 @@ pub fn stoch_f_with_output(
     for i in 0..lookback.min(n) {
         out.fast_k[i] = f64::NAN;
     }
+    Ok(())
+}
+
+/// 快速随机指标串行版本（feature 无关，供并行对照测试作黄金参考）。见 [`stoch_f`]。
+/// Serial fast stochastic (feature-agnostic; golden reference for the parallel equality test). See [`stoch_f`].
+pub fn stoch_f_serial(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    fast_k_period: usize,
+    fast_d_period: usize,
+) -> Result<StochF, TaError> {
+    check_period(fast_k_period)?;
+    check_period(fast_d_period)?;
+    check_eq_len(&[high, low, close], "stoch_f")?;
+    let n = close.len();
+    let mut out = StochF {
+        fast_k: vec![f64::NAN; n],
+        fast_d: vec![f64::NAN; n],
+    };
+    stoch_f_serial_with_output(high, low, close, fast_k_period, fast_d_period, &mut out)?;
+    Ok(out)
+}
+
+/// 快速随机指标多核并行版本（需 `parallel` feature）。复用 [`stoch_f_serial_with_output`] 的
+/// `stoch_fastk` 单遍单调队列内核，以 `fastK-1` 前导重叠播种各分块的极值队列，输出与串行逐项 1:1。
+/// Multi-core parallel fast stochastic (requires the `parallel` feature). Reuses the `stoch_fastk`
+/// single-pass monotonic-queue kernel of [`stoch_f_serial_with_output`] with `fastK-1` leading
+/// overlap; output is 1:1 with the serial path.
+#[cfg(feature = "parallel")]
+pub fn stoch_f_parallel(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    fast_k_period: usize,
+    fast_d_period: usize,
+) -> Result<StochF, TaError> {
+    check_period(fast_k_period)?;
+    check_period(fast_d_period)?;
+    check_eq_len(&[high, low, close], "stoch_f")?;
+    let n = close.len();
+    let mut out = StochF {
+        fast_k: vec![f64::NAN; n],
+        fast_d: vec![f64::NAN; n],
+    };
+    stoch_f_parallel_with_output(high, low, close, fast_k_period, fast_d_period, &mut out)?;
+    Ok(out)
+}
+
+/// 快速随机指标并行内核（零拷贝写入 `out`）。见 [`stoch_f_parallel`]。
+/// Parallel kernel for fast stochastic (zero-copy into `out`). See [`stoch_f_parallel`].
+#[cfg(feature = "parallel")]
+fn stoch_f_parallel_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    fast_k_period: usize,
+    fast_d_period: usize,
+    out: &mut StochF,
+) -> Result<(), TaError> {
+    check_period(fast_k_period)?;
+    check_period(fast_d_period)?;
+    check_eq_len(&[high, low, close], "stoch_f")?;
+    let n = close.len();
+    if out.fast_k.len() != n || out.fast_d.len() != n {
+        return Err(TaError::BadParam(
+            "stoch_f_parallel_with_output: out bands must have length == close length".into(),
+        ));
+    }
+    let fk = fast_k_period;
+    let fd = fast_d_period;
+    // 重叠须覆盖完整前导不稳定期 `lookback = fk+fd-2`（`fast_k` 自身仅 `fk-1`，但 `fast_d`
+    // 的 SMA 对齐把不稳定期拉长到 fk+fd-2），否则分块自有区间会落在前导 NaN 内。
+    // Overlap must cover the full unstable period `lookback = fk+fd-2` (the `fast_d` SMA alignment
+    // extends the leading NaN beyond `stoch_fastk`'s own `fk-1`), else the owned range would fall
+    // inside the leading-NaN zone.
+    let overlap = fk + fd - 2;
+    crate::parallel::parallel_index_map_2(
+        n,
+        overlap,
+        &mut out.fast_k,
+        &mut out.fast_d,
+        |start, end| {
+            let mut local = StochF {
+                fast_k: vec![f64::NAN; end - start],
+                fast_d: vec![f64::NAN; end - start],
+            };
+            let _ = stoch_f_serial_with_output(
+                &high[start..end],
+                &low[start..end],
+                &close[start..end],
+                fk,
+                fd,
+                &mut local,
+            );
+            (local.fast_k, local.fast_d)
+        },
+    );
     Ok(())
 }
 

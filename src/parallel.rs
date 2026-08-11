@@ -82,3 +82,61 @@ pub(crate) fn parallel_index_map(
         out[cs..ce].copy_from_slice(owned);
     }
 }
+
+/// 双输出变体（如 `minmax` / `minmax_index` / `stoch_f` 的两路极值或 fastK/fastD）。
+/// 语义与 [`parallel_index_map`] 完全一致：`worker(start, end)` 返回扩展区间 `[start, end)`
+/// 的**两个**全量输出 `(a, b)`，各自仅写回自有区间到 `out_a` / `out_b`。单遍内核一次算出
+/// 两路，避免对双队列做两次独立并行扫描（相比分两次调用 [`parallel_index_map`] 省一半计算）。
+///
+/// Two-output variant (e.g. the two extremes of `minmax`/`minmax_index` or fastK/fastD of
+/// `stoch_f`). Identical contract to [`parallel_index_map`]: `worker(start, end)` returns the
+/// TWO full outputs `(a, b)` for the extended range `[start, end)`, each writing back only its
+/// owned range to `out_a` / `out_b`. The kernel computes both streams in one pass, avoiding two
+/// independent parallel scans of the dual deque.
+pub(crate) fn parallel_index_map_2(
+    n: usize,
+    overlap: usize,
+    out_a: &mut [f64],
+    out_b: &mut [f64],
+    worker: impl Fn(usize, usize) -> (Vec<f64>, Vec<f64>) + Sync,
+) {
+    let ncpus = thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
+    if ncpus <= 1 || n < 8192 {
+        let (a, b) = worker(0, n);
+        out_a.copy_from_slice(&a);
+        out_b.copy_from_slice(&b);
+        return;
+    }
+    let chunk = (n + ncpus - 1) / ncpus;
+    let mut specs: Vec<(usize, usize, usize)> = Vec::new();
+    for c in 0..ncpus {
+        let cs = c * chunk;
+        let ce = ((c + 1) * chunk).min(n);
+        if cs >= ce {
+            continue;
+        }
+        let start = if c == 0 { 0 } else { cs.saturating_sub(overlap) };
+        specs.push((cs, ce, start));
+    }
+    let results: Vec<(usize, usize, usize, Vec<f64>, Vec<f64>)> = thread::scope(|s| {
+        let mut handles = Vec::with_capacity(specs.len());
+        for (cs, ce, start) in specs {
+            let w = &worker;
+            let h = s.spawn(move || {
+                let (a, b) = w(start, ce);
+                (cs, ce, start, a, b)
+            });
+            handles.push(h);
+        }
+        handles
+            .into_iter()
+            .map(|h| h.join().unwrap())
+            .collect()
+    });
+    for (cs, ce, start, a, b) in results {
+        out_a[cs..ce].copy_from_slice(&a[(cs - start)..(ce - start)]);
+        out_b[cs..ce].copy_from_slice(&b[(cs - start)..(ce - start)]);
+    }
+}
