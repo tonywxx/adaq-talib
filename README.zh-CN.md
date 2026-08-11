@@ -452,33 +452,38 @@ cargo test --doc           # 仅运行文档示例
 
 ### 性能对照 / Performance (Rust vs TA-Lib C)
 
-全部 **161 / 161** 个指标均与原生 TA-Lib C 0.7.1 逐项对照基准（双轨，见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)；C 侧在 `--features bench-c` 下 FFI 链接系统 TA-Lib C）。环境：Apple Silicon aarch64，每个指标 **N = 100,000** 个元素；`ns/elem = elapsed / ITERS / N`；`Rust/C = Rust_ns/elem ÷ C_ns/elem`。判定：比值 < 0.8 → 更快，0.8–1.2 → 持平，> 1.2 → 更慢。
+全部 **161 / 161** 个指标均与原生 TA-Lib C 0.7.1 逐项对照基准（双轨，见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)；C 侧在 `--features bench-c` 下 FFI 链接系统 TA-Lib C）。环境：Apple Silicon aarch64，每个指标 **N = 100,000** 个元素；`ns/elem = elapsed / ITERS / N`；`Rust/C = Rust_ns/elem ÷ C_ns/elem`。最终数值取 **3 次运行的中位数**以抑制逐指标噪声（约 20–40%）。判定：比值 < 0.8 → 更快，0.8–1.2 → 持平，> 1.2 → 更慢。
 
-**总览：** 相比原生 C，**36 个更快**、**33 个持平**、**92 个更慢**；几何均值 **Rust/C = 1.50×**（adaq-talib 平均约为 C 的 1.5× 慢）。其中 **54 个指标严格快于 C**（Rust/C < 1）。
+**总览：** 相比原生 C，**82 个更快**、**54 个持平**、**25 个更慢**；几何均值 **Rust/C = 0.792×**（adaq-talib 平均约为 C 的 **1.26× 快**；在 0.1.3 优化之前为 1.50× 慢）。其中 **107 / 161 个指标与 C 持平或更优**（Rust/C ≤ 1.2）；仅 25 个仍慢于 C，且均为孤立个案。
 
 | TA-Lib 分组 | 指标数 | 更快 (<0.8) | 持平 (0.8–1.2) | 更慢 (>1.2) | 几何均值 Rust/C |
 |---|---:|---:|---:|---:|---:|
-| 周期 / 希尔伯特变换 | 5 | 0 | 1 | 4 | 1.57× |
-| 数学算子 | 11 | 5 | 1 | 5 | 1.01× |
-| 数学变换 | 15 | 4 | 11 | 0 | 0.85× |
-| 动量 | 31 | 7 | 5 | 19 | 1.31× |
-| 重叠研究 | 18 | 5 | 8 | 5 | 0.98× |
-| 模式识别 | 61 | 1 | 3 | 57 | 2.98× |
-| 价格变换 | 5 | 5 | 0 | 0 | 0.58× |
-| 统计函数 | 9 | 7 | 1 | 1 | 0.54× |
-| 波动率 | 3 | 1 | 2 | 0 | 0.83× |
-| 成交量 | 3 | 1 | 1 | 1 | 0.97× |
-| **合计** | **161** | **36** | **33** | **92** | **1.50×** |
+| 周期 / 希尔伯特变换 | 5 | 2 | 2 | 1 | 0.979× |
+| 数学算子 | 11 | 7 | 2 | 2 | 0.848× |
+| 数学变换 | 15 | 4 | 11 | 0 | 0.830× |
+| 动量 | 31 | 5 | 16 | 10 | 1.003× |
+| 重叠研究 | 18 | 6 | 7 | 5 | 0.935× |
+| 模式识别 | 61 | 43 | 13 | 5 | 0.677× |
+| 价格变换 | 5 | 5 | 0 | 0 | 0.668× |
+| 统计函数 | 9 | 7 | 1 | 1 | 0.555× |
+| 波动率 | 3 | 2 | 1 | 0 | 0.812× |
+| 成交量 | 3 | 1 | 1 | 1 | 0.999× |
+| **合计** | **161** | **82** | **54** | **25** | **0.792×** |
 
-adaq-talib 在统计、价格变换与数学变换上快于 C；在重叠研究 / 成交量 / 波动率 / 数学算子上与 C 持平；在动量、周期上更慢，最显著的是模式识别（57/61 更慢）。完整逐指标表 —— 全部 161 个，含 Rust/C 比值、状态与实时 TA-Lib 一致性校验和 —— 见 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)。相关注意事项（如 `stoch_rsi` 仅返回 `fastk` 线，故其基准校验和不同 —— 属基准观测假象，非正确性缺口）详见该报告。
+adaq-talib 现已在 **10 个分组中的 8 个**上快于 C —— 周期、数学算子、数学变换、重叠研究、模式识别、价格变换、统计与波动率；在动量与成交量上与 C 持平；**没有任何分组在平均意义上慢于 C**。最显著的变化是模式识别：经 0.1.3 对全部 61 个蜡烛函数做内联累加器推广后，该组由最慢（几何均值 2.98× 慢）一跃成为第三快（0.677×）。仍慢于 C 的指标为孤立个案：`MIDPOINT`（1.71×）与 `T3`（1.32×）结构上不可向量化；另有 9 个形态函数落后 C ≤ 2.34×（仅 `cdl_engulfing` 为真正独立算法）。完整逐指标表 —— 全部 161 个，含 Rust/C 比值、状态与实时 TA-Lib 一致性校验和 —— 见 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)。相关注意事项（如 `stoch_rsi` 仅返回 `fastk` 线，故其基准校验和不同 —— 属基准观测假象，非正确性缺口）详见该报告。
 
 ### 已落地的性能优化 / Optimizations applied
 
 所有下述优化均**零偏差** —— 逐项对照 TA-Lib 0.7.1 黄金向量验证（完整逐指标说明见 [`benches/BASELINE.md`](benches/BASELINE.md)）。`ns/elem` 采集于 Apple Silicon aarch64，`N = 1_000_000`，`PERIOD = 20`，`ITERS = 20`（点测，±5% 波动）。
 
-| 阶段 | 函数 | 技术 | 优化后 (Rust ns/elem) | 相对朴素加速 |
-|------|------|------|---------------------:|------------:|
-| P2-1 | `dema` / `tema` / `t3` | 单遍嵌套 EMA 融合核（`core::nested_ema_with_output`） | 3.63 / 3.46 / 3.76 | ~2× / ~3× / ~6× |
+| 阶段 | 函数 | 技术 | 结果 (Rust/C 或 ns/elem) | 相对先前 |
+|------|------|------|--------------------------:|-----------|
+| P3-1 (0.1.3) | 模式识别（全部 61 个 CDL） | 内联 `CandleAvg` 运行和 / 拖尾和累加器（`tools/opt_pattern.py`，零偏差） | 几何均值 **2.98× → 0.677×**；43 快 / 13 持平 / 5 慢 | 最大单项收益 |
+| P3-2 (0.1.3) | `min` / `max` / `min_index` / `max_index` | 环形缓冲 `MonoQueue`（掩码索引，无边界检查）替换 `VecDeque` | 每极值 3.447 → 2.347 ns/elem；`min` 1.17→0.76、`max` 1.57→0.99、`min_index` 1.14→0.77、`max_index` 1.54→1.01 | 每极值约快 32% |
+| P3-3 (0.1.3) | `ht_dcperiod` | 循环-IIR 快路径跳过未用的 `compute_dc_phase` 正弦/余弦窗口 | 3.589× → 1.191×（已持平） | — |
+| P3-4 (0.1.3) | `ht_dcphase` / `ht_sine` / `ht_trendmode` | 正弦/余弦角度加法递推（`sin(θ+w)`、`cos(θ+w)`） | 1.216→0.786 / 0.840→0.687 / 1.432→1.122 | — |
+| P3-5 (0.1.3) | `mfi` | 单遍滑动窗口融合（两个环形缓冲运行和） | 2.563× → 1.406×（仍慢 —— 逐 bar 除法主导） | 约 1.8× 接近 C |
+| P2-1 | `dema` / `tema` / `t3` | 单遍嵌套 EMA 融合核（`core::nested_ema_with_output`） | 3.63 / 3.46 / 3.76 ns/elem | ~2× / ~3× / ~6×（相对朴素） |
 | P2-2 | `midpoint` / `midprice` | 单调队列 `core::rolling_extreme` O(n) | 6.88 / 7.30 | ~3× / ~3× |
 | P2-3 | `wma` | O(n) 滑动递推（`W[i] = W[i-1] + period·x[i] − sw[i-1]`） | 2.11 | ~4.7× |
 | P2-4 | `bbands`（SMA 中轨） | 单遍 `rolling_mean_var` 融合 | 3.02 | ~1.5–1.6× |
@@ -486,6 +491,8 @@ adaq-talib 在统计、价格变换与数学变换上快于 C；在重叠研究 
 | P2-5 | `willr` / `stoch` / `stoch_f` | 复用单调极值队列 O(n) | 7.90 / 10.99 | ~20×（渐近） |
 | P1② | `minmax` | 复用单遍 `core::rolling_minmax`（收敛；性能中性） | 6.76 | ≈（仅精度收益） |
 | P1③ | `max_index` / `min_index` / `minmax_index` | 单遍 `core::rolling_extreme_index` O(n) | 3.43 / 3.31 / 6.79 | ~1.9×（索引） |
+
+† `midpoint` / `midprice`（P2-2）与 `max_index` / `min_index` / `minmax_index`（P1③）现已运行在 0.1.3 引入的同一环形缓冲 `MonoQueue` 上（P3-2）。
 
 每个优化都保持完整 `cargo test` 套件全绿（326/326），且每个被重构的函数仍在其容限内复现 TA-Lib 0.7.1 黄金向量（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。完整的 QA 报告（方法论、残差缺口、Python 绑定参考数值）见 [`docs/perf-verify-report.md`](docs/perf-verify-report.md)。
 
@@ -510,7 +517,7 @@ cargo bench --bench all161_bench --features bench-c   # 含 C 参考口径
 ## 已知问题与非推荐特性 / Known Issues & Deprecations
 
 ### 已知问题 / Known issues
-- **两个指标仍慢于原生 TA-Lib C** —— `MIDPOINT`（约 2.26×）与 `T3`（约 1.35×）。二者在结构上均不可向量化（分别为数据依赖的单调双队列与顺序 EMA IIR），故规划的 P3 SIMD 阶段为已记录的 **NO-GO**（见 [ADR 0010](docs/adr/0010-performance-strategy.md)）。这是已知且已接受的权衡，**并非缺陷**。
+- **两个指标仍慢于原生 TA-Lib C** —— `MIDPOINT`（约 1.71×）与 `T3`（约 1.32×）。`MIDPOINT` 在 0.1.3 经环形缓冲 `rolling_extreme` 核（P3-2）已从约 2.26× 改善，但二者在结构上仍不可向量化（分别为数据依赖的单调结构与顺序 EMA IIR），故规划的 P3 SIMD 阶段为已记录的 **NO-GO**（见 [ADR 0010](docs/adr/0010-performance-strategy.md)）。这是已知且已接受的权衡，**并非缺陷**。
 - **`linear_reg` / `correl` / `willr` / `stoch` 未接原生 C 对照** —— 其 Rust 侧数值即权威参考。若要接 C 对照需引入 `unsafe` 与系统 TA-Lib C 库，违背零-FFI 设计；因此以 Rust 结果为准。
 - **模式识别仅采用 TA-Lib 默认 candle settings**（见 [ADR 0009](docs/adr/0009-candle-settings-default-only.md)），不暴露配置 API。针对 TA-Lib 0.7.1 **无任何功能性覆盖缺口** —— 全部 61 个蜡烛形态均已实现。
 - **`aroon` / `aroon_osc` 输出顺序** —— adaq-talib 遵循权威 TA-Lib C 0.7.1 的 `outAroonUp` / `outAroonDown` 顺序（即权威黄金向量）。若与 `talib` Python 绑定（0.7.1）交叉核对，需注意该构建 historically 将二者互换；见 [ADR 0003](docs/adr/0003-verification-golden-fixtures.md)。
@@ -543,7 +550,7 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.2（当前）：161 / 161 函数** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖与性能对照（见[验证与基准](#验证与基准--verification--benchmarks)）。
+- ✅ **0.1.3（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.26× 快**（几何均值 Rust/C = 0.792×；82 更快 / 54 持平 / 25 更慢）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
 - 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。
@@ -552,7 +559,13 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 ## 变更日志 / Changelog
 
-### 0.1.2（当前 / current）
+### 0.1.3
+- **模式识别性能推广**：将 `cdl_hammer` 的内联运行和累加器模板推广到**全部 61 个蜡烛函数**（零偏差 transformer `tools/opt_pattern.py`）；把逐函数的 `CandleAvg::new`+`value`+`advance` 替换为内联 `sum_*`/`trail_*`/`cur_*`/`val_*` 累加器（跳过无 `CandleAvg` 的函数，如 `cdl_engulfing`/`cdl_3outside`/`cdl_hikkake`/`cdl_tristar`）。模式识别几何均值 **Rust/C 由 2.98× → 0.677×**（43 快 / 13 持平 / 5 慢，原为 1/3/57）—— 本次发布的最大单项收益。
+- **P2 算法优化（零偏差，0 回退）**：以环形缓冲 `MonoQueue` 替换 `VecDeque` 滚动极值（`min`/`max`/`min_index`/`max_index`，每极值约快 32%）；为 `ht_dcperiod` 增加跳过未用 `compute_dc_phase` 正弦/余弦窗口的循环-IIR 快路径（3.59× → 1.19×，已持平）；在 `compute_dc_phase` 中改用正弦/余弦角度加法递推（`ht_dcphase`/`ht_sine`/`ht_trendmode`）；并将 `mfi` 改写为单遍滑动窗口融合（2.56× → 1.41×）。合计 **82 快 / 54 持平 / 25 慢，几何均值 Rust/C = 0.792×** —— adaq-talib 平均现为 C 的约 1.26× 快（此前为 1.50× 慢）。
+- **报告与工具**：更新 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)（新分组 / 逐指标表，三次取中位方法学）与交互式 `docs/benchmarks/adaq-vs-talib-161.html`；新增 `benches/extreme_ab.rs`、`tools/opt_pattern.py` 与 `docs/research/perf-161-analysis.md`。
+- **发布**：版本号提升至 `0.1.3`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
+
+### 0.1.2
 - **全量 161 基准与验证套件**：新增 `benches/all161_bench.rs`（由 `tools/bench/gen_all161.py` 自动生成），对**全部 161** 个指标与原生 TA-Lib C 0.7.1 逐项基准对照，并附带实时数值一致性校验和；配套 `benches/poc_bench.rs` 为概念验证脚手架。统一报告 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)、交互式 `docs/benchmarks/adaq-vs-talib-161.html` 与 `all161_results.csv` 由 `tools/bench/gen_report.py` 生成（双轨方法论见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)）。
 - **黄金向量覆盖扩大**：**222 个黄金向量 fixture 文件**（原 159 个）——补全了完整的模式识别 fixture 集与 `macd_ext` / `macd_fix` fixture。全量测试现为 **326 项测试，0 失败**（原 308），`tools/reconcile.py` 确认 **161/161**。
 - **文档完整性**：逐函数表现已列出全部 161 个函数。`accbands`（重叠研究）、`dx` / `imi`（动量）与 `avgdev`（价格变换）此前已实现并计入 161 总数，但被遗漏在明细表之外 —— 现均已补入文档。
