@@ -138,8 +138,13 @@ pub fn adosc_with_output(
     let mut fast_ema = ad_line[0];
     let mut slow_ema = ad_line[0];
     for i in 1..n {
-        fast_ema = fast_k * ad_line[i] + (1.0 - fast_k) * fast_ema;
-        slow_ema = slow_k * ad_line[i] + (1.0 - slow_k) * slow_ema;
+        // 硬件 FMA：等价为 GCC -O2 `-ffp-contract=fast` 下 TA-Lib C 的 EMA 递推
+        // `in*K + out*(1-K)` → `(in-out).mul_add(K, out)`，单指令、同一次舍入，
+        // 与黄金向量在 1e-8/1e-10 容差内一致（ADR 0005）。
+        // Hardware FMA: equals TA-Lib's C EMA recurrence `in*K + out*(1-K)` under GCC
+        // -O2 FMA contraction, bit-for-bit within the 1e-8 / 1e-10 golden tolerance.
+        fast_ema = (ad_line[i] - fast_ema).mul_add(fast_k, fast_ema);
+        slow_ema = (ad_line[i] - slow_ema).mul_add(slow_k, slow_ema);
         if i >= slow_period - 1 {
             out[i] = fast_ema - slow_ema;
         }

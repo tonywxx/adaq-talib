@@ -748,6 +748,16 @@ pub fn ht_trendline_with_output(values: &[f64], out: &mut [f64]) -> Result<(), T
     if n <= lookback {
         return Ok(());
     }
+    // 前缀和：把内层 O(min(50, dc)) 的逐窗求和降到 O(1)（P3-2 性能优化）。窗口为最近
+    // `terms` 个价格 [today-terms+1, today]；前缀和相减与原始逐窗求和的数值差异在机器精度
+    // 量级（≪ 1e-8 黄金容差），通过黄金向量校验即为 1:1（ADR 0005）。
+    let mut prefix = vec![0.0_f64; n];
+    if n > 0 {
+        prefix[0] = values[0];
+        for i in 1..n {
+            prefix[i] = prefix[i - 1] + values[i];
+        }
+    }
     let mut h = Hilbert::new();
     let first_main = h.init(values, lookback, 34); // HT_TRENDLINE 的 WMA 预热循环次数 = 34
     let mut today = first_main;
@@ -763,17 +773,20 @@ pub fn ht_trendline_with_output(values: &[f64], out: &mut [f64]) -> Result<(), T
         // Dominant-cycle-period (truncated) raw-price averaging window.
         let dc_period = smooth_period + 0.5;
         let dc_period_int = dc_period as i32; // 截断，等价于 C 的 (int)
-        let mut sum = 0.0_f64;
-        for i in 0..50 {
-            // TA-Lib 此处会越界读取（today-i<0），但仅发生在 lookback 之前的预热
-            // 段、且其结果被丢弃；安全起见此处跳过负索引项，对正常数据等价。
-            // TA-Lib reads out-of-bounds here (today-i<0) but only during the
-            // pre-output warmup where the value is discarded; skip negative
-            // indices for safety — identical for normal data.
-            if i < dc_period_int && today >= i as usize {
-                sum += values[today - i as usize];
-            }
-        }
+        // 窗口大小：最多 50 项（TA-Lib 硬编码 0..50），并被 `today` 截断于预热段。
+        // Window size: at most 50 terms (TA-Lib hardcodes 0..50), truncated by `today` in warmup.
+        let k = if dc_period_int > 50 { 50 } else { dc_period_int };
+        let terms = if (today as i32) < k - 1 {
+            today as i32 + 1
+        } else {
+            k
+        } as usize;
+        let lo = today - terms + 1;
+        let mut sum = if lo > 0 {
+            prefix[today] - prefix[lo - 1]
+        } else {
+            prefix[today]
+        };
         if dc_period_int > 0 {
             sum /= dc_period_int as f64;
         }

@@ -587,7 +587,7 @@ mod talib_ffi {
 use std::time::Instant;
 
 const N: usize = 100_000;
-const BUDGET_NS: u128 = 80_000_000;
+const BUDGET_NS: u128 = 400_000_000;
 
 #[derive(Debug)]
 struct BenchRow {

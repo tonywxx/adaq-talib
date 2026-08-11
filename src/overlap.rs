@@ -1248,7 +1248,7 @@ pub fn kama_with_output(
     };
     let mut sc = er * const_diff + const_max;
     sc *= sc;
-    prev_kama = (values[today] - prev_kama) * sc + prev_kama;
+    prev_kama = (values[today] - prev_kama).mul_add(sc, prev_kama);
     today += 1;
     out[p] = prev_kama;
     while today <= n - 1 {
@@ -1266,7 +1266,7 @@ pub fn kama_with_output(
         };
         let mut sc = er * const_diff + const_max;
         sc *= sc;
-        prev_kama = (values[today] - prev_kama) * sc + prev_kama;
+        prev_kama = (values[today] - prev_kama).mul_add(sc, prev_kama);
         out[today] = prev_kama;
         today += 1;
     }

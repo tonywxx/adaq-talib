@@ -404,24 +404,40 @@ pub fn cdl_engulfing_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut i = lookback;
-    while i < n {
-        let cur_color = candle_color(open[i], close[i]);
-        let prev_color = candle_color(open[i - 1], close[i - 1]);
-        let bull = cur_color == 1.0 && prev_color == -1.0 && close[i] > open[i - 1];
-        let bear = cur_color == -1.0 && prev_color == 1.0 && close[i] < open[i - 1];
-        if bull && open[i] < close[i - 1] {
-            out[i] = 100.0;
-        } else if bear && open[i] > close[i - 1] {
-            out[i] = -100.0;
-        } else if bull && open[i] <= close[i - 1] {
-            out[i] = 80.0;
-        } else if bear && open[i] >= close[i - 1] {
-            out[i] = -80.0;
+    // 缓存前一根蜡烛的 open/close/color，避免每轮重复读取 open[i-1]/close[i-1] 与
+    // 重复调用 `candle_color`，同时帮助编译器消除边界检查（P3-4，ADR 0005 零偏差）。
+    // 循环自 `i = lookback = 2` 起，故首轮比较的"前一根"是第 1 根（索引 1）。
+    let mut prev_open = open[1];
+    let mut prev_close = close[1];
+    let mut prev_color = candle_color(prev_open, prev_close);
+    for i in lookback..n {
+        let cur_open = open[i];
+        let cur_close = close[i];
+        let cur_color = candle_color(cur_open, cur_close);
+        let bull = cur_color == 1.0 && prev_color == -1.0 && cur_close > prev_open;
+        let bear = cur_color == -1.0 && prev_color == 1.0 && cur_close < prev_open;
+        out[i] = if bull {
+            if cur_open < prev_close {
+                100.0
+            } else if cur_open <= prev_close {
+                80.0
+            } else {
+                0.0
+            }
+        } else if bear {
+            if cur_open > prev_close {
+                -100.0
+            } else if cur_open >= prev_close {
+                -80.0
+            } else {
+                0.0
+            }
         } else {
-            out[i] = 0.0;
-        }
-        i += 1;
+            0.0
+        };
+        prev_open = cur_open;
+        prev_close = cur_close;
+        prev_color = cur_color;
     }
     Ok(())
 }

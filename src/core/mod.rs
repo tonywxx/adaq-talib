@@ -87,24 +87,48 @@ pub fn rolling_mean(values: &[f64], period: usize) -> Vec<f64> {
 pub fn ema_with_output(values: &[f64], period: usize, out: &mut [f64]) {
     debug_assert!(period >= 1);
     debug_assert_eq!(out.len(), values.len());
-    for v in out.iter_mut() {
-        *v = f64::NAN;
-    }
     let n = values.len();
     let start = match values.iter().position(|&x| !x.is_nan()) {
         Some(s) => s,
-        None => return,
+        None => {
+            for v in out.iter_mut() {
+                *v = f64::NAN;
+            }
+            return;
+        }
     };
     if n - start < period {
+        for v in out.iter_mut() {
+            *v = f64::NAN;
+        }
         return;
+    }
+    // 仅填前导不稳定期（其余由递推覆盖），消除对整段输出的 O(n) NaN 填充
+    // （P3-2 性能优化；EMA 是 ema/apo/ppo/t3/dema/tema/macd 的公共热路径）。
+    // Fill only the leading unstable region; the rest is overwritten by the recursion,
+    // removing the full O(n) NaN pass (high-leverage: EMA underpins many indicators).
+    for v in out[..start + period - 1].iter_mut() {
+        *v = f64::NAN;
     }
     let seed: f64 = values[start..start + period].iter().copied().sum::<f64>() / period as f64;
     out[start + period - 1] = seed;
     let k = 2.0 / (period as f64 + 1.0);
     let mut prev = seed;
-    for i in (start + period)..n {
-        prev = (values[i] - prev) * k + prev;
-        out[i] = prev;
+    // 以切片视图递推：编译器可证明 `v[i]` / `o[i]` 不越界，从而消除 `out[i]` 的边界检查
+    // （release 下 `out.len()==values.len()` 仅由 debug_assert 保证，无法被证明），这是 EMA
+    // 相对原生 C 偏慢的主因之一。数值与逐元素索引版本逐项相等、零偏差（ADR 0005）。
+    let v = &values[start + period..];
+    let o = &mut out[start + period..];
+    let len = v.len().min(o.len());
+    // 硬件 FMA：把 `(v-prev)*k+prev` 收缩为单条融合乘加指令（与 GCC -O2 默认
+    // `-ffp-contract=fast` 下 TA-Lib C 的 EMA 一致），既提速（1 次运算而非乘+加）
+    // 又更贴近 C 的数值（同一次舍入）。与黄金向量逐项在 1e-8/1e-10 容差内一致（ADR 0005）。
+    // Hardware FMA: contract `(v-prev)*k+prev` into a single fused multiply-add, matching
+    // TA-Lib's C EMA under GCC -O2 default `-ffp-contract=fast`. Bit-for-bit within the
+    // 1e-8 / 1e-10 golden tolerance (ADR 0005).
+    for i in 0..len {
+        prev = (v[i] - prev).mul_add(k, prev);
+        o[i] = prev;
     }
 }
 
@@ -178,7 +202,7 @@ pub fn nested_ema_with_output<const L: usize, F>(
             }
         } else {
             // Once seeded, every index recurses (a NaN input propagates NaN, matching `ema`).
-            e[0] = (v1 - prev[0]) * k + prev[0];
+            e[0] = (v1 - prev[0]).mul_add(k, prev[0]);
             prev[0] = e[0];
         }
 
@@ -196,7 +220,7 @@ pub fn nested_ema_with_output<const L: usize, F>(
                     }
                 }
             } else {
-                e[l] = (src - prev[l]) * k + prev[l];
+                e[l] = (src - prev[l]).mul_add(k, prev[l]);
                 prev[l] = e[l];
             }
         }
@@ -306,7 +330,7 @@ fn wma_naive(values: &[f64], period: usize) -> Vec<f64> {
 /// monotonic-queue extremes. Compared with `std::collections::VecDeque` it avoids the internal
 /// offset arithmetic / bounds checks and any reallocation, giving the compiler a tighter
 /// inlinable hot loop (the index is masked with `cap - 1`, a power-of-two, so no division).
-struct MonoQueue {
+pub(crate) struct MonoQueue {
     buf: Vec<usize>,
     mask: usize, // capacity - 1 (capacity is a power of two)
     head: usize, // position of the front element (masked on access)
@@ -316,7 +340,7 @@ struct MonoQueue {
 
 impl MonoQueue {
     #[inline]
-    fn with_capacity(period: usize) -> Self {
+    pub(crate) fn with_capacity(period: usize) -> Self {
         let cap = period.next_power_of_two().max(1);
         MonoQueue {
             buf: vec![0usize; cap],
@@ -327,31 +351,31 @@ impl MonoQueue {
         }
     }
     #[inline]
-    fn push_back(&mut self, v: usize) {
+    pub(crate) fn push_back(&mut self, v: usize) {
         self.buf[self.tail & self.mask] = v;
         self.tail += 1;
         self.len += 1;
     }
     #[inline]
-    fn pop_back(&mut self) {
+    pub(crate) fn pop_back(&mut self) {
         self.tail -= 1;
         self.len -= 1;
     }
     #[inline]
-    fn pop_front(&mut self) {
+    pub(crate) fn pop_front(&mut self) {
         self.head += 1;
         self.len -= 1;
     }
     #[inline]
-    fn front(&self) -> usize {
+    pub(crate) fn front(&self) -> usize {
         self.buf[self.head & self.mask]
     }
     #[inline]
-    fn back(&self) -> usize {
+    pub(crate) fn back(&self) -> usize {
         self.buf[(self.tail - 1) & self.mask]
     }
     #[inline]
-    fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.len == 0
     }
 }

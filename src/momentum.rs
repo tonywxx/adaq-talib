@@ -991,15 +991,44 @@ pub fn willr_with_output(
             "willr_with_output: out length must equal close length".into(),
         ));
     }
-    let hh = crate::core::rolling_max(high, time_period);
-    let ll = crate::core::rolling_min(low, time_period);
     let n = close.len();
-    for i in (time_period - 1)..n {
-        out[i] = if hh[i] == ll[i] {
-            0.0
+    if n < time_period {
+        for v in out.iter_mut() {
+            *v = f64::NAN;
+        }
+        return Ok(());
+    }
+    // 单遍融合：用两个单调队列（high 的最大值、low 的最小值）在一次遍历中同时求得
+    // HHV(high) 与 LLV(low) 并直接写出 WILLR，消除原先 `rolling_max` + `rolling_min` 的两次
+    // 独立扫描、两次 `Vec` 分配与合并趟（P3-3，ADR 0005 零偏差：极值取值与分别调用一致）。
+    let mut max_dq = crate::core::MonoQueue::with_capacity(time_period);
+    let mut min_dq = crate::core::MonoQueue::with_capacity(time_period);
+    for i in 0..n {
+        while !max_dq.is_empty() && max_dq.front() + time_period <= i {
+            max_dq.pop_front();
+        }
+        while !min_dq.is_empty() && min_dq.front() + time_period <= i {
+            min_dq.pop_front();
+        }
+        while !max_dq.is_empty() && high[max_dq.back()] <= high[i] {
+            max_dq.pop_back();
+        }
+        while !min_dq.is_empty() && low[min_dq.back()] >= low[i] {
+            min_dq.pop_back();
+        }
+        max_dq.push_back(i);
+        min_dq.push_back(i);
+        if i >= time_period - 1 {
+            let hh = high[max_dq.front()];
+            let ll = low[min_dq.front()];
+            out[i] = if hh == ll {
+                0.0
+            } else {
+                -100.0 * (hh - close[i]) / (hh - ll)
+            };
         } else {
-            -100.0 * (hh[i] - close[i]) / (hh[i] - ll[i])
-        };
+            out[i] = f64::NAN;
+        }
     }
     Ok(())
 }
@@ -1097,36 +1126,62 @@ pub fn ultosc_with_output(
         ));
     }
     let n = close.len();
-    let mut bp = vec![0.0_f64; n];
-    let mut tr = vec![0.0_f64; n];
+    if n == 0 {
+        return Ok(());
+    }
+    // 单遍融合：bp/tr 的三档窗口求和（period1/2/3）在一次前向扫描内完成，仅用
+    // O(period3) 的环形缓冲保存滞后元素，避免 6 次独立 `rolling_sum` 的全遍历与分配
+    // （P3-2 性能优化）。与分段实现逐项一致（ADR 0005）：每个窗口的滑窗递推
+    // `sum += x - x[lag]` 与 `rolling_sum` 逐字节相同。
+    let cap = period3 + 1;
+    let mut ring_bp = vec![0.0_f64; cap];
+    let mut ring_tr = vec![0.0_f64; cap];
+    let mut w = 0usize;
+    let mut sbp1 = 0.0_f64;
+    let mut sbp2 = 0.0_f64;
+    let mut sbp3 = 0.0_f64;
+    let mut str1 = 0.0_f64;
+    let mut str2 = 0.0_f64;
+    let mut str3 = 0.0_f64;
     for i in 0..n {
         let prev = if i > 0 { close[i - 1] } else { close[i] };
-        bp[i] = close[i] - low[i].min(prev);
-        tr[i] = high[i].max(prev) - low[i].min(prev);
-    }
-    let sbp1 = rolling_sum(&bp, period1);
-    let str1 = rolling_sum(&tr, period1);
-    let sbp2 = rolling_sum(&bp, period2);
-    let str2 = rolling_sum(&tr, period2);
-    let sbp3 = rolling_sum(&bp, period3);
-    let str3 = rolling_sum(&tr, period3);
-    // TA-Lib 以最长周期 `period3` 为 lookback（首个有效值位于 index `period3`，而非 `period3-1`）。
-    // TA-Lib uses the longest period `period3` as the lookback (first valid at index `period3`).
-    let lookback = period3;
-    for i in lookback..n {
-        let (a1, a2, a3) = (sbp1[i], sbp2[i], sbp3[i]);
-        let (t1, t2, t3) = (str1[i], str2[i], str3[i]);
-        if a1.is_nan() || a2.is_nan() || a3.is_nan() || t1.is_nan() || t2.is_nan() || t3.is_nan() {
-            continue;
+        let bpi = close[i] - low[i].min(prev);
+        let tri = high[i].max(prev) - low[i].min(prev);
+        ring_bp[w] = bpi;
+        ring_tr[w] = tri;
+        // 滑窗累加（与 `rolling_sum` 逐字节一致：先加当前、滞后减去窗口外元素）。
+        sbp1 += bpi;
+        sbp2 += bpi;
+        sbp3 += bpi;
+        str1 += tri;
+        str2 += tri;
+        str3 += tri;
+        if i >= period1 {
+            let k = (w + cap - period1) % cap;
+            sbp1 -= ring_bp[k];
+            str1 -= ring_tr[k];
         }
-        if t1 == 0.0 || t2 == 0.0 || t3 == 0.0 {
-            out[i] = 0.0;
-            continue;
+        if i >= period2 {
+            let k = (w + cap - period2) % cap;
+            sbp2 -= ring_bp[k];
+            str2 -= ring_tr[k];
         }
-        let avg1 = a1 / t1;
-        let avg2 = a2 / t2;
-        let avg3 = a3 / t3;
-        out[i] = 100.0 * (4.0 * avg1 + 2.0 * avg2 + avg3) / 7.0;
+        if i >= period3 {
+            let k = (w + cap - period3) % cap;
+            sbp3 -= ring_bp[k];
+            str3 -= ring_tr[k];
+            // TA-Lib 以最长周期 `period3` 为 lookback（首个有效值位于 index `period3`）。
+            // TA-Lib uses the longest period `period3` as the lookback (first valid at index `period3`).
+            if str1 == 0.0 || str2 == 0.0 || str3 == 0.0 {
+                out[i] = 0.0;
+            } else {
+                let a1 = sbp1 / str1;
+                let a2 = sbp2 / str2;
+                let a3 = sbp3 / str3;
+                out[i] = 100.0 * (4.0 * a1 + 2.0 * a2 + a3) / 7.0;
+            }
+        }
+        w = (w + 1) % cap;
     }
     Ok(())
 }
@@ -1268,66 +1323,253 @@ fn di_from_dm_tr(pdm: &[f64], mdm: &[f64], tr: &[f64], period: usize) -> (Vec<f6
     (pdi, mdi)
 }
 
-/// ADX / ADXR from +DI / -DI (Wilder-smoothed DX). Identical to the historical `directional`.
-fn adx_adxr_from_di(pdi: &[f64], mdi: &[f64], period: usize) -> (Vec<f64>, Vec<f64>) {
-    let n = pdi.len();
+/// 单遍融合核：Wilder ±DM/TR → +DI/-DI → 纯 DX（`denom==0` 取 0）→ ADX（Wilder 种子缓冲）
+/// → ADXR（环形缓冲取 `adx[i-(period-1)]`）。与分段实现 [`dm_tr`] + [`di_from_dm_tr`] +
+/// `adx_adxr_from_di` 逐项一致（ADR 0005），但只走一遍前向扫描、仅写 `adx`/`adxr` 两份输出，
+/// 把内存流量从 5 份降到 2 份，消除 `adx` 调用里对 `adxr` 的冗余计算（P3-2 性能优化）。
+///
+/// Single forward pass: Wilder ±DM/TR → +DI/-DI → pure DX (0 on zero denom) → ADX
+/// (Wilder seed buffer) → ADXR (ring buffer for `adx[i-(period-1)]`). Bit-for-bit equal to
+/// the staged `dm_tr` + `di_from_dm_tr` + `adx_adxr_from_di` (ADR 0005), but a single scan
+/// that writes only `adx`/`adxr`. `adx` no longer pays for the `adxr` pass (P3-2).
+fn adx_adxr_fused(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    period: usize,
+) -> (Vec<f64>, Vec<f64>) {
+    let n = high.len();
     let mut adx = vec![f64::NAN; n];
     let mut adxr = vec![f64::NAN; n];
-    let p = period as f64;
     let dx_seed_end = 2 * period - 1;
-    if n > dx_seed_end {
-        let mut sum_dx = 0.0_f64;
-        for i in period..=dx_seed_end {
-            let denom = pdi[i] + mdi[i];
-            if denom != 0.0 {
-                sum_dx += 100.0 * (pdi[i] - mdi[i]).abs() / denom;
+    // ADX 第一个有效点落在 `2*period-1`；需要 `n > dx_seed_end`。
+    // The first valid ADX lands at `2*period-1`; require `n > dx_seed_end`.
+    if n < 2 * period {
+        return (adx, adxr);
+    }
+    let p = period as f64;
+    let mut today = 0usize;
+    let mut prev_high = high[0];
+    let mut prev_low = low[0];
+    let mut prev_close = close[0];
+    let mut prev_plus_dm = 0.0_f64;
+    let mut prev_minus_dm = 0.0_f64;
+    let mut prev_tr = 0.0_f64;
+    // 种子累积（前 `period-1` 根 K 的裸 ±DM/TR 求和），与 [`dm_tr`] 逐字节一致。
+    // Seed accumulation (raw ±DM/TR of the first `period-1` bars), byte-identical to `dm_tr`.
+    let mut i = period - 1;
+    while i > 0 {
+        today += 1;
+        let tp = high[today];
+        let diff_p = tp - prev_high;
+        prev_high = tp;
+        let tl = low[today];
+        let diff_m = prev_low - tl;
+        prev_low = tl;
+        if diff_m > 0.0 && diff_p < diff_m {
+            prev_minus_dm += diff_m;
+        } else if diff_p > 0.0 && diff_p > diff_m {
+            prev_plus_dm += diff_p;
+        }
+        let mut range = prev_high - prev_low;
+        let mut tmp = (prev_high - prev_close).abs();
+        if tmp > range {
+            range = tmp;
+        }
+        tmp = (prev_low - prev_close).abs();
+        if tmp > range {
+            range = tmp;
+        }
+        prev_tr += range;
+        prev_close = close[today];
+        i -= 1;
+    }
+    let mut sum_dx = 0.0_f64;
+    let mut seeded_adx = false;
+    let mut prev_adx = 0.0_f64;
+    // 仅保留最近 `period` 个 ADX 值，用于 ADXR = (ADX[i] + ADX[i-(period-1)])/2。
+    // Keep only the last `period` ADX values for ADXR = (ADX[i] + ADX[i-(period-1)])/2.
+    let mut adx_ring: std::collections::VecDeque<f64> = std::collections::VecDeque::with_capacity(period);
+    while today < n - 1 {
+        today += 1;
+        let tp = high[today];
+        let diff_p = tp - prev_high;
+        prev_high = tp;
+        let tl = low[today];
+        let diff_m = prev_low - tl;
+        prev_low = tl;
+        prev_minus_dm -= prev_minus_dm / p;
+        prev_plus_dm -= prev_plus_dm / p;
+        if diff_m > 0.0 && diff_p < diff_m {
+            prev_minus_dm += diff_m;
+        } else if diff_p > 0.0 && diff_p > diff_m {
+            prev_plus_dm += diff_p;
+        }
+        let mut range = prev_high - prev_low;
+        let mut tmp = (prev_high - prev_close).abs();
+        if tmp > range {
+            range = tmp;
+        }
+        tmp = (prev_low - prev_close).abs();
+        if tmp > range {
+            range = tmp;
+        }
+        prev_tr = prev_tr - prev_tr / p + range;
+        prev_close = close[today];
+        // +DI / -DI（与 [`di_from_dm_tr`] 一致）。+DI / -DI (matches `di_from_dm_tr`).
+        let (pdi, mdi) = if prev_tr == 0.0 {
+            (0.0, 0.0)
+        } else {
+            (
+                100.0 * prev_plus_dm / prev_tr,
+                100.0 * prev_minus_dm / prev_tr,
+            )
+        };
+        // 纯 DX：与 `adx_adxr_from_di` 相同，`denom==0` 取 0（无前向填充）。
+        // Pure DX: same as `adx_adxr_from_di`, 0 on zero denom (no carry-forward).
+        let denom = pdi + mdi;
+        let dx = if denom != 0.0 {
+            100.0 * (pdi - mdi).abs() / denom
+        } else {
+            0.0
+        };
+        // ADX：前 `period` 个 DX 求均值作种子，之后 Wilder 递推（与 `adx_adxr_from_di` 一致）。
+        // ADX: mean of the first `period` DX as seed, then Wilder recursion (matches the staged impl).
+        if !seeded_adx {
+            sum_dx += dx;
+            if today >= dx_seed_end {
+                prev_adx = sum_dx / p;
+                adx[today] = prev_adx;
+                adx_ring.push_back(prev_adx);
+                seeded_adx = true;
+            }
+        } else {
+            prev_adx = (prev_adx * (p - 1.0) + dx) / p;
+            adx[today] = prev_adx;
+            adx_ring.push_back(prev_adx);
+            if adx_ring.len() > period {
+                adx_ring.pop_front();
             }
         }
-        let mut prev_adx = sum_dx / p;
-        adx[dx_seed_end] = prev_adx;
-        for i in (dx_seed_end + 1)..n {
-            let denom = pdi[i] + mdi[i];
-            let dx = if denom == 0.0 {
-                0.0
-            } else {
-                100.0 * (pdi[i] - mdi[i]).abs() / denom
-            };
-            prev_adx = (prev_adx * (p - 1.0) + dx) / p;
-            adx[i] = prev_adx;
-        }
-    }
-    let adxr_start = 3 * period - 2;
-    for i in adxr_start..n {
-        let earlier = i - (period - 1);
-        if !adx[i].is_nan() && !adx[earlier].is_nan() {
-            adxr[i] = (adx[i] + adx[earlier]) / 2.0;
+        // ADXR = (ADX[i] + ADX[i-(period-1)])/2；环形缓冲队首即 ADX[i-(period-1)]。
+        // ADXR = (ADX[i] + ADX[i-(period-1)])/2; the ring front is exactly ADX[i-(period-1)].
+        let adxr_start = 3 * period - 2;
+        if today >= adxr_start && adx_ring.len() == period {
+            let earlier = adx_ring.front().copied().unwrap();
+            adxr[today] = (adx[today] + earlier) / 2.0;
         }
     }
     (adx, adxr)
 }
 
-/// 方向性运动族的共享计算（与 TA-Lib 0.7.1 逐项一致）。
+/// DX 单遍实现（TA-Lib `TA_DX`）：Wilder ±DM/TR → +DI/-DI → DX，一遍前向扫描完成。
+/// `carry == true` 时 `denom==0` 沿用上一根有效值（与 `dx` 现有行为一致）；否则取 0
+/// （与 `adx_adxr_fused` 的纯 DX 一致）。与分段实现 [`dm_tr`] + [`di_from_dm_tr`] 逐项相等（ADR 0005）。
 ///
-/// 组合 [`dm_tr`] + [`di_from_dm_tr`] + [`adx_adxr_from_di`]，返回六个等长向量
-/// （前导不稳定期填 [`f64::NAN`]，对齐到 TA-Lib 各自 lookback）。公开函数按需取用其中子集，
-/// 避免冗余计算（P3-2，ADR 0010）。
-fn directional(
+/// Single forward pass for DX (TA-Lib `TA_DX`): Wilder ±DM/TR → +DI/-DI → DX. With
+/// `carry == true`, a zero denom reuses the previous valid value (matches `dx`); otherwise it
+/// yields 0 (matches the pure DX in `adx_adxr_fused`). Bit-for-bit equal to the staged
+/// `dm_tr` + `di_from_dm_tr` (ADR 0005).
+fn dx_from_candles(
     high: &[f64],
     low: &[f64],
     close: &[f64],
     period: usize,
-) -> (
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-) {
-    let (pdm, mdm, tr) = dm_tr(high, low, close, period);
-    let (pdi, mdi) = di_from_dm_tr(&pdm, &mdm, &tr, period);
-    let (adx, adxr) = adx_adxr_from_di(&pdi, &mdi, period);
-    (pdm, mdm, pdi, mdi, adx, adxr)
+    carry: bool,
+) -> Vec<f64> {
+    let n = high.len();
+    let mut dx = vec![f64::NAN; n];
+    if n < period + 1 {
+        return dx;
+    }
+    let p = period as f64;
+    let mut today = 0usize;
+    let mut prev_high = high[0];
+    let mut prev_low = low[0];
+    let mut prev_close = close[0];
+    let mut prev_plus_dm = 0.0_f64;
+    let mut prev_minus_dm = 0.0_f64;
+    let mut prev_tr = 0.0_f64;
+    // 种子累积（与 [`dm_tr`] 逐字节一致）。Seed accumulation (byte-identical to `dm_tr`).
+    let mut i = period - 1;
+    while i > 0 {
+        today += 1;
+        let tp = high[today];
+        let diff_p = tp - prev_high;
+        prev_high = tp;
+        let tl = low[today];
+        let diff_m = prev_low - tl;
+        prev_low = tl;
+        if diff_m > 0.0 && diff_p < diff_m {
+            prev_minus_dm += diff_m;
+        } else if diff_p > 0.0 && diff_p > diff_m {
+            prev_plus_dm += diff_p;
+        }
+        let mut range = prev_high - prev_low;
+        let mut tmp = (prev_high - prev_close).abs();
+        if tmp > range {
+            range = tmp;
+        }
+        tmp = (prev_low - prev_close).abs();
+        if tmp > range {
+            range = tmp;
+        }
+        prev_tr += range;
+        prev_close = close[today];
+        i -= 1;
+    }
+    let mut last = f64::NAN; // 用于 `denom==0` 前向填充。/ carry-forward state.
+    while today < n - 1 {
+        today += 1;
+        let tp = high[today];
+        let diff_p = tp - prev_high;
+        prev_high = tp;
+        let tl = low[today];
+        let diff_m = prev_low - tl;
+        prev_low = tl;
+        prev_minus_dm -= prev_minus_dm / p;
+        prev_plus_dm -= prev_plus_dm / p;
+        if diff_m > 0.0 && diff_p < diff_m {
+            prev_minus_dm += diff_m;
+        } else if diff_p > 0.0 && diff_p > diff_m {
+            prev_plus_dm += diff_p;
+        }
+        let mut range = prev_high - prev_low;
+        let mut tmp = (prev_high - prev_close).abs();
+        if tmp > range {
+            range = tmp;
+        }
+        tmp = (prev_low - prev_close).abs();
+        if tmp > range {
+            range = tmp;
+        }
+        prev_tr = prev_tr - prev_tr / p + range;
+        prev_close = close[today];
+        // +DI / -DI（与 [`di_from_dm_tr`] 一致）。+DI / -DI (matches `di_from_dm_tr`).
+        let (pdi, mdi) = if prev_tr == 0.0 {
+            (0.0, 0.0)
+        } else {
+            (
+                100.0 * prev_plus_dm / prev_tr,
+                100.0 * prev_minus_dm / prev_tr,
+            )
+        };
+        let denom = pdi + mdi;
+        let val = if denom != 0.0 {
+            100.0 * (pdi - mdi).abs() / denom
+        } else if carry {
+            if last.is_nan() {
+                0.0
+            } else {
+                last
+            }
+        } else {
+            0.0
+        };
+        dx[today] = val;
+        last = val;
+    }
+    dx
 }
 
 
@@ -1519,7 +1761,7 @@ pub fn adx_with_output(
             "adx_with_output: out length must equal high length".into(),
         ));
     }
-    out.copy_from_slice(&directional(high, low, close, time_period).4);
+    out.copy_from_slice(&adx_adxr_fused(high, low, close, time_period).0);
     Ok(())
 }
 
@@ -1554,7 +1796,7 @@ pub fn adxr_with_output(
             "adxr_with_output: out length must equal high length".into(),
         ));
     }
-    out.copy_from_slice(&directional(high, low, close, time_period).5);
+    out.copy_from_slice(&adx_adxr_fused(high, low, close, time_period).1);
     Ok(())
 }
 
@@ -1746,14 +1988,38 @@ pub fn aroon_osc_default(high: &[f64], low: &[f64]) -> Result<Vec<f64>, TaError>
 fn stoch_fastk(high: &[f64], low: &[f64], close: &[f64], fast_k_period: usize) -> Vec<f64> {
     let n = close.len();
     let mut fastk = vec![f64::NAN; n];
-    let hh = crate::core::rolling_max(high, fast_k_period);
-    let ll = crate::core::rolling_min(low, fast_k_period);
-    for i in (fast_k_period - 1)..n {
-        fastk[i] = if hh[i] == ll[i] {
-            0.0
-        } else {
-            100.0 * (close[i] - ll[i]) / (hh[i] - ll[i])
-        };
+    if n < fast_k_period {
+        return fastk;
+    }
+    // 单遍融合：在一次遍历中同时维护 high 的最大值队列与 low 的最小值队列，直接写出
+    // 快速随机 %K，消除原先 `rolling_max` + `rolling_min` 的两次独立扫描与两次 `Vec` 分配
+    // （P3-3，ADR 0005 零偏差）。
+    let mut max_dq = crate::core::MonoQueue::with_capacity(fast_k_period);
+    let mut min_dq = crate::core::MonoQueue::with_capacity(fast_k_period);
+    for i in 0..n {
+        while !max_dq.is_empty() && max_dq.front() + fast_k_period <= i {
+            max_dq.pop_front();
+        }
+        while !min_dq.is_empty() && min_dq.front() + fast_k_period <= i {
+            min_dq.pop_front();
+        }
+        while !max_dq.is_empty() && high[max_dq.back()] <= high[i] {
+            max_dq.pop_back();
+        }
+        while !min_dq.is_empty() && low[min_dq.back()] >= low[i] {
+            min_dq.pop_back();
+        }
+        max_dq.push_back(i);
+        min_dq.push_back(i);
+        if i >= fast_k_period - 1 {
+            let hh = high[max_dq.front()];
+            let ll = low[min_dq.front()];
+            fastk[i] = if hh == ll {
+                0.0
+            } else {
+                100.0 * (close[i] - ll) / (hh - ll)
+            };
+        }
     }
     fastk
 }
@@ -1959,12 +2225,18 @@ pub fn stoch_rsi_default(close: &[f64]) -> Result<Vec<f64>, TaError> {
 /// TA-Lib `ta_trix.c`; note the fixed scale factor is `100` (not `1000`).
 pub fn trix(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    let e1 = ema(values, time_period);
-    let e2 = ema(&e1, time_period);
-    let e3 = ema(&e2, time_period);
     let n = values.len();
     let lookback = 3 * time_period - 2;
     let mut out = vec![f64::NAN; n];
+    if n <= lookback {
+        return Ok(out);
+    }
+    // 三重 EMA 融合为单遍（与逐次 `ema` 调用逐项一致，ADR 0005），仅取最深一层 `E3`
+    // 写入 `e3` 暂存，再做轻量合并遍历（4 趟 → 2 趟，P3-2 性能优化）。
+    // Triple EMA fused into one pass (bit-for-bit equal to successive `ema` calls, ADR 0005);
+    // keep only the deepest level `E3`, then a light combine pass (4 passes → 2).
+    let mut e3 = vec![f64::NAN; n];
+    crate::core::nested_ema_with_output::<3, _>(values, time_period, |e: &[f64; 3]| e[2], &mut e3);
     for i in lookback..n {
         let cur = e3[i];
         let prev = e3[i - 1];
@@ -2010,30 +2282,10 @@ pub fn dx(high: &[f64], low: &[f64], close: &[f64], period: usize) -> Result<Vec
     if n < period + 1 {
         return Ok(out);
     }
-    // 复用共享的 Wilder ±DI。/ Reuse the shared Wilder ±DI.
-    let (pdm, mdm, tr) = dm_tr(high, low, close, period);
-    let (pdi, mdi) = di_from_dm_tr(&pdm, &mdm, &tr, period);
-    let mut last = f64::NAN; // 用于 TR/分母为零时的前向填充。/ carry-forward state.
-    for i in period..n {
-        let pdi_i = pdi[i];
-        let mdi_i = mdi[i];
-        if pdi_i.is_nan() || mdi_i.is_nan() {
-            // 理论不可达（i >= period 时 ±DI 已有效），防御性前向填充。
-            out[i] = last;
-            continue;
-        }
-        let denom = pdi_i + mdi_i;
-        let val = if denom != 0.0 {
-            100.0 * (pdi_i - mdi_i).abs() / denom
-        } else if last.is_nan() {
-            // 首个输出且 TR/分母为零：TA-Lib 填 0.0。/ first output, zero TR/sum => 0.0.
-            0.0
-        } else {
-            last
-        };
-        out[i] = val;
-        last = val;
-    }
+    // 单遍融合：Wilder ±DM/TR → +DI/-DI → DX（`denom==0` 前向填充），与分段实现逐项一致。
+    // Single forward pass; bit-for-bit equal to the staged implementation (ADR 0005).
+    let dx = dx_from_candles(high, low, close, period, true);
+    out.copy_from_slice(&dx);
     Ok(out)
 }
 

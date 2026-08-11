@@ -484,36 +484,39 @@ All **161 / 161** indicators were benchmarked head-to-head against native TA-Lib
 (dual-track, [ADR 0004](docs/adr/0004-benchmark-dual-track.md); the C track FFI-links system
 TA-Lib C under `--features bench-c`). Environment: Apple Silicon aarch64, **N = 100,000** elements
 per indicator; `ns/elem = elapsed / ITERS / N`; `Rust/C = Rust_ns/elem ÷ C_ns/elem`.
-Final numbers are the **median of 3 runs** to damp per-function benchmark noise (~20–40%).
+Final numbers are the **median of 5 runs** to damp per-function benchmark noise (~20–40%).
 Status: ratio < 0.8 → Faster, 0.8–1.2 → At parity, > 1.2 → Slower.
 
-**Headline:** **82 faster**, **54 at parity**, **25 slower** than native C; geomean
-**Rust/C = 0.792×** — adaq-talib is now **~1.26× faster than C on average** (down from
-**1.50× slower** prior to the 0.1.3 optimization pass). **107 of 161 indicators are at-or-faster
-than C** (Rust/C ≤ 1.2); only 25 remain slower, all isolated cases.
+**Headline:** **85 faster**, **60 at parity**, **16 slower** than native C; geomean
+**Rust/C = 0.786×** — adaq-talib is now **~1.27× faster than C on average** (down from
+**1.50× slower** prior to the 0.1.3 optimization pass). **145 of 161 indicators are at-or-faster
+than C** (Rust/C ≤ 1.2); only 16 remain slower, all isolated cases.
 
 | TA-Lib Group | Indicators | Faster (<0.8) | At parity (0.8–1.2) | Slower (>1.2) | Geomean Rust/C |
 |---|---:|---:|---:|---:|---:|
-| Cycle Indicators | 5 | 2 | 2 | 1 | 0.979× |
-| Math Operators | 11 | 7 | 2 | 2 | 0.848× |
-| Math Transform | 15 | 4 | 11 | 0 | 0.830× |
-| Momentum Indicators | 31 | 5 | 16 | 10 | 1.003× |
-| Overlap Studies | 18 | 6 | 7 | 5 | 0.935× |
+| Cycle Indicators | 5 | 2 | 2 | 1 | 0.980× |
+| Math Operators | 11 | 7 | 2 | 2 | 0.805× |
+| Math Transform | 15 | 4 | 11 | 0 | 0.858× |
+| Momentum Indicators | 31 | 8 | 20 | 3 | 0.852× |
+| Overlap Studies | 18 | 6 | 10 | 2 | 0.842× |
 | Pattern Recognition | 61 | 43 | 13 | 5 | 0.677× |
-| Price Transform | 5 | 5 | 0 | 0 | 0.668× |
-| Statistic Functions | 9 | 7 | 1 | 1 | 0.555× |
-| Volatility Indicators | 3 | 2 | 1 | 0 | 0.812× |
-| Volume Indicators | 3 | 1 | 1 | 1 | 0.999× |
-| **Total** | **161** | **82** | **54** | **25** | **0.792×** |
+| Price Transform | 5 | 5 | 0 | 0 | 0.599× |
+| Statistic Functions | 9 | 7 | 1 | 1 | 0.548× |
+| Volatility Indicators | 3 | 2 | 0 | 1 | 0.841× |
+| Volume Indicators | 3 | 1 | 1 | 1 | 0.994× |
+| **Total** | **161** | **85** | **60** | **16** | **0.786×** |
 
-adaq-talib is now faster than C on **8 of 10 groups** — Cycle, Math Operators, Math Transform,
-Overlap, Pattern Recognition, Price Transform, Statistic and Volatility — and at parity on
-Momentum and Volume; **no group is slower on average**. The headline improvement is Pattern
-Recognition, which flipped from the slowest group (geomean 2.98× slower) to the 3rd-fastest
-(0.677×) after the 0.1.3 inline-accumulator rollout across all 61 candlestick functions. The
-remaining slower functions are isolated: `MIDPOINT` (1.71×) and `T3` (1.32×) remain structurally
-non-vectorizable, and 9 pattern functions trail C by ≤ 2.34× (only `cdl_engulfing` is a genuinely
-separate algorithm). The full per-indicator table — all 161, with Rust/C ratio, status and a live
+adaq-talib is now faster than C on average in **all 10 groups** (every group geomean Rust/C < 1) —
+Cycle, Math Operators, Math Transform, Momentum, Overlap Studies, Pattern Recognition, Price
+Transform, Statistic Functions, Volatility and Volume; **no group is slower on average**. The
+headline improvement is Pattern Recognition, which flipped from the slowest group (geomean 2.98×
+slower) to among the fastest (0.677×) after the 0.1.3 inline-accumulator rollout across all 61
+candlestick functions. The **16** remaining slower functions are isolated, genuine single-thread
+recurrence / dual-extreme floors: `midpoint`, `minmax`, `minmax_index`, `mfi`, `willr`, `stoch_f`,
+`correl`, `adosc`, `trange`, `ht_phasor`, `ht_trendline`, plus the Pattern candle-decision branches
+`cdl_engulfing`/`cdl_separatinglines`/`cdl_harami`/`cdl_longline`/`cdl_shortline`. The EMA-family gap
+(EMA/KAMA/APO/PPO/T3/TRIX/ULTOSC/ADX/ADXR/DX) was closed by the P3-6 FMA-contraction pass (see the
+optimizations table). The full per-indicator table — all 161, with Rust/C ratio, status and a live
 TA-Lib parity checksum — is in
 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md).
 Caveats (e.g. `stoch_rsi` exposes only the `fastk` line, so its bench checksum differs — a bench
@@ -533,6 +536,7 @@ vectors (see [`benches/BASELINE.md`](benches/BASELINE.md) for the full per-indic
 | P3-3 (0.1.3) | `ht_dcperiod` | cycle-IIR fast path skips the unused `compute_dc_phase` sin/cos window | 3.589× → 1.191× (now at parity) | — |
 | P3-4 (0.1.3) | `ht_dcphase` / `ht_sine` / `ht_trendmode` | sin/cos angle-addition recurrence (`sin(θ+w)`, `cos(θ+w)`) | 1.216→0.786 / 0.840→0.687 / 1.432→1.122 | — |
 | P3-5 (0.1.3) | `mfi` | single-pass sliding-window fusion (two ring-buffer running sums) | 2.563× → 1.406× (still slower — per-bar divisions dominate) | ~1.8× closer to C |
+| P3-6 (0.1.3) | `ema` / `kama` / `apo` / `ppo` / `t3` / `adosc` (recurrence sites) | explicit `.mul_add()` FMA at every recurrence (GCC `-ffp-contract=fast` parity) | `ema` 1.488→0.977, `kama` 1.484→1.069, `apo` 1.529→1.085, `ppo` 1.425→1.077, `t3` 1.325→0.999 (all At parity); transitive `trix`/`ultosc` Faster, `adx`/`adxr`/`dx` At parity | closed the EMA-family gap |
 | P2-1 | `dema` / `tema` / `t3` | single-pass nested-EMA fusion core (`core::nested_ema_with_output`) | 3.63 / 3.46 / 3.76 ns/elem | ~2× / ~3× / ~6× vs naive |
 | P2-2 | `midpoint` / `midprice` | monotonic-queue `core::rolling_extreme` O(n) | 6.88 / 7.30 | ~3× / ~3× |
 | P2-3 | `wma` | O(n) sliding recurrence (`W[i] = W[i-1] + period·x[i] − sw[i-1]`) | 2.11 | ~4.7× |
@@ -573,7 +577,18 @@ cargo bench --bench all161_bench --features bench-c   # with the C reference tra
 ## Known Issues & Deprecations
 
 ### Known issues
-- **Two indicators remain slower than native TA-Lib C** — `MIDPOINT` (~1.71×) and `T3` (~1.32×). `MIDPOINT` already improved from ~2.26× after the 0.1.3 ring-buffer `rolling_extreme` core (P3-2), but both are still structurally non-vectorizable (a data-dependent monotonic structure and a sequential EMA IIR respectively), so the planned P3 SIMD pass is a documented **NO-GO** ([ADR 0010](docs/adr/0010-performance-strategy.md)). This is a known, accepted trade-off, **not a defect**.
+- **16 indicators remain slower than native TA-Lib C** — all genuine single-thread recurrence /
+  dual-extreme floors, not correctness gaps. The clearest structural case is `MIDPOINT` (~1.62×), a
+  data-dependent monotonic structure costing ~2× C's single MINMAX scan; `minmax`/`minmax_index`
+  (~1.52×/1.43×) carry the same dual-deque cost. The strict-recurrence `ht_phasor`/`ht_trendline`
+  (~1.24×/1.27×), sliding-window `mfi`/`willr`/`stoch_f`/`adosc`/`correl` (~1.23–1.55×), `trange`
+  (1.22×), and the Pattern candle-decision branches `cdl_engulfing`/`cdl_separatinglines`/`cdl_harami`/
+  `cdl_longline`/`cdl_shortline` (~1.30–2.00×) complete the set (full list in §4 of the performance
+  report). The previously-slow EMA family (`ema`/`kama`/`apo`/`ppo`/`t3`/`trix`/`ultosc`/`adx`/
+  `adxr`/`dx`) was closed to At parity / Faster by the P3-6 FMA-contraction pass. The planned P3 SIMD
+  pass is a documented **NO-GO** for the recurrence floors ([ADR 0010](docs/adr/0010-performance-strategy.md))
+  — single-thread micro-optimization is exhausted; the >2× path is parallelization, gated per
+  `NEXT-ACTIONS-perf.md`. This is a known, accepted trade-off, **not a defect**.
 - **No native-C wiring for `linear_reg` / `correl` / `willr` / `stoch`** — their Rust-side numbers are the canonical reference. A C comparison would require `unsafe` plus the system TA-Lib C library, which goes against the zero-FFI design; their Rust results are authoritative.
 - **Pattern recognition uses TA-Lib's default candle settings only** ([ADR 0009](docs/adr/0009-candle-settings-default-only.md)); no configuration API is exposed. There is **no functional coverage gap** against TA-Lib 0.7.1 — all 61 candlestick patterns are implemented.
 - **`aroon` / `aroon_osc` output order** — adaq-talib follows the canonical TA-Lib C 0.7.1 `outAroonUp` / `outAroonDown` order (the authoritative golden vectors). If you cross-check against the `talib` Python wheel (0.7.1), note that build historically swaps these two outputs; see [ADR 0003](docs/adr/0003-verification-golden-fixtures.md).
