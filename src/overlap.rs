@@ -517,10 +517,76 @@ pub fn midpoint_with_output(
             "midpoint_with_output: out length must equal values length".into(),
         ));
     }
+    // 数据量足够且启用 `parallel` feature 时走多核分块；内核与串行逐字节一致，输出 1:1。
+    // Under the `parallel` feature with enough data, use multi-core chunking; the kernel is
+    // byte-identical to the serial path, so output is 1:1.
+    #[cfg(feature = "parallel")]
+    {
+        if values.len() >= 8192 {
+            return midpoint_parallel_with_output(values, time_period, out);
+        }
+    }
+    midpoint_serial_with_output(values, time_period, out)
+}
+
+/// 中点串行内核（与 TA-Lib `TA_MIDPOINT` 逐项 1:1）。见 [`midpoint_with_output`]。
+/// Serial kernel for MidPoint (1:1 with TA-Lib `TA_MIDPOINT`). See [`midpoint_with_output`].
+fn midpoint_serial_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
     let (mx, mn) = crate::core::rolling_minmax(values, time_period);
     for (i, (a, b)) in mx.iter().zip(&mn).enumerate() {
         out[i] = (a + b) / 2.0;
     }
+    Ok(())
+}
+
+/// 中点串行版本（feature 无关，供并行对照测试作黄金参考）。见 [`midpoint`]。
+/// Serial MidPoint (feature-agnostic; golden reference for the parallel equality test). See [`midpoint`].
+pub fn midpoint_serial(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
+    check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    midpoint_serial_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 中点多核并行版本（需 `parallel` feature）。复用 [`midpoint_serial_with_output`] 内核，
+/// 以 `period-1` 前导重叠播种各分块的单调双端队列状态，输出与串行逐项 1:1。
+/// Multi-core parallel MidPoint (requires the `parallel` feature). Reuses the
+/// [`midpoint_serial_with_output`] kernel with `period-1` leading overlap to seed each chunk's
+/// deque state; output is 1:1 with the serial path.
+#[cfg(feature = "parallel")]
+pub fn midpoint_parallel(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
+    check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    midpoint_parallel_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 中点并行内核（零拷贝写入 `out`）。见 [`midpoint_parallel`]。
+/// Parallel kernel for MidPoint (zero-copy into `out`). See [`midpoint_parallel`].
+#[cfg(feature = "parallel")]
+fn midpoint_parallel_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "midpoint_parallel_with_output: out length must equal values length".into(),
+        ));
+    }
+    let period = time_period;
+    crate::parallel::parallel_index_map(values.len(), period - 1, out, |start, end| {
+        let mut local = vec![f64::NAN; end - start];
+        // 复用串行内核处理扩展区间 [start, end)；仅自有区间会被写回 `out`。
+        // Reuse the serial kernel on the extended range [start, end); only the owned range is written back.
+        let _ = midpoint_serial_with_output(&values[start..end], period, &mut local);
+        local
+    });
     Ok(())
 }
 

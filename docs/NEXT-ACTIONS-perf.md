@@ -138,11 +138,21 @@ P0 正确性基线（阻塞） → P1 测量底座 → P2 算法+编译器优化
 - 新增 `parallel` feature（`[features]` 默认不启，与 `bench-c` 同级），用 **`std::thread`**（属 std，**不破 No-Deps**）将 N 切分为 `num_cpus` 块并发计算；默认构建保持安全、零线程、单线程语义不变。
 - **边界播种（保 1:1 零偏差，ADR 0005）**：每块起点用前块尾部状态作 carry-in，重叠区计算后裁剪：
   - A 类：每块首 `period-1` 元素取自前块尾部 → 重建双队列初值（与串行逐位相等）。
-  - B 类 EMA（`adosc`）：carry-in = 前块末条 EMA 值（精确闭式，无误差）。
+  - B 类 EMA（`adosc`）：**重叠播种不适用**——EMA 为无限记忆严格递推，每块须以「前块末条 EMA 值」为种子，而该值依赖前块全部计算结果，形成跨块依赖链 → 顺序播种无并行加速。可行并行路径仅剩「并行前缀扫描（linear-recurrence parallel scan）」，属未来工作且需复核 1:1 容差，**故 `adosc` 在当前 overlap-seed 框架内仍属单线程地板**。
   - B 类 Hilbert（`ht_*`）：携带前块末的完整 Hilbert 状态结构体跨块传递（长记忆，略复杂）。
   - C 类：每块首 `period-1` 元素的运行和 carry-in（递推精确）。
   - D 类：每块首 `avgPeriod` 元素播种 CandleAvg 滑动窗口（与 `CandleAvg::advance` 同递推，精确）。
 - **验收闸**：并行路径必须 `cargo test` 全绿（黄金向量 1:1）；另加专项测试「并行结果 == 串行结果」逐位相等；`all161_bench --features parallel` 显示该子集 Rust/C < 1（多核下超 C 单线程）。
+
+#### P3-2a `midpoint` 并行 PoC 实测（2026-08-11，已落地）
+
+- **实现**：新增 `src/parallel.rs`（`parallel_index_map`，`std::thread::scope` + `available_parallelism`，纯 std、不破 No-Deps）；`src/overlap.rs` 拆分 `midpoint_serial_with_output`（内核）与 `midpoint_parallel_with_output`（分块调度，重叠 `period-1` 播种双队列），`midpoint_with_output` 在 `parallel` feature 且 `N≥8192` 时自动分发；新增 `midpoint_serial` / `midpoint_parallel` 入口（供 bench/test）。
+- **A/B 实测**（本机，N=200_000，period=5，median-of-5，LCG 输入）：
+  - 串行参考 ≈ **13.36 ns/elem**；
+  - feature 自动分发 ≈ 8.06 ns/elem（1.66×）；
+  - 显式并行 ≈ **6.43 ns/elem（2.08× 快于串行单线程）**。
+- **1:1 验证**：`tests/parallel_equality.rs`（feature-gated）覆盖 period ∈ {1,2,3,5,10,14,30,64} 与 `N<8192` 回退，并行结果逐位等于串行参考（含前导 NaN 处理），全绿；默认 `cargo test` 仍 326/0（feature 关闭，零行为变更）。
+- **结论**：A 类双队列函数经 overlap-seed 并行可达多核 > 单线程 C（口径见 §147 KPI）；`minmax`/`minmax_index`/`willr`/`stoch_f` 复用同一 `parallel_index_map` 即可（重叠 `period-1`，内核不变）。`adosc`（B 类严格 IIR）见上条，不属此路径。
 
 #### 优先级与建议 KPI（修订，2026-08-11）
 

@@ -55,6 +55,11 @@ pub mod math_trans;
 pub mod pattern;
 
 pub(crate) mod core;
+
+// 默认关闭的多核并行分块（P3-2）。仅 `parallel` feature 下参与编译。
+// Default-off multi-core parallel chunking (P3-2). Compiled only under the `parallel` feature.
+#[cfg(feature = "parallel")]
+pub(crate) mod parallel;
 // 暴露为 doc(hidden) 公共模块，便于集成测试与 benches 复用 approx 工具（内部实现细节）。
 // Exposed as a doc(hidden) public module so integration tests and benches can reuse the
 // approx helpers; it is an internal implementation detail, not part of the public API.

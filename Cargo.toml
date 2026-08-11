@@ -34,6 +34,14 @@ exclude = [
 # When enabled, benches FFI-link the system TA-Lib C library for native comparison (ADR 0004).
 bench-c = []
 
+# 默认关闭。启用后，可重叠播种的窗口类指标（如 midpoint/minmax 的滚动极值双端队列）
+# 通过 std::thread 多核分块并行，复用与串行完全一致的内核以保证输出逐项 1:1。
+# No-Deps 安全：仅依赖 std（thread::scope / available_parallelism），不引入任何外部 crate。
+# Default-off. When enabled, window-based indicators that admit overlap seeding (e.g. the
+# rolling-min/max deques in `midpoint`/`minmax`) run multi-core via `std::thread`, reusing the
+# EXACT serial kernel so output stays 1:1. No-Deps-safe: std-only, no external crates.
+parallel = []
+
 [[bench]]
 name = "sma_bench"
 harness = false
@@ -92,4 +100,8 @@ harness = false
 
 [[bench]]
 name = "extreme_ab"
+harness = false
+
+[[bench]]
+name = "parallel_poc"
 harness = false
