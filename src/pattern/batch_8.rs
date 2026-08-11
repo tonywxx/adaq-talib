@@ -27,12 +27,26 @@ pub fn cdl_sticksandwich(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_sticksandwich_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_sticksandwich` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_sticksandwich`]。
+/// Zero-copy variant of [`cdl_sticksandwich`]: writes results into `out` (length must equal input length).
+pub fn cdl_sticksandwich_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_sticksandwich_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_sticksandwich")?;
     let n = open.len();
     let lookback = EQUAL.avg_period + 2; // 7
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_eq = CandleAvg::new(EQUAL, open, high, low, close, lookback, 2);
     let mut i = lookback;
@@ -51,8 +65,9 @@ pub fn cdl_sticksandwich(
         avg_eq.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_takuri — Takuri (Dragonfly Doji with very long lower shadow)
@@ -71,15 +86,29 @@ pub fn cdl_takuri(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_takuri_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_takuri` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_takuri`]。
+/// Zero-copy variant of [`cdl_takuri`]: writes results into `out` (length must equal input length).
+pub fn cdl_takuri_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_takuri_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_takuri")?;
     let n = open.len();
     let lookback = BODY_DOJI
         .avg_period
         .max(SHADOW_VERY_SHORT.avg_period)
         .max(SHADOW_VERY_LONG.avg_period); // 10
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body = CandleAvg::new(BODY_DOJI, open, high, low, close, lookback, 0);
     let mut avg_us = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 0);
@@ -99,8 +128,9 @@ pub fn cdl_takuri(
         avg_ls.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_tasukigap — Tasuki Gap（跳空并列阴阳线）
@@ -119,12 +149,26 @@ pub fn cdl_tasukigap(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_tasukigap_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_tasukigap` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_tasukigap`]。
+/// Zero-copy variant of [`cdl_tasukigap`]: writes results into `out` (length must equal input length).
+pub fn cdl_tasukigap_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_tasukigap_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_tasukigap")?;
     let n = open.len();
     let lookback = NEAR.avg_period + 2; // 7
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_near = CandleAvg::new(NEAR, open, high, low, close, lookback, 1);
     let mut i = lookback;
@@ -153,8 +197,9 @@ pub fn cdl_tasukigap(
         avg_near.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_thrusting — Thrusting Pattern（插入线 / 推力形态）
@@ -174,12 +219,26 @@ pub fn cdl_thrusting(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_thrusting_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_thrusting` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_thrusting`]。
+/// Zero-copy variant of [`cdl_thrusting`]: writes results into `out` (length must equal input length).
+pub fn cdl_thrusting_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_thrusting_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_thrusting")?;
     let n = open.len();
     let lookback = EQUAL.avg_period.max(BODY_LONG.avg_period) + 1; // 11
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_eq = CandleAvg::new(EQUAL, open, high, low, close, lookback, 1);
     let mut avg_body = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
@@ -200,8 +259,9 @@ pub fn cdl_thrusting(
         avg_body.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_tristar — Tristar Pattern（三星形态）
@@ -221,12 +281,26 @@ pub fn cdl_tristar(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_tristar_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_tristar` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_tristar`]。
+/// Zero-copy variant of [`cdl_tristar`]: writes results into `out` (length must equal input length).
+pub fn cdl_tristar_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_tristar_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_tristar")?;
     let n = open.len();
     let lookback = BODY_DOJI.avg_period + 2; // 12
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body = CandleAvg::new(BODY_DOJI, open, high, low, close, lookback, 2);
     let mut i = lookback;
@@ -252,8 +326,9 @@ pub fn cdl_tristar(
         avg_body.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_unique3river — Unique 3 River（独特三河床）
@@ -273,12 +348,26 @@ pub fn cdl_unique3river(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_unique3river_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_unique3river` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_unique3river`]。
+/// Zero-copy variant of [`cdl_unique3river`]: writes results into `out` (length must equal input length).
+pub fn cdl_unique3river_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_unique3river_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_unique3river")?;
     let n = open.len();
     let lookback = BODY_SHORT.avg_period.max(BODY_LONG.avg_period) + 2; // 12
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body_long = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 2);
     let mut avg_body_short = CandleAvg::new(BODY_SHORT, open, high, low, close, lookback, 0);
@@ -301,8 +390,9 @@ pub fn cdl_unique3river(
         avg_body_short.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_upsidegap2crows — Upside Gap Two Crows（向上跳空两只乌鸦）
@@ -322,12 +412,26 @@ pub fn cdl_upsidegap2crows(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_upsidegap2crows_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_upsidegap2crows` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_upsidegap2crows`]。
+/// Zero-copy variant of [`cdl_upsidegap2crows`]: writes results into `out` (length must equal input length).
+pub fn cdl_upsidegap2crows_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_upsidegap2crows_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_upsidegap2crows")?;
     let n = open.len();
     let lookback = BODY_SHORT.avg_period.max(BODY_LONG.avg_period) + 2; // 12
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body_long = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 2);
     let mut avg_body_short = CandleAvg::new(BODY_SHORT, open, high, low, close, lookback, 1);
@@ -350,8 +454,9 @@ pub fn cdl_upsidegap2crows(
         avg_body_short.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_xsidegap3methods — Upside/Downside Gap Three Methods（上升/下降跳空三法）
@@ -371,12 +476,26 @@ pub fn cdl_xsidegap3methods(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_xsidegap3methods_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_xsidegap3methods` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_xsidegap3methods`]。
+/// Zero-copy variant of [`cdl_xsidegap3methods`]: writes results into `out` (length must equal input length).
+pub fn cdl_xsidegap3methods_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_xsidegap3methods_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_xsidegap3methods")?;
     let n = open.len();
     let lookback = 2; // CDLXSIDEGAP3METHODS_Lookback
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut i = lookback;
     while i < n {
@@ -395,5 +514,6 @@ pub fn cdl_xsidegap3methods(
         }
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+

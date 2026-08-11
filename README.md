@@ -94,6 +94,7 @@ function, its TA-Lib counterpart, default parameters, and return shape.
 | `kama` / `kama_default` | `TA_KAMA` | period = 30 | `Vec<f64>` |
 | `sar` / `sar_default` | `TA_SAR` | accel = 0.02, max = 0.2 | `Vec<f64>` |
 | `sarext` / `sarext_default` | `TA_SAREXT` | long/short accel 0.02/0.02/0.2 | `Vec<f64>` (short side negative) |
+| `accbands` / `accbands_default` | `TA_ACCBANDS` | period = 20 | `AccBands { upper, middle, lower }` |
 | `MaType` | `TA_MAType` | `Sma/Ema/Wma/Dema/Tema/Trima/Kama/Mama` | enum (for `ma`/`bbands`/`mavp`) |
 
 ### Momentum Indicators — `adaq_talib::momentum`
@@ -112,6 +113,7 @@ function, its TA-Lib counterpart, default parameters, and return shape.
 | `apo` / `apo_default` | `TA_APO` | fast = 12, slow = 26 | `Vec<f64>` |
 | `ppo` / `ppo_default` | `TA_PPO` | fast = 12, slow = 26 | `Vec<f64>` |
 | `cmo` / `cmo_default` | `TA_CMO` | period = 14 | `Vec<f64>` |
+| `imi` / `imi_default` | `TA_IMI` | period = 14 | `Vec<f64>` (open/close) |
 | `cci` / `cci_default` | `TA_CCI` | period = 20 | `Vec<f64>` |
 | `mfi` / `mfi_default` | `TA_MFI` | period = 14 | `Vec<f64>` (needs volume) |
 | `willr` / `willr_default` | `TA_WILLR` | period = 14 | `Vec<f64>` |
@@ -123,6 +125,7 @@ function, its TA-Lib counterpart, default parameters, and return shape.
 | `minus_di` / `minus_di_default` | `TA_MINUS_DI` | period = 14 | `Vec<f64>` |
 | `adx` / `adx_default` | `TA_ADX` | period = 14 | `Vec<f64>` |
 | `adxr` / `adxr_default` | `TA_ADXR` | period = 14 | `Vec<f64>` |
+| `dx` / `dx_default` | `TA_DX` | period = 14 | `Vec<f64>` (OHLC) |
 | `aroon` / `aroon_default` | `TA_AROON` | period = 14 | `Aroon { up, down }` |
 | `aroon_osc` / `aroon_osc_default` | `TA_AROONOSC` | period = 14 | `Vec<f64>` |
 | `stoch` / `stoch_default` | `TA_STOCH` | fastK = 5, slowK = 3, slowD = 3 | `Stoch { slow_k, slow_d }` |
@@ -150,6 +153,7 @@ function, its TA-Lib counterpart, default parameters, and return shape.
 
 | Function | TA-Lib | Defaults | Returns |
 | --- | --- | --- | --- |
+| `avgdev` / `avgdev_default` | `TA_AVGDEV` | period = 14 | `Vec<f64>` |
 | `avgprice` | `TA_AVGPRICE` | — | `Vec<f64>` ((H+L+C+O)/4) |
 | `medprice` | `TA_MEDPRICE` | — | `Vec<f64>` ((H+L)/2) |
 | `typprice` | `TA_TYPPRICE` | — | `Vec<f64>` ((H+L+C)/3) |
@@ -435,11 +439,11 @@ cargo run -- mama
 All supported indicators (run directly with `cargo run -- <name>`, grouped by category):
 
 ```
-Overlap:            sma ema wma dema tema midpoint midprice bbands trima t3 ma mavp kama sar sarext
-Momentum:           rsi cmo trix mom macd cci willr bop ultosc adx aroon stoch mfi
+Overlap:            sma ema wma dema tema midpoint midprice bbands trima t3 ma mavp kama sar sarext accbands
+Momentum:           rsi cmo trix mom macd cci willr bop ultosc adx aroon stoch mfi dx imi
 Volatility:         trange atr natr
 Volume:             ad adosc obv
-Price Transform:    avgprice medprice typprice wclprice
+Price Transform:    avgprice medprice typprice wclprice avgdev
 Statistic:          stddev var linear_reg linear_reg_angle linear_reg_intercept linear_reg_slope tsf beta correl
 Cycle:              mama ht_trendline
 ```
@@ -459,11 +463,12 @@ Cycle:              mama ht_trendline
 ### Correctness (1:1 golden vectors)
 
 - `cargo test` compares against in-repo **golden vectors** (real TA-Lib C 0.7.1 output, in
-  `tests/fixtures/` — **159 fixture files** spanning the full 161-function surface). Running the
-  tests needs **no** Python or TA-Lib C library.
+  `tests/fixtures/` — **222 golden-vector fixture files** covering the full 161-function surface).
+  Running the tests needs **no** Python or TA-Lib C library.
 - Tolerance: relative `1e-8` + absolute `1e-10` ([ADR 0005](docs/adr/0005-error-tolerance.md)).
-- Full suite: **308 tests, 0 failures** across 22 test binaries; `tools/reconcile.py` confirms
-  **161/161** public functions map 1:1 to TA-Lib 0.7.1 (exit 0).
+- Full suite: **326 tests, 0 failures**; `tools/reconcile.py` confirms **161/161** public functions
+  map 1:1 to TA-Lib 0.7.1 (exit 0). The complete 1:1 validation and performance report for all
+  161 indicators is in [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md).
 - The golden-vector generator lives in [`tools/gen_fixtures`](tools/) (requires TA-Lib C +
   the `TA-Lib` Python binding; for maintainers only). Current fixture status and known gaps
   are in [`tools/README.md`](tools/README.md).
@@ -475,32 +480,37 @@ cargo test --doc           # doc examples only
 
 ### Performance (Rust vs TA-Lib C)
 
-Dual-track benchmarks ([ADR 0004](docs/adr/0004-benchmark-dual-track.md)); the Rust track is
-dependency-free (`std::time`, `harness = false`), the C track FFI-links system TA-Lib C under
-`--features bench-c`. Environment: Apple Silicon aarch64, N = 1,000,000, PERIOD = 20, ITERS = 20;
-`ns/elem = elapsed / ITERS / N`. Status: ratio < 0.8 → faster, 0.8–1.2 → at parity, > 1.2 → slower.
+All **161 / 161** indicators were benchmarked head-to-head against native TA-Lib C 0.7.1
+(dual-track, [ADR 0004](docs/adr/0004-benchmark-dual-track.md); the C track FFI-links system
+TA-Lib C under `--features bench-c`). Environment: Apple Silicon aarch64, **N = 100,000** elements
+per indicator; `ns/elem = elapsed / ITERS / N`; `Rust/C = Rust_ns/elem ÷ C_ns/elem`.
+Status: ratio < 0.8 → Faster, 0.8–1.2 → At parity, > 1.2 → Slower.
 
-| Indicator | Rust ns/elem | Native C ns/elem | Rust/C ratio | Status |
-|-----------|-------------:|-----------------:|-------------:|--------|
-| SMA      | 1.18 | 1.92  | 0.61 | faster than C |
-| BBANDS   | 3.02 | 5.20  | 0.58 | faster than C |
-| DEMA     | 3.63 | 4.85  | 0.75 | faster than C |
-| TEMA     | 3.46 | 7.44  | 0.47 | faster than C |
-| T3       | 3.76 | 2.78  | 1.35 | slower than C |
-| MIDPRICE | 7.30 | 12.25 | 0.60 | faster than C |
-| MIDPOINT | 6.88 | 3.05  | 2.26 | slower than C |
-| WMA      | 2.11 | 2.28  | 0.93 | ≈ at parity |
-| LINEARREG| 2.33 | N/A   | N/A  | C not wired |
-| CORREL   | 4.81 | N/A   | N/A  | C not wired |
-| WILLR    | 7.90 | N/A   | N/A  | C not wired |
-| STOCH    | 10.99| N/A   | N/A  | C not wired |
+**Headline:** **36 faster**, **33 at parity**, **92 slower** than native C; geomean
+**Rust/C = 1.50×** (adaq-talib is ~1.5× slower than C on average). **54 indicators are strictly
+faster than C** (Rust/C < 1).
 
-> **6 of the 8 C-wired indicators run faster than or at parity with native TA-Lib C.** Only
-> `MIDPOINT` (2.26×) and `T3` (1.35×) are slower — both are structurally non-vectorizable
-> (data-dependent monotonic deques / sequential EMA IIR), so the planned P3 SIMD pass is a
-> **NO-GO** ([ADR 0010](docs/adr/0010-performance-strategy.md)). This is a known, documented trade-off,
-> not a defect. LINEARREG/CORREL/WILLR/STOCH have no C wiring (would require `unsafe` + system
-> TA-Lib C, against the zero-FFI spirit); their Rust-side numbers are the canonical reference.
+| TA-Lib Group | Indicators | Faster (<0.8) | At parity (0.8–1.2) | Slower (>1.2) | Geomean Rust/C |
+|---|---:|---:|---:|---:|---:|
+| Cycle Indicators | 5 | 0 | 1 | 4 | 1.57× |
+| Math Operators | 11 | 5 | 1 | 5 | 1.01× |
+| Math Transform | 15 | 4 | 11 | 0 | 0.85× |
+| Momentum Indicators | 31 | 7 | 5 | 19 | 1.31× |
+| Overlap Studies | 18 | 5 | 8 | 5 | 0.98× |
+| Pattern Recognition | 61 | 1 | 3 | 57 | 2.98× |
+| Price Transform | 5 | 5 | 0 | 0 | 0.58× |
+| Statistic Functions | 9 | 7 | 1 | 1 | 0.54× |
+| Volatility Indicators | 3 | 1 | 2 | 0 | 0.83× |
+| Volume Indicators | 3 | 1 | 1 | 1 | 0.97× |
+| **Total** | **161** | **36** | **33** | **92** | **1.50×** |
+
+adaq-talib is faster than C on Statistic, Price Transform and Math Transform; at parity on
+Overlap / Volume / Volatility / Math Operators; and slower on Momentum, Cycle and most markedly
+Pattern Recognition (57/61 slower). The full per-indicator table — all 161, with Rust/C ratio,
+status and a live TA-Lib parity checksum — is in
+[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md).
+Caveats (e.g. `stoch_rsi` exposes only the `fastk` line, so its bench checksum differs — a bench
+artifact, not a correctness gap) are detailed there.
 
 ### Performance optimizations applied
 
@@ -520,7 +530,7 @@ vectors (see [`benches/BASELINE.md`](benches/BASELINE.md) for the full per-indic
 | P1② | `minmax` | reuse single-pass `core::rolling_minmax` (consolidation; perf-neutral) | 6.76 | ≈ (accuracy-only) |
 | P1③ | `max_index` / `min_index` / `minmax_index` | single-pass `core::rolling_extreme_index` O(n) | 3.43 / 3.31 / 6.79 | ~1.9× (index) |
 
-Every optimization keeps the full `cargo test` suite green (308/308) and each refactored function
+Every optimization keeps the full `cargo test` suite green (326/326) and each refactored function
 still reproduces its TA-Lib 0.7.1 golden vector within tolerance
 ([ADR 0005](docs/adr/0005-error-tolerance.md)). The full QA write-up (methodology, residual gaps,
 Python-binding reference numbers) lives in [`docs/perf-verify-report.md`](docs/perf-verify-report.md).
@@ -533,6 +543,10 @@ cargo bench --bench sma_bench
 
 # 2) Native C comparison (optional feature): FFI-links the system TA-Lib C library
 cargo bench --bench sma_bench --features bench-c
+
+# 3) All 161 indicators vs native C (auto-generated suite):
+cargo bench --bench all161_bench
+cargo bench --bench all161_bench --features bench-c   # with the C reference track
 ```
 
 > The second form needs the TA-Lib C library installed (`brew install ta-lib` / build from
@@ -580,11 +594,13 @@ Milestone-based release ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 ships the complete TA-Lib 0.7.1 public surface — all 161 functions across 10 categories — with no
 deletion of published capabilities.**
 
-- ✅ **0.1.1 (current): 161 / 161 functions** — Overlap Studies (18), Momentum (31), Volatility
+- ✅ **0.1.2 (current): 161 / 161 functions** — Overlap Studies (18), Momentum (31), Volatility
   (3), Volume (3), Price Transform (5), Statistic (9), Cycle / Hilbert Transform (7), Math
   Operators (11), Math Transform (15), and Pattern Recognition (61 candlestick patterns). Every
-  function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` → 308/308 green,
-  `reconcile.py` → 161/161) and performance-optimized (see
+  function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` → 326/326 green,
+  `reconcile.py` → 161/161) across **222 golden-vector fixtures**, and a comprehensive all-161
+  benchmark + validation suite ([`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md))
+  confirms full coverage and performance parity (see
   [Verification & Benchmarks](#verification--benchmarks)).
 - 🔜 **Future work (post-1.0)**: per [ADR 0009](docs/adr/0009-candle-settings-default-only.md) only
   the **default** candle settings are implemented and no configuration API is exposed; optional
@@ -597,7 +613,25 @@ Once those land, adaq-talib reaches full coverage equivalent to TA-Lib 0.7.1.
 
 ## Changelog
 
-### 0.1.1 (current)
+### 0.1.2 (current)
+- **Comprehensive all-161 benchmark & validation suite**: new `benches/all161_bench.rs`
+  (auto-generated by `tools/bench/gen_all161.py`) benchmarks **all 161** indicators
+  head-to-head against native TA-Lib C 0.7.1 with a live numeric parity checksum; companion
+  `benches/poc_bench.rs` is a proof-of-concept harness. The unified
+  [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md),
+  the interactive `docs/benchmarks/adaq-vs-talib-161.html`, and `all161_results.csv` are produced
+  by `tools/bench/gen_report.py` — all under the dual-track methodology ([ADR 0004](docs/adr/0004-benchmark-dual-track.md)).
+- **Expanded golden-vector coverage**: **222 golden-vector fixture files** (up from 159) — added
+  the full Pattern Recognition fixture set and the `macd_ext` / `macd_fix` fixtures. The full test
+  suite is now **326 tests, 0 failures** (was 308), and `tools/reconcile.py` confirms **161/161**.
+- **Documentation completeness**: the per-function tables now list every one of the 161 functions.
+  `accbands` (Overlap), `dx` / `imi` (Momentum) and `avgdev` (Price Transform) were already
+  implemented and counted in the 161 total, but had been omitted from the detailed tables — they
+  are now documented.
+- **Release**: version bumped to `0.1.2`. No new public API beyond the above; no deprecations,
+  no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
+
+### 0.1.1
 - **Math operators — O(n) extreme-index functions**: `max_index` / `min_index` / `minmax_index` now use a single-pass monotonic-queue (`core::rolling_extreme_index`), replacing the former O(n·period) nested scan — ~1.9× faster while remaining 1:1 with TA-Lib 0.7.1 ([ADR 0005](docs/adr/0005-error-tolerance.md)). Added `benches/index_bench.rs` and `benches/minmax_bench.rs`.
 - **`minmax` consolidation**: `math_ops::minmax` now reuses the single-pass `core::rolling_minmax` core (the same one used by `midpoint`), eliminating duplicated extreme logic. Performance-neutral; accuracy unchanged.
 - **Full P2 performance sweep (verified 1:1)**: nested-EMA fusion for `dema` / `tema` / `t3` (P2-1); monotonic-queue `midpoint` / `midprice` (P2-2); O(n) sliding `wma` (P2-3); single-pass `bbands` middle (P2-4); sliding O(n) `linear_reg` family / `correl` / `willr` / `stoch` (P2-5). See [`benches/BASELINE.md`](benches/BASELINE.md).

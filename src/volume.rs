@@ -40,8 +40,27 @@ pub fn ad(
     volume: &[f64],
 ) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[high, low, close, volume], "ad")?;
+    let mut out = vec![0.0_f64; close.len()];
+    ad_with_output(high, low, close, volume, &mut out)?;
+    Ok(out)
+}
+
+/// 累积/派发线，零拷贝写入 `out`（与 `close` 等长）。见 [`ad`]。
+/// Accumulation/Distribution Line, written zero-copy into `out`. See [`ad`].
+pub fn ad_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    volume: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_eq_len(&[high, low, close, volume], "ad")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "ad_with_output: out length must equal close length".into(),
+        ));
+    }
     let n = close.len();
-    let mut out = vec![0.0_f64; n];
     let mut prev = 0.0;
     for i in 0..n {
         let clv = if high[i] == low[i] {
@@ -52,7 +71,7 @@ pub fn ad(
         out[i] = prev + volume[i] * clv;
         prev = out[i];
     }
-    Ok(out)
+    Ok(())
 }
 
 // ──────────────────────────── ADOSC ────────────────────────────
@@ -81,10 +100,36 @@ pub fn adosc(
     if fast_period >= slow_period {
         return Err(TaError::BadParam("fast_period must be < slow_period".into()));
     }
+    let mut out = vec![f64::NAN; close.len()];
+    adosc_with_output(high, low, close, volume, fast_period, slow_period, &mut out)?;
+    Ok(out)
+}
+
+/// 累积/派发震荡器，零拷贝写入 `out`（与 `close` 等长）。见 [`adosc`]。
+/// Chaikin A/D Oscillator, written zero-copy into `out`. See [`adosc`].
+pub fn adosc_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    volume: &[f64],
+    fast_period: usize,
+    slow_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "adosc_with_output: out length must equal close length".into(),
+        ));
+    }
+    check_period(fast_period)?;
+    check_period(slow_period)?;
+    if fast_period >= slow_period {
+        return Err(TaError::BadParam("fast_period must be < slow_period".into()));
+    }
     let ad_line = ad(high, low, close, volume)?;
     let n = ad_line.len();
     if n == 0 {
-        return Ok(vec![f64::NAN; 0]);
+        return Ok(());
     }
     let fast_k = 2.0 / (fast_period as f64 + 1.0);
     let slow_k = 2.0 / (slow_period as f64 + 1.0);
@@ -92,7 +137,6 @@ pub fn adosc(
     // Seed both EMAs with the first A/D value (matches TA-Lib / Metastock).
     let mut fast_ema = ad_line[0];
     let mut slow_ema = ad_line[0];
-    let mut out = vec![f64::NAN; n];
     for i in 1..n {
         fast_ema = fast_k * ad_line[i] + (1.0 - fast_k) * fast_ema;
         slow_ema = slow_k * ad_line[i] + (1.0 - slow_k) * slow_ema;
@@ -100,7 +144,7 @@ pub fn adosc(
             out[i] = fast_ema - slow_ema;
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `adosc` 便捷版本，默认 3 / 10。/ `adosc` with defaults 3 / 10.
@@ -124,10 +168,27 @@ pub fn adosc_default(
 /// 与输入等长的累计向量；无前导 NaN。
 pub fn obv(close: &[f64], volume: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[close, volume], "obv")?;
+    let mut out = vec![0.0_f64; close.len()];
+    obv_with_output(close, volume, &mut out)?;
+    Ok(out)
+}
+
+/// 能量潮，零拷贝写入 `out`（与 `close` 等长）。见 [`obv`]。
+/// On Balance Volume, written zero-copy into `out`. See [`obv`].
+pub fn obv_with_output(
+    close: &[f64],
+    volume: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_eq_len(&[close, volume], "obv")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "obv_with_output: out length must equal close length".into(),
+        ));
+    }
     let n = close.len();
-    let mut out = vec![0.0_f64; n];
     if n == 0 {
-        return Ok(out);
+        return Ok(());
     }
     out[0] = volume[0];
     for i in 1..n {
@@ -139,7 +200,7 @@ pub fn obv(close: &[f64], volume: &[f64]) -> Result<Vec<f64>, TaError> {
             out[i - 1]
         };
     }
-    Ok(out)
+    Ok(())
 }
 
 #[cfg(test)]

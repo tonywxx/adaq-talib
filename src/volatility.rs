@@ -40,7 +40,28 @@ use crate::error::{check_period, TaError};
 /// ```
 pub fn trange(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[high, low, close], "trange")?;
-    Ok(true_range(high, low, close))
+    let mut out = vec![f64::NAN; high.len()];
+    trange_with_output(high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// 真实波幅，零拷贝写入 `out`（与 `high` 等长）。见 [`trange`]。
+/// True Range, written zero-copy into `out`. See [`trange`].
+pub fn trange_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_eq_len(&[high, low, close], "trange")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "trange_with_output: out length must equal high length".into(),
+        ));
+    }
+    let tr = true_range(high, low, close);
+    out.copy_from_slice(&tr);
+    Ok(())
 }
 
 // ──────────────────────────── ATR ────────────────────────────
@@ -74,8 +95,31 @@ pub fn atr(
 ) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "atr")?;
+    let mut out = vec![f64::NAN; high.len()];
+    atr_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 平均真实波幅，零拷贝写入 `out`（与 `high` 等长）。见 [`atr`]。
+/// Average True Range, written zero-copy into `out`. See [`atr`].
+pub fn atr_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "atr")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "atr_with_output: out length must equal high length".into(),
+        ));
+    }
     let tr = true_range(high, low, close);
-    Ok(ema_wilder(&tr, time_period))
+    let atr_line = ema_wilder(&tr, time_period);
+    out.copy_from_slice(&atr_line);
+    Ok(())
 }
 
 /// `atr` 便捷版本，默认周期 14。/ `atr` with default period (14).
@@ -100,10 +144,30 @@ pub fn natr(
 ) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "natr")?;
+    let mut out = vec![f64::NAN; close.len()];
+    natr_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 归一化平均真实波幅，零拷贝写入 `out`（与 `close` 等长）。见 [`natr`]。
+/// Normalized ATR, written zero-copy into `out`. See [`natr`].
+pub fn natr_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "natr")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "natr_with_output: out length must equal close length".into(),
+        ));
+    }
     let tr = true_range(high, low, close);
     let atr_line = ema_wilder(&tr, time_period);
     let n = close.len();
-    let mut out = vec![f64::NAN; n];
     for i in 0..n {
         if atr_line[i].is_nan() {
             continue;
@@ -114,7 +178,7 @@ pub fn natr(
             100.0 * atr_line[i] / close[i]
         };
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `natr` 便捷版本，默认周期 14。/ `natr` with default period (14).

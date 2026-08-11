@@ -95,6 +95,32 @@ fn macd_matches_golden_vector() {
 }
 
 #[test]
+fn macd_ext_matches_golden_vector() {
+    let json = common::load_json("macd_ext_basic.json").unwrap();
+    let input = common::load_f64_array(&json, "input").unwrap();
+    let e_macd = common::load_f64_array(&json, "macd").unwrap();
+    let e_sig = common::load_f64_array(&json, "signal").unwrap();
+    let e_hist = common::load_f64_array(&json, "hist").unwrap();
+    let m = macd_ext_default(&input).unwrap();
+    assert!(approx_eq_slice(&m.macd, &e_macd));
+    assert!(approx_eq_slice(&m.signal, &e_sig));
+    assert!(approx_eq_slice(&m.hist, &e_hist));
+}
+
+#[test]
+fn macd_fix_matches_golden_vector() {
+    let json = common::load_json("macd_fix_basic.json").unwrap();
+    let input = common::load_f64_array(&json, "input").unwrap();
+    let e_macd = common::load_f64_array(&json, "macd").unwrap();
+    let e_sig = common::load_f64_array(&json, "signal").unwrap();
+    let e_hist = common::load_f64_array(&json, "hist").unwrap();
+    let m = macd_fix_default(&input).unwrap();
+    assert!(approx_eq_slice(&m.macd, &e_macd));
+    assert!(approx_eq_slice(&m.signal, &e_sig));
+    assert!(approx_eq_slice(&m.hist, &e_hist));
+}
+
+#[test]
 fn cci_matches_golden_vector() {
     let json = common::load_json("cci_basic.json").unwrap();
     let high = common::load_f64_array(&json, "high").unwrap();

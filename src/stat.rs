@@ -31,15 +31,33 @@ use crate::error::{check_period, TaError};
 /// ```
 pub fn stddev(values: &[f64], time_period: usize, nb_dev: f64) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    stddev_with_output(values, time_period, nb_dev, &mut out)?;
+    Ok(out)
+}
+
+/// 标准差，零拷贝写入 `out`（与 `values` 等长）。见 [`stddev`]。
+/// Standard Deviation, written zero-copy into `out`. See [`stddev`].
+pub fn stddev_with_output(
+    values: &[f64],
+    time_period: usize,
+    nb_dev: f64,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "stddev_with_output: out length must equal values length".into(),
+        ));
+    }
     let var = rolling_var(values, time_period);
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
     for i in 0..n {
         if !var[i].is_nan() {
             out[i] = nb_dev * var[i].sqrt();
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `stddev` 便捷版本，默认周期 5、偏离倍数 1.0。/ `stddev` with defaults (5, 1.0).
@@ -57,7 +75,28 @@ pub fn stddev_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// `period - 1` positions are [`f64::NAN`].
 pub fn var(values: &[f64], time_period: usize, _nb_dev: f64) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(rolling_var(values, time_period))
+    let mut out = vec![f64::NAN; values.len()];
+    var_with_output(values, time_period, _nb_dev, &mut out)?;
+    Ok(out)
+}
+
+/// 方差，零拷贝写入 `out`（与 `values` 等长）。见 [`var`]。
+/// Variance, written zero-copy into `out`. See [`var`].
+pub fn var_with_output(
+    values: &[f64],
+    time_period: usize,
+    _nb_dev: f64,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "var_with_output: out length must equal values length".into(),
+        ));
+    }
+    let temp = rolling_var(values, time_period);
+    out.copy_from_slice(&temp);
+    Ok(())
 }
 
 /// `var` 便捷版本，默认周期 5。/ `var` with default period (5).
@@ -493,7 +532,29 @@ pub fn beta(
 ) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[real0, real1], "beta")?;
-    Ok(beta_core(real0, real1, time_period))
+    let mut out = vec![f64::NAN; real0.len()];
+    beta_with_output(real0, real1, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 贝塔系数，零拷贝写入 `out`（与 `real0` 等长）。见 [`beta`]。
+/// Beta, written zero-copy into `out`. See [`beta`].
+pub fn beta_with_output(
+    real0: &[f64],
+    real1: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[real0, real1], "beta")?;
+    if out.len() != real0.len() {
+        return Err(TaError::BadParam(
+            "beta_with_output: out length must equal real0 length".into(),
+        ));
+    }
+    let temp = beta_core(real0, real1, time_period);
+    out.copy_from_slice(&temp);
+    Ok(())
 }
 
 /// `beta` 便捷版本，默认周期 5。/ `beta` with default period (5).

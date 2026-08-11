@@ -687,11 +687,30 @@ pub fn mama_default(values: &[f64]) -> Result<Mama, TaError> {
 /// 与 `values` 等长的向量，前导 63 个为 [`f64::NAN`]。
 /// Equal-length vector; the first 63 positions are [`f64::NAN`].
 pub fn ht_trendline(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![f64::NAN; values.len()];
+    ht_trendline_with_output(values, &mut out)?;
+    Ok(out)
+}
+
+/// 希尔伯特趋势线，零拷贝写入 `out`（与 `values` 等长，前导 63 个为 [`f64::NAN`]）。
+/// 见 [`ht_trendline`]。
+///
+/// Hilbert Trendline, written zero-copy into `out` (equal-length to `values`;
+/// the first 63 positions are [`f64::NAN`]). See [`ht_trendline`].
+///
+/// `out` 长度必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// `out` must have length equal to `values.len()`; otherwise [`TaError::BadParam`]
+/// is returned.
+pub fn ht_trendline_with_output(values: &[f64], out: &mut [f64]) -> Result<(), TaError> {
     let n = values.len();
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "ht_trendline_with_output: out length must equal values length".into(),
+        ));
+    }
     let lookback = 63;
-    let mut out = vec![f64::NAN; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut h = Hilbert::new();
     let first_main = h.init(values, lookback, 34); // HT_TRENDLINE 的 WMA 预热循环次数 = 34
@@ -733,7 +752,7 @@ pub fn ht_trendline(values: &[f64]) -> Result<Vec<f64>, TaError> {
         }
         today += 1;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// 希尔伯特趋势线，使用 TA-Lib 默认参数（无可选参数）。
@@ -758,11 +777,31 @@ pub fn ht_trendline_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// 与 `values` 等长的向量，前导 32 个为 [`f64::NAN`]。
 /// Equal-length vector; the first 32 positions are [`f64::NAN`].
 pub fn ht_dcperiod(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![f64::NAN; values.len()];
+    ht_dcperiod_with_output(values, &mut out)?;
+    Ok(out)
+}
+
+/// 希尔伯特主导周期，零拷贝写入 `out`（与 `values` 等长，前导 32 个为 [`f64::NAN`]）。
+/// 见 [`ht_dcperiod`]。
+///
+/// Hilbert Transform — Dominant Cycle Period, written zero-copy into `out`
+/// (equal-length to `values`; the first 32 positions are [`f64::NAN`]). See
+/// [`ht_dcperiod`].
+///
+/// `out` 长度必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// `out` must have length equal to `values.len()`; otherwise [`TaError::BadParam`]
+/// is returned.
+pub fn ht_dcperiod_with_output(values: &[f64], out: &mut [f64]) -> Result<(), TaError> {
     let n = values.len();
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "ht_dcperiod_with_output: out length must equal values length".into(),
+        ));
+    }
     let lookback = 32;
-    let mut out = vec![f64::NAN; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut h = Hilbert::new();
     let first_main = h.init(values, lookback, 9); // HT_DCPERIOD 的 WMA 预热循环次数 = 9
@@ -774,7 +813,7 @@ pub fn ht_dcperiod(values: &[f64]) -> Result<Vec<f64>, TaError> {
         }
         today += 1;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// HT_DCPERIOD，使用 TA-Lib 默认参数（无可选参数）。
@@ -798,11 +837,31 @@ pub fn ht_dcperiod_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// 与 `values` 等长的向量，前导 63 个为 [`f64::NAN`]。
 /// Equal-length vector; the first 63 positions are [`f64::NAN`].
 pub fn ht_dcphase(values: &[f64]) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![f64::NAN; values.len()];
+    ht_dcphase_with_output(values, &mut out)?;
+    Ok(out)
+}
+
+/// 希尔伯特主导周期相位，零拷贝写入 `out`（与 `values` 等长，前导 63 个为
+/// [`f64::NAN`]）。见 [`ht_dcphase`]。
+///
+/// Hilbert Transform — Dominant Cycle Phase, written zero-copy into `out`
+/// (equal-length to `values`; the first 63 positions are [`f64::NAN`]). See
+/// [`ht_dcphase`].
+///
+/// `out` 长度必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// `out` must have length equal to `values.len()`; otherwise [`TaError::BadParam`]
+/// is returned.
+pub fn ht_dcphase_with_output(values: &[f64], out: &mut [f64]) -> Result<(), TaError> {
     let n = values.len();
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "ht_dcphase_with_output: out length must equal values length".into(),
+        ));
+    }
     let lookback = 63;
-    let mut out = vec![f64::NAN; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut h = Hilbert::new();
     let first_main = h.init(values, lookback, 34); // HT_DCPHASE 的 WMA 预热循环次数 = 34
@@ -814,7 +873,7 @@ pub fn ht_dcphase(values: &[f64]) -> Result<Vec<f64>, TaError> {
         }
         today += 1;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// HT_DCPHASE，使用 TA-Lib 默认参数（无可选参数）。
@@ -849,14 +908,35 @@ pub struct HtPhasor {
 /// [`HtPhasor`]（`in_phase` 与 `quadrature` 等长向量，前导 32 个为 [`f64::NAN`]）。
 pub fn ht_phasor(values: &[f64]) -> Result<HtPhasor, TaError> {
     let n = values.len();
+    let mut out = HtPhasor {
+        in_phase: vec![f64::NAN; n],
+        quadrature: vec![f64::NAN; n],
+    };
+    ht_phasor_with_output(values, &mut out)?;
+    Ok(out)
+}
+
+/// 希尔伯特变换相量，零拷贝写入 `out`（与 `values` 等长的两轨向量，前导 32 个为
+/// [`f64::NAN`]）。见 [`ht_phasor`]。
+///
+/// Hilbert Transform — Phasor Components, written zero-copy into `out` (two
+/// equal-length bands; the first 32 positions are [`f64::NAN`]). See
+/// [`ht_phasor`].
+///
+/// `out.in_phase` 与 `out.quadrature` 长度均必须等于 `values.len()`，否则返回
+/// [`TaError::BadParam`]。
+/// Both `out.in_phase` and `out.quadrature` must have length equal to
+/// `values.len()`; otherwise [`TaError::BadParam`] is returned.
+pub fn ht_phasor_with_output(values: &[f64], out: &mut HtPhasor) -> Result<(), TaError> {
+    let n = values.len();
+    if out.in_phase.len() != n || out.quadrature.len() != n {
+        return Err(TaError::BadParam(
+            "ht_phasor_with_output: out field lengths must equal values length".into(),
+        ));
+    }
     let lookback = 32;
-    let mut out_in = vec![f64::NAN; n];
-    let mut out_q = vec![f64::NAN; n];
     if n <= lookback {
-        return Ok(HtPhasor {
-            in_phase: out_in,
-            quadrature: out_q,
-        });
+        return Ok(());
     }
     let mut h = Hilbert::new();
     let first_main = h.init(values, lookback, 9); // HT_PHASOR 的 WMA 预热循环次数 = 9
@@ -877,15 +957,12 @@ pub fn ht_phasor(values: &[f64]) -> Result<HtPhasor, TaError> {
             h.i1_for_odd_prev3
         };
         if today >= lookback {
-            out_in[today] = in_phase;
-            out_q[today] = quadrature;
+            out.in_phase[today] = in_phase;
+            out.quadrature[today] = quadrature;
         }
         today += 1;
     }
-    Ok(HtPhasor {
-        in_phase: out_in,
-        quadrature: out_q,
-    })
+    Ok(())
 }
 
 /// HT_PHASOR，使用 TA-Lib 默认参数（无可选参数）。
@@ -918,14 +995,35 @@ pub struct HtSine {
 /// [`HtSine`]（`sine` 与 `lead_sine` 等长向量，前导 63 个为 [`f64::NAN`]）。
 pub fn ht_sine(values: &[f64]) -> Result<HtSine, TaError> {
     let n = values.len();
+    let mut out = HtSine {
+        sine: vec![f64::NAN; n],
+        lead_sine: vec![f64::NAN; n],
+    };
+    ht_sine_with_output(values, &mut out)?;
+    Ok(out)
+}
+
+/// 希尔伯特正弦波，零拷贝写入 `out`（与 `values` 等长的两轨向量，前导 63 个为
+/// [`f64::NAN`]）。见 [`ht_sine`]。
+///
+/// Hilbert Transform — SineWave, written zero-copy into `out` (two
+/// equal-length bands; the first 63 positions are [`f64::NAN`]). See
+/// [`ht_sine`].
+///
+/// `out.sine` 与 `out.lead_sine` 长度均必须等于 `values.len()`，否则返回
+/// [`TaError::BadParam`]。
+/// Both `out.sine` and `out.lead_sine` must have length equal to
+/// `values.len()`; otherwise [`TaError::BadParam`] is returned.
+pub fn ht_sine_with_output(values: &[f64], out: &mut HtSine) -> Result<(), TaError> {
+    let n = values.len();
+    if out.sine.len() != n || out.lead_sine.len() != n {
+        return Err(TaError::BadParam(
+            "ht_sine_with_output: out field lengths must equal values length".into(),
+        ));
+    }
     let lookback = 63;
-    let mut out_sine = vec![f64::NAN; n];
-    let mut out_lead = vec![f64::NAN; n];
     if n <= lookback {
-        return Ok(HtSine {
-            sine: out_sine,
-            lead_sine: out_lead,
-        });
+        return Ok(());
     }
     let mut h = Hilbert::new();
     let first_main = h.init(values, lookback, 34); // HT_SINE 的 WMA 预热循环次数 = 34
@@ -933,15 +1031,12 @@ pub fn ht_sine(values: &[f64]) -> Result<HtSine, TaError> {
     while today <= n - 1 {
         h.advance_full(values, today, values[today]);
         if today >= lookback {
-            out_sine[today] = h.sine;
-            out_lead[today] = h.lead_sine;
+            out.sine[today] = h.sine;
+            out.lead_sine[today] = h.lead_sine;
         }
         today += 1;
     }
-    Ok(HtSine {
-        sine: out_sine,
-        lead_sine: out_lead,
-    })
+    Ok(())
 }
 
 /// HT_SINE，使用 TA-Lib 默认参数（无可选参数）。
@@ -968,13 +1063,33 @@ pub fn ht_sine_default(values: &[f64]) -> Result<HtSine, TaError> {
 /// 与 `values` 等长的向量，趋势为 1.0/0.0，前导 63 个为 `0.0`。
 /// Equal-length vector; trend is 1.0/0.0, the first 63 positions are `0.0`.
 pub fn ht_trendmode(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    let n = values.len();
-    let lookback = 63;
     // TA-Lib 对整数输出的不稳定期填 0.0（与 *INDEX 函数一致）。
     // TA-Lib zero-fills the unstable period for integer outputs (like *INDEX).
-    let mut out = vec![0.0; n];
+    let mut out = vec![0.0; values.len()];
+    ht_trendmode_with_output(values, &mut out)?;
+    Ok(out)
+}
+
+/// 希尔伯特趋势模态，零拷贝写入 `out`（与 `values` 等长，趋势为 1.0/0.0，前导 63 个为
+/// `0.0`）。见 [`ht_trendmode`]。
+///
+/// Hilbert Transform — Trend vs. Cycle Mode, written zero-copy into `out`
+/// (equal-length to `values`; trend is 1.0/0.0, the first 63 positions are
+/// `0.0`). See [`ht_trendmode`].
+///
+/// `out` 长度必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// `out` must have length equal to `values.len()`; otherwise [`TaError::BadParam`]
+/// is returned.
+pub fn ht_trendmode_with_output(values: &[f64], out: &mut [f64]) -> Result<(), TaError> {
+    let n = values.len();
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "ht_trendmode_with_output: out length must equal values length".into(),
+        ));
+    }
+    let lookback = 63;
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut h = Hilbert::new();
     let first_main = h.init(values, lookback, 34); // HT_TRENDMODE 的 WMA 预热循环次数 = 34
@@ -987,7 +1102,7 @@ pub fn ht_trendmode(values: &[f64]) -> Result<Vec<f64>, TaError> {
         }
         today += 1;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// HT_TRENDMODE，使用 TA-Lib 默认参数（无可选参数）。

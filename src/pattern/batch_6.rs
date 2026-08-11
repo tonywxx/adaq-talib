@@ -28,12 +28,26 @@ pub fn cdl_longleggeddoji(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_longleggeddoji_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_longleggeddoji` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_longleggeddoji`]。
+/// Zero-copy variant of [`cdl_longleggeddoji`]: writes results into `out` (length must equal input length).
+pub fn cdl_longleggeddoji_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_longleggeddoji_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_longleggeddoji")?;
     let n = open.len();
     let lookback = BODY_DOJI.avg_period.max(SHADOW_LONG.avg_period); // 10
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body = CandleAvg::new(BODY_DOJI, open, high, low, close, lookback, 0);
     let mut avg_shadow = CandleAvg::new(SHADOW_LONG, open, high, low, close, lookback, 0);
@@ -51,8 +65,9 @@ pub fn cdl_longleggeddoji(
         avg_shadow.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_longline — Long Line Candle（长实体蜡烛）
@@ -70,12 +85,26 @@ pub fn cdl_longline(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_longline_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_longline` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_longline`]。
+/// Zero-copy variant of [`cdl_longline`]: writes results into `out` (length must equal input length).
+pub fn cdl_longline_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_longline_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_longline")?;
     let n = open.len();
     let lookback = BODY_LONG.avg_period.max(SHADOW_SHORT.avg_period); // 10
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 0);
     let mut avg_shadow = CandleAvg::new(SHADOW_SHORT, open, high, low, close, lookback, 0);
@@ -93,8 +122,9 @@ pub fn cdl_longline(
         avg_shadow.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_matchinglow — Matching Low（匹配低价 / 相同低价）
@@ -112,12 +142,26 @@ pub fn cdl_matchinglow(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_matchinglow_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_matchinglow` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_matchinglow`]。
+/// Zero-copy variant of [`cdl_matchinglow`]: writes results into `out` (length must equal input length).
+pub fn cdl_matchinglow_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_matchinglow_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_matchinglow")?;
     let n = open.len();
     let lookback = EQUAL.avg_period + 1; // 6
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_eq = CandleAvg::new(EQUAL, open, high, low, close, lookback, 1);
     let mut i = lookback;
@@ -134,8 +178,9 @@ pub fn cdl_matchinglow(
         avg_eq.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_mathold — Mat Hold（铺垫形态 / 梯形持有）
@@ -157,12 +202,26 @@ pub fn cdl_mathold(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_mathold_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_mathold` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_mathold`]。
+/// Zero-copy variant of [`cdl_mathold`]: writes results into `out` (length must equal input length).
+pub fn cdl_mathold_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_mathold_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_mathold")?;
     let n = open.len();
     let lookback = BODY_SHORT.avg_period.max(BODY_LONG.avg_period) + 4; // 14
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let penetration = 0.5; // TA_REAL_DEFAULT for CDLMATHOLD
     let mut avg_body_long = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 4);
@@ -198,8 +257,9 @@ pub fn cdl_mathold(
         avg_body_short1.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_morningstar — Morning Star（晨星）
@@ -220,12 +280,26 @@ pub fn cdl_morningstar(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_morningstar_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_morningstar` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_morningstar`]。
+/// Zero-copy variant of [`cdl_morningstar`]: writes results into `out` (length must equal input length).
+pub fn cdl_morningstar_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_morningstar_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_morningstar")?;
     let n = open.len();
     let lookback = BODY_SHORT.avg_period.max(BODY_LONG.avg_period) + 2; // 12
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let penetration = 0.3; // TA_REAL_DEFAULT for CDLMORNINGSTAR
     let mut avg_body_long = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 2);
@@ -250,8 +324,9 @@ pub fn cdl_morningstar(
         avg_body_short2.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_morningdojistar — Morning Doji Star（晨星十字）
@@ -271,12 +346,26 @@ pub fn cdl_morningdojistar(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_morningdojistar_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_morningdojistar` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_morningdojistar`]。
+/// Zero-copy variant of [`cdl_morningdojistar`]: writes results into `out` (length must equal input length).
+pub fn cdl_morningdojistar_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_morningdojistar_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_morningdojistar")?;
     let n = open.len();
     let lookback = BODY_DOJI.avg_period.max(BODY_LONG.avg_period).max(BODY_SHORT.avg_period) + 2; // 12
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let penetration = 0.3; // TA_REAL_DEFAULT for CDLMORNINGDOJISTAR
     let mut avg_body_long = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 2);
@@ -301,8 +390,9 @@ pub fn cdl_morningdojistar(
         avg_body_short.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_onneck — On-Neck Pattern（颈上线）
@@ -321,12 +411,26 @@ pub fn cdl_onneck(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_onneck_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_onneck` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_onneck`]。
+/// Zero-copy variant of [`cdl_onneck`]: writes results into `out` (length must equal input length).
+pub fn cdl_onneck_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_onneck_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_onneck")?;
     let n = open.len();
     let lookback = EQUAL.avg_period.max(BODY_LONG.avg_period) + 1; // 11
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_eq = CandleAvg::new(EQUAL, open, high, low, close, lookback, 1);
     let mut avg_body = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
@@ -347,5 +451,6 @@ pub fn cdl_onneck(
         avg_body.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+

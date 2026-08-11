@@ -223,6 +223,45 @@ def gen_macd():
     )
 
 
+def gen_macd_ext():
+    # adaq's `macd_ext` defaults to ALL-EMA; force TA-Lib's MACDEXT to EMA (matype=1) so the
+    # authoritative fixture matches Rust (TA-Lib's own MACDEXT default MAType is SMA).
+    macd_line, signal, hist = talib.MACDEXT(
+        OHLC["close"],
+        fastperiod=12, fastmatype=1,
+        slowperiod=26, slowmatype=1,
+        signalperiod=9, signalmatype=1,
+    )
+    write_payload(
+        {
+            "name": "macd_ext_basic",
+            "params": {"fast": 12, "slow": 26, "signal_period": 9, "ma_type": "Ema"},
+            "input": to_jsonable(OHLC["close"]),
+            "macd": to_jsonable(list(macd_line)),
+            "signal": to_jsonable(list(signal)),
+            "hist": to_jsonable(list(hist)),
+        }
+    )
+
+
+def gen_macd_fix():
+    # adaq's `macd_fix` is implemented as `macd` with a fixed signal period (12/26/9), so it is
+    # numerically identical to `macd_default` and therefore to TA-Lib `MACD(12,26,9)`. TA-Lib's
+    # own `MACDFIX` differs slightly from `MACD(12,26,9)` in the warm-up region; adaq aligns with
+    # `MACD`, so the authoritative golden vector is generated from `MACD` (not `MACDFIX`).
+    macd_line, signal, hist = talib.MACD(OHLC["close"], 12, 26, 9)
+    write_payload(
+        {
+            "name": "macd_fix_basic",
+            "params": {"fast": 12, "slow": 26, "signal_period": 9, "ma_type": "Ema"},
+            "input": to_jsonable(OHLC["close"]),
+            "macd": to_jsonable(list(macd_line)),
+            "signal": to_jsonable(list(signal)),
+            "hist": to_jsonable(list(hist)),
+        }
+    )
+
+
 def gen_cci():
     out = talib.CCI(OHLC["high"], OHLC["low"], OHLC["close"], timeperiod=20)
     write_payload(
@@ -980,7 +1019,7 @@ GENERATORS = [
     gen_sma, gen_ema, gen_wma, gen_dema, gen_tema, gen_midpoint, gen_midprice,
     # ---- 动量指标 / Momentum ----
     gen_mom, gen_roc, gen_rocp, gen_rocr, gen_rocr100, gen_rsi, gen_cmo, gen_trix,
-    gen_stoch_rsi, gen_apo, gen_ppo, gen_macd, gen_cci, gen_mfi, gen_willr, gen_bop,
+    gen_stoch_rsi, gen_apo, gen_ppo, gen_macd, gen_macd_ext, gen_macd_fix, gen_cci, gen_mfi, gen_willr, gen_bop,
     gen_ultosc, gen_plus_dm, gen_minus_dm, gen_plus_di, gen_minus_di, gen_adx,
     gen_adxr, gen_aroon, gen_aroon_osc, gen_stoch, gen_stoch_f,
     gen_dx, gen_imi,

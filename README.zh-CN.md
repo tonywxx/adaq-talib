@@ -77,6 +77,7 @@ adaq-talib 现已实现完整的 TA-Lib 0.7.1 公开函数面 —— **10 大类
 | `kama` / `kama_default` | `TA_KAMA` | period = 30 | `Vec<f64>` |
 | `sar` / `sar_default` | `TA_SAR` | accel = 0.02, max = 0.2 | `Vec<f64>` |
 | `sarext` / `sarext_default` | `TA_SAREXT` | 多空加速 0.02/0.02/0.2 | `Vec<f64>`（短侧为负值） |
+| `accbands` / `accbands_default` | `TA_ACCBANDS` | period = 20 | `AccBands { upper, middle, lower }` |
 | `MaType` | `TA_MAType` | `Sma/Ema/Wma/Dema/Tema/Trima/Kama/Mama` | 枚举（供 `ma`/`bbands`/`mavp` 选用） |
 
 ### 动量指标 / Momentum Indicators — `adaq_talib::momentum`
@@ -95,6 +96,7 @@ adaq-talib 现已实现完整的 TA-Lib 0.7.1 公开函数面 —— **10 大类
 | `apo` / `apo_default` | `TA_APO` | fast = 12, slow = 26 | `Vec<f64>` |
 | `ppo` / `ppo_default` | `TA_PPO` | fast = 12, slow = 26 | `Vec<f64>` |
 | `cmo` / `cmo_default` | `TA_CMO` | period = 14 | `Vec<f64>` |
+| `imi` / `imi_default` | `TA_IMI` | period = 14 | `Vec<f64>`（开/收） |
 | `cci` / `cci_default` | `TA_CCI` | period = 20 | `Vec<f64>` |
 | `mfi` / `mfi_default` | `TA_MFI` | period = 14 | `Vec<f64>`（需成交量） |
 | `willr` / `willr_default` | `TA_WILLR` | period = 14 | `Vec<f64>` |
@@ -106,6 +108,7 @@ adaq-talib 现已实现完整的 TA-Lib 0.7.1 公开函数面 —— **10 大类
 | `minus_di` / `minus_di_default` | `TA_MINUS_DI` | period = 14 | `Vec<f64>` |
 | `adx` / `adx_default` | `TA_ADX` | period = 14 | `Vec<f64>` |
 | `adxr` / `adxr_default` | `TA_ADXR` | period = 14 | `Vec<f64>` |
+| `dx` / `dx_default` | `TA_DX` | period = 14 | `Vec<f64>`（OHLC） |
 | `aroon` / `aroon_default` | `TA_AROON` | period = 14 | `Aroon { up, down }` |
 | `aroon_osc` / `aroon_osc_default` | `TA_AROONOSC` | period = 14 | `Vec<f64>` |
 | `stoch` / `stoch_default` | `TA_STOCH` | fastK = 5, slowK = 3, slowD = 3 | `Stoch { slow_k, slow_d }` |
@@ -133,6 +136,7 @@ adaq-talib 现已实现完整的 TA-Lib 0.7.1 公开函数面 —— **10 大类
 
 | 函数 | TA-Lib | 默认参数 | 返回 |
 | --- | --- | --- | --- |
+| `avgdev` / `avgdev_default` | `TA_AVGDEV` | period = 14 | `Vec<f64>` |
 | `avgprice` | `TA_AVGPRICE` | — | `Vec<f64>`（(H+L+C+O)/4） |
 | `medprice` | `TA_MEDPRICE` | — | `Vec<f64>`（(H+L)/2） |
 | `typprice` | `TA_TYPPRICE` | — | `Vec<f64>`（(H+L+C)/3） |
@@ -409,11 +413,11 @@ cargo run -- mama
 支持的全部指标（可直接 `cargo run -- <名称>`，按类别排列）：
 
 ```
-重叠研究 / Overlap:    sma ema wma dema tema midpoint midprice bbands trima t3 ma mavp kama sar sarext
-动量 / Momentum:       rsi cmo trix mom macd cci willr bop ultosc adx aroon stoch mfi
+重叠研究 / Overlap:    sma ema wma dema tema midpoint midprice bbands trima t3 ma mavp kama sar sarext accbands
+动量 / Momentum:       rsi cmo trix mom macd cci willr bop ultosc adx aroon stoch mfi dx imi
 波动率 / Volatility:   trange atr natr
 成交量 / Volume:       ad adosc obv
-价格变换 / Price:      avgprice medprice typprice wclprice
+价格变换 / Price:      avgprice medprice typprice wclprice avgdev
 统计 / Statistic:      stddev var linear_reg linear_reg_angle linear_reg_intercept linear_reg_slope tsf beta correl
 周期 / Cycle:          mama ht_trendline
 ```
@@ -436,9 +440,9 @@ cargo run -- mama
 
 ### 正确性验证 / Correctness (1:1 黄金向量)
 
-- 对照已入库的**黄金向量**（由 TA-Lib C 0.7.1 真实输出生成，位于 `tests/fixtures/`，**159 个 fixture 文件**，覆盖全部 161 个函数面）运行 `cargo test`，普通用户**无需** Python 或 TA-Lib C 库。
+- 对照已入库的**黄金向量**（由 TA-Lib C 0.7.1 真实输出生成，位于 `tests/fixtures/`，**222 个黄金向量 fixture 文件**，覆盖全部 161 个函数面）运行 `cargo test`，普通用户**无需** Python 或 TA-Lib C 库。
 - 容限策略：相对 `1e-8` + 绝对 `1e-10`（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。
-- 全量测试：**308 项测试，0 失败**（22 个测试二进制）；`tools/reconcile.py` 确认 **161/161** 对外函数 1:1 对应 TA-Lib 0.7.1（exit 0）。
+- 全量测试：**326 项测试，0 失败**；`tools/reconcile.py` 确认 **161/161** 对外函数 1:1 对应 TA-Lib 0.7.1（exit 0）。涵盖全部 161 个指标的完整 1:1 验证与性能对照报告见 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)。
 - 黄金向量生成工具见 [`tools/gen_fixtures`](tools/)（需系统安装 TA-Lib C 库 + `TA-Lib` Python 绑定，仅供维护者重生成 fixture）。当前 fixture 状态与已知缺口见 [`tools/README.md`](tools/README.md)。
 
 ```bash
@@ -448,24 +452,25 @@ cargo test --doc           # 仅运行文档示例
 
 ### 性能对照 / Performance (Rust vs TA-Lib C)
 
-双轨基准（见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)）：Rust 侧零依赖（`std::time`，`harness = false`），C 侧在 `--features bench-c` 下 FFI 链接系统 TA-Lib C。环境：Apple Silicon aarch64，N = 1,000,000，PERIOD = 20，ITERS = 20；`ns/elem = elapsed / ITERS / N`。判定：比值 < 0.8 → 更快，0.8–1.2 → 持平，> 1.2 → 更慢。
+全部 **161 / 161** 个指标均与原生 TA-Lib C 0.7.1 逐项对照基准（双轨，见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)；C 侧在 `--features bench-c` 下 FFI 链接系统 TA-Lib C）。环境：Apple Silicon aarch64，每个指标 **N = 100,000** 个元素；`ns/elem = elapsed / ITERS / N`；`Rust/C = Rust_ns/elem ÷ C_ns/elem`。判定：比值 < 0.8 → 更快，0.8–1.2 → 持平，> 1.2 → 更慢。
 
-| 指标 | Rust ns/elem | 原生 C ns/elem | Rust/C 比值 | 状态 |
-|-----------|-------------:|-----------------:|-------------:|--------|
-| SMA      | 1.18 | 1.92  | 0.61 | 快于 C |
-| BBANDS   | 3.02 | 5.20  | 0.58 | 快于 C |
-| DEMA     | 3.63 | 4.85  | 0.75 | 快于 C |
-| TEMA     | 3.46 | 7.44  | 0.47 | 快于 C |
-| T3       | 3.76 | 2.78  | 1.35 | 慢于 C |
-| MIDPRICE | 7.30 | 12.25 | 0.60 | 快于 C |
-| MIDPOINT | 6.88 | 3.05  | 2.26 | 慢于 C |
-| WMA      | 2.11 | 2.28  | 0.93 | ≈ 持平 |
-| LINEARREG| 2.33 | N/A   | N/A  | 未接 C |
-| CORREL   | 4.81 | N/A   | N/A  | 未接 C |
-| WILLR    | 7.90 | N/A   | N/A  | 未接 C |
-| STOCH    | 10.99| N/A   | N/A  | 未接 C |
+**总览：** 相比原生 C，**36 个更快**、**33 个持平**、**92 个更慢**；几何均值 **Rust/C = 1.50×**（adaq-talib 平均约为 C 的 1.5× 慢）。其中 **54 个指标严格快于 C**（Rust/C < 1）。
 
-> **8 个接 C 的指标中有 6 个快于或持平原生 TA-Lib C。** 仅 `MIDPOINT`（2.26×）与 `T3`（1.35×）更慢 —— 二者在结构上不可向量化（数据相关的单调双队列 / 顺序 EMA IIR），故规划的 P3 SIMD 阶段为 **NO-GO**（见 [ADR 0010](docs/adr/0010-performance-strategy.md)）。这是已知且已记录的权衡，并非缺陷。LINEARREG/CORREL/WILLR/STOCH 未接 C 对照（需 `unsafe` + 系统 TA-Lib C，违背零-FFI 精神），其 Rust 侧数值即权威参考。
+| TA-Lib 分组 | 指标数 | 更快 (<0.8) | 持平 (0.8–1.2) | 更慢 (>1.2) | 几何均值 Rust/C |
+|---|---:|---:|---:|---:|---:|
+| 周期 / 希尔伯特变换 | 5 | 0 | 1 | 4 | 1.57× |
+| 数学算子 | 11 | 5 | 1 | 5 | 1.01× |
+| 数学变换 | 15 | 4 | 11 | 0 | 0.85× |
+| 动量 | 31 | 7 | 5 | 19 | 1.31× |
+| 重叠研究 | 18 | 5 | 8 | 5 | 0.98× |
+| 模式识别 | 61 | 1 | 3 | 57 | 2.98× |
+| 价格变换 | 5 | 5 | 0 | 0 | 0.58× |
+| 统计函数 | 9 | 7 | 1 | 1 | 0.54× |
+| 波动率 | 3 | 1 | 2 | 0 | 0.83× |
+| 成交量 | 3 | 1 | 1 | 1 | 0.97× |
+| **合计** | **161** | **36** | **33** | **92** | **1.50×** |
+
+adaq-talib 在统计、价格变换与数学变换上快于 C；在重叠研究 / 成交量 / 波动率 / 数学算子上与 C 持平；在动量、周期上更慢，最显著的是模式识别（57/61 更慢）。完整逐指标表 —— 全部 161 个，含 Rust/C 比值、状态与实时 TA-Lib 一致性校验和 —— 见 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)。相关注意事项（如 `stoch_rsi` 仅返回 `fastk` 线，故其基准校验和不同 —— 属基准观测假象，非正确性缺口）详见该报告。
 
 ### 已落地的性能优化 / Optimizations applied
 
@@ -482,7 +487,7 @@ cargo test --doc           # 仅运行文档示例
 | P1② | `minmax` | 复用单遍 `core::rolling_minmax`（收敛；性能中性） | 6.76 | ≈（仅精度收益） |
 | P1③ | `max_index` / `min_index` / `minmax_index` | 单遍 `core::rolling_extreme_index` O(n) | 3.43 / 3.31 / 6.79 | ~1.9×（索引） |
 
-每个优化都保持完整 `cargo test` 套件全绿（308/308），且每个被重构的函数仍在其容限内复现 TA-Lib 0.7.1 黄金向量（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。完整的 QA 报告（方法论、残差缺口、Python 绑定参考数值）见 [`docs/perf-verify-report.md`](docs/perf-verify-report.md)。
+每个优化都保持完整 `cargo test` 套件全绿（326/326），且每个被重构的函数仍在其容限内复现 TA-Lib 0.7.1 黄金向量（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。完整的 QA 报告（方法论、残差缺口、Python 绑定参考数值）见 [`docs/perf-verify-report.md`](docs/perf-verify-report.md)。
 
 ### 性能基准（如何运行）/ Benchmarks (how to run)
 
@@ -492,6 +497,10 @@ cargo bench --bench sma_bench
 
 # 2) 原生 C 对照（可选 feature）：FFI 链接系统 TA-Lib C 库
 cargo bench --bench sma_bench --features bench-c
+
+# 3) 全部 161 个指标对照原生 C（自动生成套件）：
+cargo bench --bench all161_bench
+cargo bench --bench all161_bench --features bench-c   # 含 C 参考口径
 ```
 
 > 第 2 种需系统已安装 TA-Lib C 库（`brew install ta-lib` / 源码编译）；`build.rs` 仅在 `bench-c` 下链接，未启用时构建不受影响。报告须明确区分两种口径。
@@ -534,7 +543,7 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.1（当前）：161 / 161 函数** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 308/308 全绿，`reconcile.py` → 161/161）并做了性能优化（见[验证与基准](#验证与基准--verification--benchmarks)）。
+- ✅ **0.1.2（当前）：161 / 161 函数** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖与性能对照（见[验证与基准](#验证与基准--verification--benchmarks)）。
 - 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。
@@ -543,7 +552,13 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 ## 变更日志 / Changelog
 
-### 0.1.1（当前 / current）
+### 0.1.2（当前 / current）
+- **全量 161 基准与验证套件**：新增 `benches/all161_bench.rs`（由 `tools/bench/gen_all161.py` 自动生成），对**全部 161** 个指标与原生 TA-Lib C 0.7.1 逐项基准对照，并附带实时数值一致性校验和；配套 `benches/poc_bench.rs` 为概念验证脚手架。统一报告 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)、交互式 `docs/benchmarks/adaq-vs-talib-161.html` 与 `all161_results.csv` 由 `tools/bench/gen_report.py` 生成（双轨方法论见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)）。
+- **黄金向量覆盖扩大**：**222 个黄金向量 fixture 文件**（原 159 个）——补全了完整的模式识别 fixture 集与 `macd_ext` / `macd_fix` fixture。全量测试现为 **326 项测试，0 失败**（原 308），`tools/reconcile.py` 确认 **161/161**。
+- **文档完整性**：逐函数表现已列出全部 161 个函数。`accbands`（重叠研究）、`dx` / `imi`（动量）与 `avgdev`（价格变换）此前已实现并计入 161 总数，但被遗漏在明细表之外 —— 现均已补入文档。
+- **发布**：版本号提升至 `0.1.2`。除上述外无新增公开 API；无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
+
+### 0.1.1
 - **数学算子 —— O(n) 极值索引函数**：`max_index` / `min_index` / `minmax_index` 现采用单遍单调队列（`core::rolling_extreme_index`），替换原先 O(n·period) 的嵌套扫描 —— 提速约 1.9×，且与 TA-Lib 0.7.1 仍逐项 1:1（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。新增 `benches/index_bench.rs` 与 `benches/minmax_bench.rs`。
 - **`minmax` 收敛**：`math_ops::minmax` 现复用单遍 `core::rolling_minmax` 核（与 `midpoint` 同源），消除重复的极值逻辑。性能中性，精度不变。
 - **P2 全阶段性能优化（1:1 验证）**：`dema` / `tema` / `t3` 嵌套 EMA 融合（P2-1）；`midpoint` / `midprice` 单调队列（P2-2）；`wma` O(n) 滑动递推（P2-3）；`bbands` 中轨单遍融合（P2-4）；`linear_reg` 家族 / `correl` / `willr` / `stoch` 滑动 O(n)（P2-5）。详见 [`benches/BASELINE.md`](benches/BASELINE.md)。

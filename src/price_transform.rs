@@ -30,12 +30,31 @@ pub fn avgprice(
     open: &[f64],
 ) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[high, low, close, open], "avgprice")?;
+    let mut out = vec![0.0_f64; high.len()];
+    avgprice_with_output(high, low, close, open, &mut out)?;
+    Ok(out)
+}
+
+/// 平均价，零拷贝写入 `out`（与 `high` 等长）。见 [`avgprice`]。
+/// Average Price, written zero-copy into `out`. See [`avgprice`].
+pub fn avgprice_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    open: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_eq_len(&[high, low, close, open], "avgprice")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "avgprice_with_output: out length must equal high length".into(),
+        ));
+    }
     let n = high.len();
-    let mut out = vec![0.0_f64; n];
     for i in 0..n {
         out[i] = (high[i] + low[i] + close[i] + open[i]) / 4.0;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// 中位价（Median Price，TA-Lib `TA_MEDPRICE`）。
@@ -43,12 +62,29 @@ pub fn avgprice(
 /// `MEDPRICE = (high + low) / 2`。无滞后（lookback 0）。
 pub fn medprice(high: &[f64], low: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[high, low], "medprice")?;
+    let mut out = vec![0.0_f64; high.len()];
+    medprice_with_output(high, low, &mut out)?;
+    Ok(out)
+}
+
+/// 中位价，零拷贝写入 `out`（与 `high` 等长）。见 [`medprice`]。
+/// Median Price, written zero-copy into `out`. See [`medprice`].
+pub fn medprice_with_output(
+    high: &[f64],
+    low: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_eq_len(&[high, low], "medprice")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "medprice_with_output: out length must equal high length".into(),
+        ));
+    }
     let n = high.len();
-    let mut out = vec![0.0_f64; n];
     for i in 0..n {
         out[i] = (high[i] + low[i]) / 2.0;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// 典型价（Typical Price，TA-Lib `TA_TYPPRICE`）。
@@ -56,12 +92,30 @@ pub fn medprice(high: &[f64], low: &[f64]) -> Result<Vec<f64>, TaError> {
 /// `TYPPRICE = (high + low + close) / 3`。无滞后（lookback 0）。
 pub fn typprice(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[high, low, close], "typprice")?;
+    let mut out = vec![0.0_f64; high.len()];
+    typprice_with_output(high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// 典型价，零拷贝写入 `out`（与 `high` 等长）。见 [`typprice`]。
+/// Typical Price, written zero-copy into `out`. See [`typprice`].
+pub fn typprice_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_eq_len(&[high, low, close], "typprice")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "typprice_with_output: out length must equal high length".into(),
+        ));
+    }
     let n = high.len();
-    let mut out = vec![0.0_f64; n];
     for i in 0..n {
         out[i] = (high[i] + low[i] + close[i]) / 3.0;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// 加权收盘价（Weighted Close Price，TA-Lib `TA_WCLPRICE`）。
@@ -69,12 +123,30 @@ pub fn typprice(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, Ta
 /// `WCLPRICE = (high + low + 2*close) / 4`。无滞后（lookback 0）。
 pub fn wclprice(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[high, low, close], "wclprice")?;
+    let mut out = vec![0.0_f64; high.len()];
+    wclprice_with_output(high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// 加权收盘价，零拷贝写入 `out`（与 `high` 等长）。见 [`wclprice`]。
+/// Weighted Close Price, written zero-copy into `out`. See [`wclprice`].
+pub fn wclprice_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_eq_len(&[high, low, close], "wclprice")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "wclprice_with_output: out length must equal high length".into(),
+        ));
+    }
     let n = high.len();
-    let mut out = vec![0.0_f64; n];
     for i in 0..n {
         out[i] = (high[i] + low[i] + 2.0 * close[i]) / 4.0;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// 平均偏差（Average Deviation，TA-Lib `TA_AVGDEV`）。
@@ -95,10 +167,27 @@ pub fn wclprice(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, Ta
 /// ```
 pub fn avgdev(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    avgdev_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 平均偏差，零拷贝写入 `out`（与 `values` 等长）。见 [`avgdev`]。
+/// Average Deviation, written zero-copy into `out`. See [`avgdev`].
+pub fn avgdev_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "avgdev_with_output: out length must equal values length".into(),
+        ));
+    }
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
     if n < time_period {
-        return Ok(out);
+        return Ok(());
     }
     let mean = rolling_mean(values, time_period);
     let p = time_period as f64;
@@ -110,7 +199,7 @@ pub fn avgdev(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
         }
         out[i] = s / p;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `avgdev` 便捷版本，默认周期 14（与 TA-Lib 一致）。

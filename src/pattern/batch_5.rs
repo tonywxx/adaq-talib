@@ -32,12 +32,26 @@ pub fn cdl_homingpigeon(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_homingpigeon_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_homingpigeon` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_homingpigeon`]。
+/// Zero-copy variant of [`cdl_homingpigeon`]: writes results into `out` (length must equal input length).
+pub fn cdl_homingpigeon_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_homingpigeon_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_homingpigeon")?;
     let n = open.len();
     let lookback = BODY_SHORT.avg_period.max(BODY_LONG.avg_period) + 1; // 11
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body_long = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
     let mut avg_body_short = CandleAvg::new(BODY_SHORT, open, high, low, close, lookback, 0);
@@ -58,8 +72,9 @@ pub fn cdl_homingpigeon(
         avg_body_short.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_identical3crows — Identical Three Crows（三胞胎乌鸦）
@@ -81,12 +96,26 @@ pub fn cdl_identical3crows(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_identical3crows_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_identical3crows` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_identical3crows`]。
+/// Zero-copy variant of [`cdl_identical3crows`]: writes results into `out` (length must equal input length).
+pub fn cdl_identical3crows_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_identical3crows_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_identical3crows")?;
     let n = open.len();
     let lookback = SHADOW_VERY_SHORT.avg_period.max(EQUAL.avg_period) + 2; // 12
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_sv_2 = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 2);
     let mut avg_sv_1 = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 1);
@@ -122,8 +151,9 @@ pub fn cdl_identical3crows(
         avg_eq_1.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_inneck — In-Neck Pattern（颈内线）
@@ -144,12 +174,26 @@ pub fn cdl_inneck(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_inneck_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_inneck` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_inneck`]。
+/// Zero-copy variant of [`cdl_inneck`]: writes results into `out` (length must equal input length).
+pub fn cdl_inneck_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_inneck_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_inneck")?;
     let n = open.len();
     let lookback = EQUAL.avg_period.max(BODY_LONG.avg_period) + 1; // 11
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_equal = CandleAvg::new(EQUAL, open, high, low, close, lookback, 1);
     let mut avg_body_long = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
@@ -170,8 +214,9 @@ pub fn cdl_inneck(
         avg_body_long.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_invertedhammer — Inverted Hammer（倒锤头）
@@ -193,6 +238,21 @@ pub fn cdl_invertedhammer(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_invertedhammer_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_invertedhammer` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_invertedhammer`]。
+/// Zero-copy variant of [`cdl_invertedhammer`]: writes results into `out` (length must equal input length).
+pub fn cdl_invertedhammer_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_invertedhammer_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_invertedhammer")?;
     let n = open.len();
     let lookback = [
@@ -205,9 +265,8 @@ pub fn cdl_invertedhammer(
     .copied()
     .unwrap()
         + 1; // 11
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body = CandleAvg::new(BODY_SHORT, open, high, low, close, lookback, 0);
     let mut avg_shadow_long = CandleAvg::new(SHADOW_LONG, open, high, low, close, lookback, 0);
@@ -228,8 +287,9 @@ pub fn cdl_invertedhammer(
         avg_shadow_vshort.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_kicking — Kicking（反挂 / 踢腿）
@@ -250,12 +310,26 @@ pub fn cdl_kicking(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_kicking_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_kicking` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_kicking`]。
+/// Zero-copy variant of [`cdl_kicking`]: writes results into `out` (length must equal input length).
+pub fn cdl_kicking_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_kicking_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_kicking")?;
     let n = open.len();
     let lookback = SHADOW_VERY_SHORT.avg_period.max(BODY_LONG.avg_period) + 1; // 11
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body_1 = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
     let mut avg_body_0 = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 0);
@@ -290,8 +364,9 @@ pub fn cdl_kicking(
         avg_sv_0.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_kickingbylength — Kicking by Length（按长度踢腿）
@@ -312,12 +387,26 @@ pub fn cdl_kickingbylength(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_kickingbylength_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_kickingbylength` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_kickingbylength`]。
+/// Zero-copy variant of [`cdl_kickingbylength`]: writes results into `out` (length must equal input length).
+pub fn cdl_kickingbylength_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_kickingbylength_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_kickingbylength")?;
     let n = open.len();
     let lookback = SHADOW_VERY_SHORT.avg_period.max(BODY_LONG.avg_period) + 1; // 11
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_body_1 = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
     let mut avg_body_0 = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 0);
@@ -358,8 +447,9 @@ pub fn cdl_kickingbylength(
         avg_sv_0.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+
 
 // ===========================================================================
 // cdl_ladderbottom — Ladder Bottom（梯底）
@@ -380,12 +470,26 @@ pub fn cdl_ladderbottom(
     low: &[f64],
     close: &[f64],
 ) -> Result<Vec<f64>, TaError> {
+    let mut out = vec![0.0_f64; open.len()];
+    cdl_ladderbottom_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// `cdl_ladderbottom` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_ladderbottom`]。
+/// Zero-copy variant of [`cdl_ladderbottom`]: writes results into `out` (length must equal input length).
+pub fn cdl_ladderbottom_with_output(
+    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if out.len() != open.len() {
+        return Err(TaError::BadParam("cdl_ladderbottom_with_output: out length must equal input length".into()));
+    }
+
     check_ohlc(open, high, low, close, "cdl_ladderbottom")?;
     let n = open.len();
     let lookback = SHADOW_VERY_SHORT.avg_period + 4; // 14
-    let mut out = vec![0.0_f64; n];
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     let mut avg_sv = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 1);
     let mut i = lookback;
@@ -410,5 +514,6 @@ pub fn cdl_ladderbottom(
         avg_sv.advance(i, open, high, low, close);
         i += 1;
     }
-    Ok(out)
+    Ok(())
 }
+

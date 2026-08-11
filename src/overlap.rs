@@ -70,7 +70,27 @@ use crate::error::{check_period, TaError};
 /// ```
 pub fn sma(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(rolling_mean(values, time_period))
+    let mut out = vec![f64::NAN; values.len()];
+    sma_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 简单移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`sma`]。
+/// Simple Moving Average, written zero-copy into `out`. See [`sma`].
+pub fn sma_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "sma_with_output: out length must equal values length".into(),
+        ));
+    }
+    let res = rolling_mean(values, time_period);
+    out.copy_from_slice(&res);
+    Ok(())
 }
 
 /// 简单移动平均，使用 TA-Lib 默认周期（30，对应 `optInTimePeriod`）。
@@ -128,7 +148,27 @@ pub fn sma_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// ```
 pub fn ema(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(crate::core::ema(values, time_period))
+    let mut out = vec![f64::NAN; values.len()];
+    ema_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 指数移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`ema`]。
+/// Exponential Moving Average, written zero-copy into `out`. See [`ema`].
+pub fn ema_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "ema_with_output: out length must equal values length".into(),
+        ));
+    }
+    let res = crate::core::ema(values, time_period);
+    out.copy_from_slice(&res);
+    Ok(())
 }
 
 /// 指数移动平均，使用 TA-Lib 默认周期（30）。
@@ -180,7 +220,27 @@ pub fn ema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// ```
 pub fn wma(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(crate::core::wma(values, time_period))
+    let mut out = vec![f64::NAN; values.len()];
+    wma_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 加权移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`wma`]。
+/// Weighted Moving Average, written zero-copy into `out`. See [`wma`].
+pub fn wma_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "wma_with_output: out length must equal values length".into(),
+        ));
+    }
+    let res = crate::core::wma(values, time_period);
+    out.copy_from_slice(&res);
+    Ok(())
 }
 
 /// 加权移动平均，使用 TA-Lib 默认周期（30）。
@@ -441,8 +501,29 @@ pub fn tema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// ```
 pub fn midpoint(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    midpoint_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 中点，零拷贝写入 `out`（与 `values` 等长）。见 [`midpoint`]。
+/// MidPoint, written zero-copy into `out`. See [`midpoint`].
+pub fn midpoint_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "midpoint_with_output: out length must equal values length".into(),
+        ));
+    }
     let (mx, mn) = crate::core::rolling_minmax(values, time_period);
-    Ok(mx.iter().zip(&mn).map(|(a, b)| (a + b) / 2.0).collect())
+    for (i, (a, b)) in mx.iter().zip(&mn).enumerate() {
+        out[i] = (a + b) / 2.0;
+    }
+    Ok(())
 }
 
 /// 中点，使用 TA-Lib 默认周期（30）。
@@ -488,14 +569,36 @@ pub fn midpoint_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// ```
 pub fn midprice(high: &[f64], low: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; high.len()];
+    midprice_with_output(high, low, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 中点价，零拷贝写入 `out`（与 `high`/`low` 等长）。见 [`midprice`]。
+/// MidPoint Price, written zero-copy into `out`. See [`midprice`].
+pub fn midprice_with_output(
+    high: &[f64],
+    low: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
     if high.len() != low.len() {
         return Err(TaError::BadParam(
             "high and low must have equal length".into(),
         ));
     }
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "midprice_with_output: out length must equal high/low length".into(),
+        ));
+    }
     let mx = rolling_max(high, time_period);
     let mn = rolling_min(low, time_period);
-    Ok(mx.iter().zip(&mn).map(|(a, b)| (a + b) / 2.0).collect())
+    for (i, (a, b)) in mx.iter().zip(&mn).enumerate() {
+        out[i] = (a + b) / 2.0;
+    }
+    Ok(())
 }
 
 /// 中点价，使用 TA-Lib 默认周期（30）。
@@ -697,6 +800,27 @@ pub fn accbands(
     period: usize,
 ) -> Result<AccBands, TaError> {
     check_period(period)?;
+    let n = high.len();
+    let mut out = AccBands {
+        upper: vec![f64::NAN; n],
+        middle: vec![f64::NAN; n],
+        lower: vec![f64::NAN; n],
+    };
+    accbands_with_output(high, low, close, period, &mut out)?;
+    Ok(out)
+}
+
+/// 加速带，零拷贝写入 `out`（三轨均与输入等长）。见 [`accbands`]。
+/// Acceleration Bands, written zero-copy into `out` (three equal-length bands). See
+/// [`accbands`].
+pub fn accbands_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    period: usize,
+    out: &mut AccBands,
+) -> Result<(), TaError> {
+    check_period(period)?;
     if period < 2 {
         return Err(TaError::BadParam("accbands: period must be >= 2".into()));
     }
@@ -704,6 +828,11 @@ pub fn accbands(
     if n != low.len() || n != close.len() {
         return Err(TaError::BadParam(
             "accbands: high/low/close must share the same length".into(),
+        ));
+    }
+    if out.upper.len() != n || out.middle.len() != n || out.lower.len() != n {
+        return Err(TaError::BadParam(
+            "accbands_with_output: out bands must have length == input length".into(),
         ));
     }
     let mut upper_map = vec![0.0_f64; n];
@@ -725,11 +854,10 @@ pub fn accbands(
     let upper = rolling_mean(&upper_map, period);
     let middle = rolling_mean(close, period);
     let lower = rolling_mean(&lower_map, period);
-    Ok(AccBands {
-        upper,
-        middle,
-        lower,
-    })
+    out.upper = upper;
+    out.middle = middle;
+    out.lower = lower;
+    Ok(())
 }
 
 /// 加速带结果（三轨等长向量）。/ Acceleration Bands result (three equal-length vectors).
@@ -768,9 +896,29 @@ pub fn accbands_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<AccB
 /// ```
 pub fn trima(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    trima_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 三角移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`trima`]。
+/// Triangular Moving Average, written zero-copy into `out`. See [`trima`].
+pub fn trima_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
     let n = values.len();
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "trima_with_output: out length must equal values length".into(),
+        ));
+    }
+    // 输入长度 < period：原版返回全 NAN（此处 `out` 已由调用方预填 NAN）。
+    // Input shorter than period: original returns all-NaN (caller pre-fills NAN).
     if n < time_period {
-        return Ok(vec![f64::NAN; n]);
+        return Ok(());
     }
     let (p1, p2) = if time_period % 2 == 1 {
         let h = (time_period + 1) / 2;
@@ -780,7 +928,9 @@ pub fn trima(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
         (h, h + 1)
     };
     let inner = rolling_mean(values, p1);
-    Ok(rolling_mean_skip(&inner, p2))
+    let res = rolling_mean_skip(&inner, p2);
+    out.copy_from_slice(&res);
+    Ok(())
 }
 
 /// 三角移动平均，使用 TA-Lib 默认周期（30）。
@@ -884,16 +1034,37 @@ pub fn t3_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// Equal-length vector; leading unstable period is the selected type's lookback.
 pub fn ma(values: &[f64], time_period: usize, ma_type: MaType) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    match ma_type {
-        MaType::Sma => sma(values, time_period),
-        MaType::Ema => ema(values, time_period),
-        MaType::Wma => wma(values, time_period),
-        MaType::Dema => dema(values, time_period),
-        MaType::Tema => tema(values, time_period),
-        MaType::Trima => trima(values, time_period),
-        MaType::Kama => kama(values, time_period),
-        MaType::Mama => Ok(crate::cycle::mama_default(values)?.mama),
+    let mut out = vec![f64::NAN; values.len()];
+    ma_with_output(values, time_period, ma_type, &mut out)?;
+    Ok(out)
+}
+
+/// 通用移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`ma`]。
+/// General Moving Average, written zero-copy into `out`. See [`ma`].
+pub fn ma_with_output(
+    values: &[f64],
+    time_period: usize,
+    ma_type: MaType,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "ma_with_output: out length must equal values length".into(),
+        ));
     }
+    let res = match ma_type {
+        MaType::Sma => sma(values, time_period)?,
+        MaType::Ema => ema(values, time_period)?,
+        MaType::Wma => wma(values, time_period)?,
+        MaType::Dema => dema(values, time_period)?,
+        MaType::Tema => tema(values, time_period)?,
+        MaType::Trima => trima(values, time_period)?,
+        MaType::Kama => kama(values, time_period)?,
+        MaType::Mama => crate::cycle::mama_default(values)?.mama,
+    };
+    out.copy_from_slice(&res);
+    Ok(())
 }
 
 /// 通用移动平均，使用 TA-Lib 默认参数（周期 30、SMA）。
@@ -925,6 +1096,23 @@ pub fn mavp(
 ) -> Result<Vec<f64>, TaError> {
     check_period(min_period)?;
     check_period(max_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    mavp_with_output(values, periods, min_period, max_period, ma_type, &mut out)?;
+    Ok(out)
+}
+
+/// 变周期移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`mavp`]。
+/// Variable-period Moving Average, written zero-copy into `out`. See [`mavp`].
+pub fn mavp_with_output(
+    values: &[f64],
+    periods: &[f64],
+    min_period: usize,
+    max_period: usize,
+    ma_type: MaType,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(min_period)?;
+    check_period(max_period)?;
     if min_period > max_period {
         return Err(TaError::BadParam(
             "mavp: min_period must be <= max_period".into(),
@@ -936,7 +1124,12 @@ pub fn mavp(
             "mavp: periods must have the same length as values".into(),
         ));
     }
-    let mut out = vec![f64::NAN; n];
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "mavp_with_output: out length must equal values length".into(),
+        ));
+    }
+    out.fill(f64::NAN);
     let mut p: Vec<usize> = Vec::with_capacity(n);
     for &x in periods {
         let mut v = x.trunc() as i64;
@@ -962,7 +1155,7 @@ pub fn mavp(
             }
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// 变周期移动平均，使用 TA-Lib 默认参数（min 2 / max 30、SMA）。
@@ -1001,14 +1194,35 @@ pub fn mavp_default(values: &[f64], periods: &[f64]) -> Result<Vec<f64>, TaError
 /// ```
 pub fn kama(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    kama_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// Kaufman 自适应移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`kama`]。
+/// Kaufman Adaptive MA, written zero-copy into `out`. See [`kama`].
+pub fn kama_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "kama_with_output: out length must equal values length".into(),
+        ));
+    }
+    out.fill(f64::NAN);
     if time_period == 1 {
-        return Ok(values.to_vec());
+        out.copy_from_slice(values);
+        return Ok(());
     }
     let p = time_period;
+    // 输入长度 <= period：原版返回全 NAN（此处 `out` 已填 NAN）。
+    // Input shorter than or equal to period: original returns all-NaN (out is NAN-filled).
     if n <= p {
-        return Ok(out);
+        return Ok(());
     }
     let const_max = 2.0 / 31.0;
     let const_diff = 2.0 / 3.0 - const_max;
@@ -1058,7 +1272,7 @@ pub fn kama(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
         out[today] = prev_kama;
         today += 1;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// Kaufman 自适应移动平均，使用 TA-Lib 默认周期（30）。
@@ -1092,10 +1306,33 @@ pub fn sar(
     if high.len() != low.len() {
         return Err(TaError::BadParam("sar: high and low must have equal length".into()));
     }
+    let mut out = vec![f64::NAN; high.len()];
+    sar_with_output(high, low, acceleration, maximum, &mut out)?;
+    Ok(out)
+}
+
+/// 抛物线转向，零拷贝写入 `out`（与 `high`/`low` 等长）。见 [`sar`]。
+/// Parabolic SAR, written zero-copy into `out`. See [`sar`].
+pub fn sar_with_output(
+    high: &[f64],
+    low: &[f64],
+    acceleration: f64,
+    maximum: f64,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if high.len() != low.len() {
+        return Err(TaError::BadParam("sar: high and low must have equal length".into()));
+    }
     let n = high.len();
-    let mut out = vec![f64::NAN; n];
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "sar_with_output: out length must equal high/low length".into(),
+        ));
+    }
     if n < 2 {
-        return Ok(out);
+        // 原版返回全 NAN（此处 `out` 已由调用方预填 NAN）。
+        // Original returns all-NaN (caller pre-fills NAN).
+        return Ok(());
     }
     let mut af = acceleration;
     if af > maximum {
@@ -1199,7 +1436,7 @@ pub fn sar(
             }
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// 抛物线转向，使用 TA-Lib 默认参数（加速 0.02 / 上限 0.2）。
@@ -1237,10 +1474,53 @@ pub fn sarext(
             "sarext: high and low must have equal length".into(),
         ));
     }
+    let mut out = vec![f64::NAN; high.len()];
+    sarext_with_output(
+        high,
+        low,
+        start_value,
+        offset_on_reverse,
+        accel_init_long,
+        accel_long,
+        accel_max_long,
+        accel_init_short,
+        accel_short,
+        accel_max_short,
+        &mut out,
+    )?;
+    Ok(out)
+}
+
+/// 扩展抛物线转向，零拷贝写入 `out`（与 `high`/`low` 等长）。见 [`sarext`]。
+/// Parabolic SAR Extended, written zero-copy into `out`. See [`sarext`].
+pub fn sarext_with_output(
+    high: &[f64],
+    low: &[f64],
+    start_value: f64,
+    offset_on_reverse: f64,
+    accel_init_long: f64,
+    accel_long: f64,
+    accel_max_long: f64,
+    accel_init_short: f64,
+    accel_short: f64,
+    accel_max_short: f64,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    if high.len() != low.len() {
+        return Err(TaError::BadParam(
+            "sarext: high and low must have equal length".into(),
+        ));
+    }
     let n = high.len();
-    let mut out = vec![f64::NAN; n];
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "sarext_with_output: out length must equal high/low length".into(),
+        ));
+    }
     if n < 2 {
-        return Ok(out);
+        // 原版返回全 NAN（此处 `out` 已由调用方预填 NAN）。
+        // Original returns all-NaN (caller pre-fills NAN).
+        return Ok(());
     }
     let mut af_long = accel_init_long;
     let mut af_short = accel_init_short;
@@ -1368,7 +1648,7 @@ pub fn sarext(
             }
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// 扩展抛物线转向，使用 TA-Lib 默认参数。

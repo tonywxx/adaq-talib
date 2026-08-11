@@ -102,12 +102,29 @@ pub struct StochF {
 /// ```
 pub fn mom(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    mom_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 动量，零拷贝写入 `out`（与 `values` 等长）。见 [`mom`]。
+/// Momentum, written zero-copy into `out`. See [`mom`].
+pub fn mom_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "mom_with_output: out length must equal values length".into(),
+        ));
+    }
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
     for i in time_period..n {
         out[i] = values[i] - values[i - time_period];
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `mom` 便捷版本，使用 TA-Lib 默认周期 10。/ `mom` with the TA-Lib default period (10).
@@ -146,7 +163,26 @@ fn rate_of_change(values: &[f64], time_period: usize, mode: u8) -> Result<Vec<f6
 /// 变动率（Rate of Change，`TA_MOM` 的 `ROC` 变体，TA-Lib `TA_ROC`）。
 /// `ROC[i] = 100 * (inReal[i] - inReal[i-period]) / inReal[i-period]`。
 pub fn roc(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    rate_of_change(values, time_period, 0)
+    let mut out = vec![f64::NAN; values.len()];
+    roc_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 变动率，零拷贝写入 `out`（与 `values` 等长）。见 [`roc`]。
+/// Rate of Change, written zero-copy into `out`. See [`roc`].
+pub fn roc_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "roc_with_output: out length must equal values length".into(),
+        ));
+    }
+    out.copy_from_slice(&rate_of_change(values, time_period, 0)?);
+    Ok(())
 }
 
 /// `roc` 便捷版本，默认周期 10。/ `roc` with default period (10).
@@ -156,7 +192,26 @@ pub fn roc_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 
 /// 变动率（百分比，TA-Lib `TA_ROCP`）。`ROCP[i] = (cur - prev) / prev`。
 pub fn rocp(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    rate_of_change(values, time_period, 1)
+    let mut out = vec![f64::NAN; values.len()];
+    rocp_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 变动率（百分比），零拷贝写入 `out`（与 `values` 等长）。见 [`rocp`]。
+/// Rate of Change (percent), written zero-copy into `out`. See [`rocp`].
+pub fn rocp_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "rocp_with_output: out length must equal values length".into(),
+        ));
+    }
+    out.copy_from_slice(&rate_of_change(values, time_period, 1)?);
+    Ok(())
 }
 
 /// `rocp` 便捷版本，默认周期 10。/ `rocp` with default period (10).
@@ -166,7 +221,26 @@ pub fn rocp_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 
 /// 变动率（比率，TA-Lib `TA_ROCR`）。`ROCR[i] = cur / prev`。
 pub fn rocr(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    rate_of_change(values, time_period, 2)
+    let mut out = vec![f64::NAN; values.len()];
+    rocr_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 变动率（比率），零拷贝写入 `out`（与 `values` 等长）。见 [`rocr`]。
+/// Rate of Change (ratio), written zero-copy into `out`. See [`rocr`].
+pub fn rocr_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "rocr_with_output: out length must equal values length".into(),
+        ));
+    }
+    out.copy_from_slice(&rate_of_change(values, time_period, 2)?);
+    Ok(())
 }
 
 /// `rocr` 便捷版本，默认周期 10。/ `rocr` with default period (10).
@@ -176,7 +250,26 @@ pub fn rocr_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 
 /// 变动率（比率×100，TA-Lib `TA_ROCR100`）。`ROCR100[i] = 100 * cur / prev`。
 pub fn rocr100(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    rate_of_change(values, time_period, 3)
+    let mut out = vec![f64::NAN; values.len()];
+    rocr100_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 变动率（比率×100），零拷贝写入 `out`（与 `values` 等长）。见 [`rocr100`]。
+/// Rate of Change (ratio × 100), written zero-copy into `out`. See [`rocr100`].
+pub fn rocr100_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "rocr100_with_output: out length must equal values length".into(),
+        ));
+    }
+    out.copy_from_slice(&rate_of_change(values, time_period, 3)?);
+    Ok(())
 }
 
 /// `rocr100` 便捷版本，默认周期 10。/ `rocr100` with default period (10).
@@ -205,10 +298,29 @@ pub fn rocr100_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 #[allow(clippy::needless_return)]
 pub fn rsi(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    rsi_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 相对强弱指数，零拷贝写入 `out`（与 `values` 等长，前导 `period` 为 NaN）。见 [`rsi`]。
+///
+/// Relative Strength Index, written zero-copy into `out`. See [`rsi`]. Numerically identical
+/// to [`rsi`].
+pub fn rsi_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "rsi_with_output: out length must equal values length".into(),
+        ));
+    }
     if n < time_period + 1 {
-        return Ok(out);
+        return Ok(());
     }
     let p = time_period as f64;
     // 种子：前 `period` 个涨跌幅（bars 1..period）。
@@ -239,7 +351,7 @@ pub fn rsi(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
             100.0 - 100.0 / (1.0 + gain / loss)
         };
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `rsi` 便捷版本，默认周期 14。/ `rsi` with default period (14).
@@ -272,6 +384,28 @@ pub fn macd(
     slow_period: usize,
     signal_period: usize,
 ) -> Result<Macd, TaError> {
+    let n = values.len();
+    let mut out = Macd {
+        macd: vec![f64::NAN; n],
+        signal: vec![f64::NAN; n],
+        hist: vec![f64::NAN; n],
+    };
+    macd_with_output(values, fast_period, slow_period, signal_period, &mut out)?;
+    Ok(out)
+}
+
+/// 指数平滑异同移动平均，零拷贝写入 `out`（三轨与 `values` 等长）。
+/// 见 [`macd`]。
+///
+/// Moving Average Convergence/Divergence, written zero-copy into `out` (three equal-length
+/// arrays). See [`macd`]. Numerically identical to [`macd`].
+pub fn macd_with_output(
+    values: &[f64],
+    fast_period: usize,
+    slow_period: usize,
+    signal_period: usize,
+    out: &mut Macd,
+) -> Result<(), TaError> {
     check_period(fast_period)?;
     check_period(slow_period)?;
     check_period(signal_period)?;
@@ -281,6 +415,11 @@ pub fn macd(
         ));
     }
     let n = values.len();
+    if out.macd.len() != n || out.signal.len() != n || out.hist.len() != n {
+        return Err(TaError::BadParam(
+            "macd_with_output: out vectors must have length == values length".into(),
+        ));
+    }
     let fast_k = 2.0 / (fast_period as f64 + 1.0);
     let slow_k = 2.0 / (slow_period as f64 + 1.0);
     let signal_k = 2.0 / (signal_period as f64 + 1.0);
@@ -288,15 +427,8 @@ pub fn macd(
     // TA-Lib 锁步实现：lookback = slow 的 EMA lookback + signal 的 EMA lookback。
     // TA-Lib lockstep: lookback = EMA-lookback(slow) + EMA-lookback(signal).
     let lookback_total = lookback_signal + (slow_period - 1); // = slow + signal - 2
-    let mut macd_line = vec![f64::NAN; n];
-    let mut signal = vec![f64::NAN; n];
-    let mut hist = vec![f64::NAN; n];
     if n <= lookback_total {
-        return Ok(Macd {
-            macd: macd_line,
-            signal,
-            hist,
-        });
+        return Ok(());
     }
     // 单遍锁步：两条价格 EMA 独立递推，差值为 MACD 线，MACD 线立即喂入信号 EMA。
     // Single lockstep pass: both price EMAs advance independently, their difference is the
@@ -359,9 +491,9 @@ pub fn macd(
     // 稳定区：写入三个等长、对齐到同一前导 NaN 的输出。
     // Stable zone: write the three equal-length, leading-NaN-aligned outputs.
     let mut out_idx = lookback_total;
-    macd_line[out_idx] = macd_value;
-    signal[out_idx] = prev_signal;
-    hist[out_idx] = macd_value - prev_signal;
+    out.macd[out_idx] = macd_value;
+    out.signal[out_idx] = prev_signal;
+    out.hist[out_idx] = macd_value - prev_signal;
     while today < n {
         temp_real = values[today];
         today += 1;
@@ -370,15 +502,11 @@ pub fn macd(
         macd_value = prev_fast - prev_slow;
         prev_signal = (macd_value - prev_signal) * signal_k + prev_signal;
         out_idx += 1;
-        macd_line[out_idx] = macd_value;
-        signal[out_idx] = prev_signal;
-        hist[out_idx] = macd_value - prev_signal;
+        out.macd[out_idx] = macd_value;
+        out.signal[out_idx] = prev_signal;
+        out.hist[out_idx] = macd_value - prev_signal;
     }
-    Ok(Macd {
-        macd: macd_line,
-        signal,
-        hist,
-    })
+    Ok(())
 }
 
 /// `macd` 便捷版本，使用 TA-Lib 默认 12 / 26 / 9。/ `macd` with defaults 12 / 26 / 9.
@@ -393,7 +521,27 @@ pub fn macd_fix(
     fast_period: usize,
     slow_period: usize,
 ) -> Result<Macd, TaError> {
-    macd(values, fast_period, slow_period, MACD_SIGNAL)
+    let n = values.len();
+    let mut out = Macd {
+        macd: vec![f64::NAN; n],
+        signal: vec![f64::NAN; n],
+        hist: vec![f64::NAN; n],
+    };
+    macd_fix_with_output(values, fast_period, slow_period, &mut out)?;
+    Ok(out)
+}
+
+/// 快捷 MACD（固定信号周期 9），零拷贝写入 `out`。见 [`macd_fix`]。
+///
+/// Convenience MACD (fixed signal period 9), written zero-copy into `out`. See [`macd_fix`].
+/// Numerically identical to [`macd_fix`].
+pub fn macd_fix_with_output(
+    values: &[f64],
+    fast_period: usize,
+    slow_period: usize,
+    out: &mut Macd,
+) -> Result<(), TaError> {
+    macd_with_output(values, fast_period, slow_period, MACD_SIGNAL, out)
 }
 
 /// `macd_fix` 便捷版本，默认 12 / 26。/ `macd_fix` with defaults 12 / 26.
@@ -409,7 +557,28 @@ pub fn macd_ext(
     slow_period: usize,
     signal_period: usize,
 ) -> Result<Macd, TaError> {
-    macd(values, fast_period, slow_period, signal_period)
+    let n = values.len();
+    let mut out = Macd {
+        macd: vec![f64::NAN; n],
+        signal: vec![f64::NAN; n],
+        hist: vec![f64::NAN; n],
+    };
+    macd_ext_with_output(values, fast_period, slow_period, signal_period, &mut out)?;
+    Ok(out)
+}
+
+/// 扩展 MACD，零拷贝写入 `out`。见 [`macd_ext`]。
+///
+/// Extended MACD, written zero-copy into `out`. See [`macd_ext`]. Numerically identical to
+/// [`macd_ext`].
+pub fn macd_ext_with_output(
+    values: &[f64],
+    fast_period: usize,
+    slow_period: usize,
+    signal_period: usize,
+    out: &mut Macd,
+) -> Result<(), TaError> {
+    macd_with_output(values, fast_period, slow_period, signal_period, out)
 }
 
 /// `macd_ext` 便捷版本，默认 12 / 26 / 9。/ `macd_ext` with defaults 12 / 26 / 9.
@@ -426,19 +595,40 @@ pub fn macd_ext_default(values: &[f64]) -> Result<Macd, TaError> {
 pub fn apo(values: &[f64], fast_period: usize, slow_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(fast_period)?;
     check_period(slow_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    apo_with_output(values, fast_period, slow_period, &mut out)?;
+    Ok(out)
+}
+
+/// 绝对价格震荡器，零拷贝写入 `out`（与 `values` 等长，前导 `slow-1` 为 NaN）。见 [`apo`]。
+///
+/// Absolute Price Oscillator, written zero-copy into `out`. See [`apo`]. Numerically identical
+/// to [`apo`].
+pub fn apo_with_output(
+    values: &[f64],
+    fast_period: usize,
+    slow_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(fast_period)?;
+    check_period(slow_period)?;
     if fast_period >= slow_period {
         return Err(TaError::BadParam("fast_period must be < slow_period".into()));
+    }
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "apo_with_output: out length must equal values length".into(),
+        ));
     }
     let ef = ema(values, fast_period);
     let es = ema(values, slow_period);
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
     for i in 0..n {
         if !ef[i].is_nan() && !es[i].is_nan() {
             out[i] = ef[i] - es[i];
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `apo` 便捷版本，默认 12 / 26。/ `apo` with defaults 12 / 26.
@@ -451,19 +641,40 @@ pub fn apo_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 pub fn ppo(values: &[f64], fast_period: usize, slow_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(fast_period)?;
     check_period(slow_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    ppo_with_output(values, fast_period, slow_period, &mut out)?;
+    Ok(out)
+}
+
+/// 百分比价格震荡器，零拷贝写入 `out`（与 `values` 等长，前导 `slow-1` 为 NaN）。见 [`ppo`]。
+///
+/// Percentage Price Oscillator, written zero-copy into `out`. See [`ppo`]. Numerically
+/// identical to [`ppo`].
+pub fn ppo_with_output(
+    values: &[f64],
+    fast_period: usize,
+    slow_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(fast_period)?;
+    check_period(slow_period)?;
     if fast_period >= slow_period {
         return Err(TaError::BadParam("fast_period must be < slow_period".into()));
+    }
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "ppo_with_output: out length must equal values length".into(),
+        ));
     }
     let ef = ema(values, fast_period);
     let es = ema(values, slow_period);
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
     for i in 0..n {
         if !ef[i].is_nan() && !es[i].is_nan() && es[i] != 0.0 {
             out[i] = 100.0 * (ef[i] - es[i]) / es[i];
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `ppo` 便捷版本，默认 12 / 26。/ `ppo` with defaults 12 / 26.
@@ -488,10 +699,29 @@ pub fn ppo_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// `CMO = 100*(gain-loss)/(gain+loss)`. The leading `period` positions are [`f64::NAN`].
 pub fn cmo(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
+    let mut out = vec![f64::NAN; values.len()];
+    cmo_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// Chande 动量震荡器，零拷贝写入 `out`（与 `values` 等长，前导 `period` 为 NaN）。见 [`cmo`]。
+///
+/// Chande Momentum Oscillator, written zero-copy into `out`. See [`cmo`]. Numerically
+/// identical to [`cmo`].
+pub fn cmo_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "cmo_with_output: out length must equal values length".into(),
+        ));
+    }
     if n <= time_period {
-        return Ok(out);
+        return Ok(());
     }
     let p = time_period as f64;
     // 种子：前 `period` 个涨跌幅（bars 1..period），增益/损失各自求和后取均值。
@@ -540,7 +770,7 @@ pub fn cmo(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
             100.0 * (prev_gain - prev_loss) / denom
         };
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `cmo` 便捷版本，默认周期 14。/ `cmo` with default period (14).
@@ -560,10 +790,32 @@ pub fn cci(
 ) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "cci")?;
+    let mut out = vec![f64::NAN; close.len()];
+    cci_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 商品通道指数，零拷贝写入 `out`（与 `close` 等长，前导 `period-1` 为 NaN）。见 [`cci`]。
+///
+/// Commodity Channel Index, written zero-copy into `out`. See [`cci`]. Numerically identical
+/// to [`cci`].
+pub fn cci_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "cci")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "cci_with_output: out length must equal close length".into(),
+        ));
+    }
     let n = close.len();
     let tp: Vec<f64> = (0..n).map(|i| (high[i] + low[i] + close[i]) / 3.0).collect();
     let sma_tp = rolling_mean(&tp, time_period);
-    let mut out = vec![f64::NAN; n];
     for i in (time_period - 1)..n {
         let mean = sma_tp[i];
         let mut dev = 0.0;
@@ -573,7 +825,7 @@ pub fn cci(
         dev /= time_period as f64;
         out[i] = if dev == 0.0 { 0.0 } else { (tp[i] - mean) / (0.015 * dev) };
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `cci` 便捷版本，默认周期 20。/ `cci` with default period (20).
@@ -598,6 +850,30 @@ pub fn mfi(
 ) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close, volume], "mfi")?;
+    let mut out = vec![f64::NAN; close.len()];
+    mfi_with_output(high, low, close, volume, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 资金流量指数，零拷贝写入 `out`（与 `close` 等长，前导 `period` 为 NaN）。见 [`mfi`]。
+///
+/// Money Flow Index, written zero-copy into `out`. See [`mfi`]. Numerically identical to
+/// [`mfi`].
+pub fn mfi_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    volume: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close, volume], "mfi")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "mfi_with_output: out length must equal close length".into(),
+        ));
+    }
     let n = close.len();
     let mut tp = vec![0.0_f64; n];
     let mut mf = vec![0.0_f64; n];
@@ -618,7 +894,6 @@ pub fn mfi(
     }
     let sp = rolling_sum(&pos, time_period);
     let sn = rolling_sum(&neg, time_period);
-    let mut out = vec![f64::NAN; n];
     for i in time_period..n {
         let (p, l) = (sp[i], sn[i]);
         if p.is_nan() || l.is_nan() {
@@ -626,7 +901,7 @@ pub fn mfi(
         }
         out[i] = if l == 0.0 { 100.0 } else { 100.0 - 100.0 / (1.0 + p / l) };
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `mfi` 便捷版本，默认周期 14。/ `mfi` with default period (14).
@@ -692,8 +967,29 @@ pub fn willr_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64
 /// 无滞后（lookback 0）；若 `high == low` 返回 0.0。
 pub fn bop(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[open, high, low, close], "bop")?;
+    let mut out = vec![0.0_f64; close.len()];
+    bop_with_output(open, high, low, close, &mut out)?;
+    Ok(out)
+}
+
+/// 均势，零拷贝写入 `out`（与 `close` 等长，无前导 NaN）。见 [`bop`]。
+///
+/// Balance Of Power, written zero-copy into `out`. See [`bop`]. Numerically identical to
+/// [`bop`].
+pub fn bop_with_output(
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_eq_len(&[open, high, low, close], "bop")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "bop_with_output: out length must equal close length".into(),
+        ));
+    }
     let n = close.len();
-    let mut out = vec![0.0_f64; n];
     for i in 0..n {
         let range = high[i] - low[i];
         out[i] = if range == 0.0 {
@@ -702,7 +998,7 @@ pub fn bop(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec
             (close[i] - open[i]) / range
         };
     }
-    Ok(out)
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -727,6 +1023,33 @@ pub fn ultosc(
     check_period(period2)?;
     check_period(period3)?;
     check_eq_len(&[high, low, close], "ultosc")?;
+    let mut out = vec![f64::NAN; close.len()];
+    ultosc_with_output(high, low, close, period1, period2, period3, &mut out)?;
+    Ok(out)
+}
+
+/// 终极震荡器，零拷贝写入 `out`（与 `close` 等长，前导 `period3` 为 NaN）。见 [`ultosc`]。
+///
+/// Ultimate Oscillator, written zero-copy into `out`. See [`ultosc`]. Numerically identical
+/// to [`ultosc`].
+pub fn ultosc_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    period1: usize,
+    period2: usize,
+    period3: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(period1)?;
+    check_period(period2)?;
+    check_period(period3)?;
+    check_eq_len(&[high, low, close], "ultosc")?;
+    if out.len() != close.len() {
+        return Err(TaError::BadParam(
+            "ultosc_with_output: out length must equal close length".into(),
+        ));
+    }
     let n = close.len();
     let mut bp = vec![0.0_f64; n];
     let mut tr = vec![0.0_f64; n];
@@ -741,7 +1064,6 @@ pub fn ultosc(
     let str2 = rolling_sum(&tr, period2);
     let sbp3 = rolling_sum(&bp, period3);
     let str3 = rolling_sum(&tr, period3);
-    let mut out = vec![f64::NAN; n];
     // TA-Lib 以最长周期 `period3` 为 lookback（首个有效值位于 index `period3`，而非 `period3-1`）。
     // TA-Lib uses the longest period `period3` as the lookback (first valid at index `period3`).
     let lookback = period3;
@@ -760,7 +1082,7 @@ pub fn ultosc(
         let avg3 = a3 / t3;
         out[i] = 100.0 * (4.0 * avg1 + 2.0 * avg2 + avg3) / 7.0;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// `ultosc` 便捷版本，默认 7 / 14 / 28。/ `ultosc` with defaults 7 / 14 / 28.
@@ -963,7 +1285,31 @@ fn directional(
 pub fn plus_dm(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "plus_dm")?;
-    Ok(directional(high, low, close, time_period).0)
+    let mut out = vec![f64::NAN; high.len()];
+    plus_dm_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 正方向性运动，零拷贝写入 `out`（与 `high` 等长，前导 `period-1` 为 NaN）。见 [`plus_dm`]。
+///
+/// Positive Directional Movement, written zero-copy into `out`. See [`plus_dm`]. Numerically
+/// identical to [`plus_dm`].
+pub fn plus_dm_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "plus_dm")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "plus_dm_with_output: out length must equal high length".into(),
+        ));
+    }
+    out.copy_from_slice(&directional(high, low, close, time_period).0);
+    Ok(())
 }
 
 /// `plus_dm` 便捷版本，默认周期 14。/ `plus_dm` with default period (14).
@@ -978,7 +1324,31 @@ pub fn plus_dm_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f
 pub fn minus_dm(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "minus_dm")?;
-    Ok(directional(high, low, close, time_period).1)
+    let mut out = vec![f64::NAN; high.len()];
+    minus_dm_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 负方向性运动，零拷贝写入 `out`（与 `high` 等长，前导 `period-1` 为 NaN）。见 [`minus_dm`]。
+///
+/// Negative Directional Movement, written zero-copy into `out`. See [`minus_dm`]. Numerically
+/// identical to [`minus_dm`].
+pub fn minus_dm_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "minus_dm")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "minus_dm_with_output: out length must equal high length".into(),
+        ));
+    }
+    out.copy_from_slice(&directional(high, low, close, time_period).1);
+    Ok(())
 }
 
 /// `minus_dm` 便捷版本，默认周期 14。/ `minus_dm` with default period (14).
@@ -990,7 +1360,31 @@ pub fn minus_dm_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<
 pub fn plus_di(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "plus_di")?;
-    Ok(directional(high, low, close, time_period).2)
+    let mut out = vec![f64::NAN; high.len()];
+    plus_di_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 正方向性指标，零拷贝写入 `out`（与 `high` 等长，前导 `period-1` 为 NaN）。见 [`plus_di`]。
+///
+/// Positive Directional Indicator, written zero-copy into `out`. See [`plus_di`]. Numerically
+/// identical to [`plus_di`].
+pub fn plus_di_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "plus_di")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "plus_di_with_output: out length must equal high length".into(),
+        ));
+    }
+    out.copy_from_slice(&directional(high, low, close, time_period).2);
+    Ok(())
 }
 
 /// `plus_di` 便捷版本，默认周期 14。/ `plus_di` with default period (14).
@@ -1002,7 +1396,31 @@ pub fn plus_di_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f
 pub fn minus_di(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "minus_di")?;
-    Ok(directional(high, low, close, time_period).3)
+    let mut out = vec![f64::NAN; high.len()];
+    minus_di_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 负方向性指标，零拷贝写入 `out`（与 `high` 等长，前导 `period-1` 为 NaN）。见 [`minus_di`]。
+///
+/// Negative Directional Indicator, written zero-copy into `out`. See [`minus_di`]. Numerically
+/// identical to [`minus_di`].
+pub fn minus_di_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "minus_di")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "minus_di_with_output: out length must equal high length".into(),
+        ));
+    }
+    out.copy_from_slice(&directional(high, low, close, time_period).3);
+    Ok(())
 }
 
 /// `minus_di` 便捷版本，默认周期 14。/ `minus_di` with default period (14).
@@ -1014,7 +1432,31 @@ pub fn minus_di_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<
 pub fn adx(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "adx")?;
-    Ok(directional(high, low, close, time_period).4)
+    let mut out = vec![f64::NAN; high.len()];
+    adx_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 平均方向性运动指数，零拷贝写入 `out`（与 `high` 等长，前导 `2*period-1` 为 NaN）。见 [`adx`]。
+///
+/// Average Directional Movement Index, written zero-copy into `out`. See [`adx`]. Numerically
+/// identical to [`adx`].
+pub fn adx_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "adx")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "adx_with_output: out length must equal high length".into(),
+        ));
+    }
+    out.copy_from_slice(&directional(high, low, close, time_period).4);
+    Ok(())
 }
 
 /// `adx` 便捷版本，默认周期 14。/ `adx` with default period (14).
@@ -1026,7 +1468,30 @@ pub fn adx_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>,
 pub fn adxr(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
     check_eq_len(&[high, low, close], "adxr")?;
-    Ok(directional(high, low, close, time_period).5)
+    let mut out = vec![f64::NAN; high.len()];
+    adxr_with_output(high, low, close, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 平均方向性运动指数评级，零拷贝写入 `out`（与 `high` 等长，前导 `3*period-2` 为 NaN）。见 [`adxr`]。
+///
+/// ADX Rating, written zero-copy into `out`. See [`adxr`]. Numerically identical to [`adxr`].
+pub fn adxr_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low, close], "adxr")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "adxr_with_output: out length must equal high length".into(),
+        ));
+    }
+    out.copy_from_slice(&directional(high, low, close, time_period).5);
+    Ok(())
 }
 
 /// `adxr` 便捷版本，默认周期 14。/ `adxr` with default period (14).
@@ -1053,16 +1518,39 @@ pub fn aroon(high: &[f64], low: &[f64], time_period: usize) -> Result<Aroon, TaE
     check_period(time_period)?;
     check_eq_len(&[high, low], "aroon")?;
     let n = high.len();
+    let mut out = Aroon {
+        up: vec![f64::NAN; n],
+        down: vec![f64::NAN; n],
+    };
+    aroon_with_output(high, low, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 阿隆指标，零拷贝写入 `out`（`up`/`down` 与 `high` 等长，前导 `period` 为 NaN）。见 [`aroon`]。
+///
+/// AROON, written zero-copy into `out` (equal-length `up`/`down`). See [`aroon`]. Numerically
+/// identical to [`aroon`] (preserves the reference build's swapped `up`/`down`).
+pub fn aroon_with_output(
+    high: &[f64],
+    low: &[f64],
+    time_period: usize,
+    out: &mut Aroon,
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low], "aroon")?;
+    let n = high.len();
+    if out.up.len() != n || out.down.len() != n {
+        return Err(TaError::BadParam(
+            "aroon_with_output: out vectors must have length == high length".into(),
+        ));
+    }
     let period = time_period as i64;
     // TRUE up/down from the canonical streaming algorithm (before the build's swap).
     let mut true_up = vec![f64::NAN; n];
     let mut true_down = vec![f64::NAN; n];
     if n <= time_period {
         // Return swapped-but-empty so `up`/`down` still line up with the contract.
-        return Ok(Aroon {
-            up: true_down,
-            down: true_up,
-        });
+        return Ok(());
     }
     let mut today: i64 = time_period as i64; // first output index (startIdx)
     let mut trailing_idx: i64 = today - period; // = 0
@@ -1115,10 +1603,9 @@ pub fn aroon(high: &[f64], low: &[f64], time_period: usize) -> Result<Aroon, TaE
         today += 1;
     }
     // Match the reference build's swapped up/down output 1:1 with the golden vectors.
-    Ok(Aroon {
-        up: true_down,
-        down: true_up,
-    })
+    out.up = true_down;
+    out.down = true_up;
+    Ok(())
 }
 
 /// `aroon` 便捷版本，默认周期 14。/ `aroon` with default period (14).
@@ -1129,22 +1616,47 @@ pub fn aroon_default(high: &[f64], low: &[f64]) -> Result<Aroon, TaError> {
 /// 阿隆震荡器（TA-Lib `TA_AROONOSC`）。基准构建中 `AROONOSC = 返回的上轨 - 返回的下轨`
 /// （由于 `aroon` 的 up/down 已按基准构建互换，故本值等于真实 `down - up`，与黄金向量一致）。
 pub fn aroon_osc(high: &[f64], low: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    let a = aroon(high, low, time_period)?;
+    check_period(time_period)?;
+    check_eq_len(&[high, low], "aroon_osc")?;
+    let mut out = vec![f64::NAN; high.len()];
+    aroon_osc_with_output(high, low, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 阿隆震荡器，零拷贝写入 `out`（与 `high` 等长）。见 [`aroon_osc`]。
+///
+/// AROON Oscillator, written zero-copy into `out`. See [`aroon_osc`]. Numerically identical
+/// to [`aroon_osc`].
+pub fn aroon_osc_with_output(
+    high: &[f64],
+    low: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    check_eq_len(&[high, low], "aroon_osc")?;
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "aroon_osc_with_output: out length must equal high length".into(),
+        ));
+    }
+    let mut a = Aroon {
+        up: vec![f64::NAN; high.len()],
+        down: vec![f64::NAN; high.len()],
+    };
+    aroon_with_output(high, low, time_period, &mut a)?;
     // `aroon` 返回的是按基准构建互换后的 up/down（见其文档），故此处用 `down - up`
     // 还原真实 `AROONOSC = 真实上轨 - 真实下轨 = TRUE_up - TRUE_down`，与黄金向量一致。
-    let out: Vec<f64> = a
-        .down
-        .iter()
-        .zip(&a.up)
-        .map(|(d, u)| {
-            if u.is_nan() || d.is_nan() {
-                f64::NAN
-            } else {
-                d - u
-            }
-        })
-        .collect();
-    Ok(out)
+    for i in 0..out.len() {
+        let u = a.up[i];
+        let d = a.down[i];
+        out[i] = if u.is_nan() || d.is_nan() {
+            f64::NAN
+        } else {
+            d - u
+        };
+    }
+    Ok(())
 }
 
 /// `aroon_osc` 便捷版本，默认周期 14。/ `aroon_osc` with default period (14).

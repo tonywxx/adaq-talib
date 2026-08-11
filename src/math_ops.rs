@@ -20,21 +20,72 @@ use crate::error::{check_period, TaError};
 /// Element-wise addition (TA-Lib `TA_ADD`): `out = real0 + real1`; equal-length.
 pub fn add(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[real0, real1], "add")?;
-    Ok(real0.iter().zip(real1).map(|(&a, &b)| a + b).collect())
+    let mut out = vec![f64::NAN; real0.len()];
+    add_with_output(real0, real1, &mut out)?;
+    Ok(out)
+}
+
+/// 逐元素相加的零拷贝写入变体。见 [`add`]。
+/// Zero-copy write variant of [`add`]. See [`add`].
+pub fn add_with_output(real0: &[f64], real1: &[f64], out: &mut [f64]) -> Result<(), TaError> {
+    check_eq_len(&[real0, real1], "add")?;
+    if out.len() != real0.len() {
+        return Err(TaError::BadParam(
+            "add_with_output: out length must equal real0 length".into(),
+        ));
+    }
+    for ((o, &a), &b) in out.iter_mut().zip(real0.iter()).zip(real1.iter()) {
+        *o = a + b;
+    }
+    Ok(())
 }
 
 /// 逐元素相减（TA-Lib `TA_SUB`）：`out = real0 - real1`，等长返回。
 /// Element-wise subtraction (TA-Lib `TA_SUB`): `out = real0 - real1`; equal-length.
 pub fn sub(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[real0, real1], "sub")?;
-    Ok(real0.iter().zip(real1).map(|(&a, &b)| a - b).collect())
+    let mut out = vec![f64::NAN; real0.len()];
+    sub_with_output(real0, real1, &mut out)?;
+    Ok(out)
+}
+
+/// 逐元素相减的零拷贝写入变体。见 [`sub`]。
+/// Zero-copy write variant of [`sub`]. See [`sub`].
+pub fn sub_with_output(real0: &[f64], real1: &[f64], out: &mut [f64]) -> Result<(), TaError> {
+    check_eq_len(&[real0, real1], "sub")?;
+    if out.len() != real0.len() {
+        return Err(TaError::BadParam(
+            "sub_with_output: out length must equal real0 length".into(),
+        ));
+    }
+    for ((o, &a), &b) in out.iter_mut().zip(real0.iter()).zip(real1.iter()) {
+        *o = a - b;
+    }
+    Ok(())
 }
 
 /// 逐元素相乘（TA-Lib `TA_MULT`）：`out = real0 * real1`，等长返回。
 /// Element-wise multiplication (TA-Lib `TA_MULT`): `out = real0 * real1`; equal-length.
 pub fn mult(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[real0, real1], "mult")?;
-    Ok(real0.iter().zip(real1).map(|(&a, &b)| a * b).collect())
+    let mut out = vec![f64::NAN; real0.len()];
+    mult_with_output(real0, real1, &mut out)?;
+    Ok(out)
+}
+
+/// 逐元素相乘的零拷贝写入变体。见 [`mult`]。
+/// Zero-copy write variant of [`mult`]. See [`mult`].
+pub fn mult_with_output(real0: &[f64], real1: &[f64], out: &mut [f64]) -> Result<(), TaError> {
+    check_eq_len(&[real0, real1], "mult")?;
+    if out.len() != real0.len() {
+        return Err(TaError::BadParam(
+            "mult_with_output: out length must equal real0 length".into(),
+        ));
+    }
+    for ((o, &a), &b) in out.iter_mut().zip(real0.iter()).zip(real1.iter()) {
+        *o = a * b;
+    }
+    Ok(())
 }
 
 /// 逐元素相除（TA-Lib `TA_DIV`）：`out = real0 / real1`，等长返回；除零产生 `inf`/`NaN`。
@@ -42,28 +93,93 @@ pub fn mult(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
 /// division by zero yields `inf`/`NaN`, matching the original.
 pub fn div(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
     check_eq_len(&[real0, real1], "div")?;
-    Ok(real0.iter().zip(real1).map(|(&a, &b)| a / b).collect())
+    let mut out = vec![f64::NAN; real0.len()];
+    div_with_output(real0, real1, &mut out)?;
+    Ok(out)
+}
+
+/// 逐元素相除的零拷贝写入变体。见 [`div`]。
+/// Zero-copy write variant of [`div`]. See [`div`].
+pub fn div_with_output(real0: &[f64], real1: &[f64], out: &mut [f64]) -> Result<(), TaError> {
+    check_eq_len(&[real0, real1], "div")?;
+    if out.len() != real0.len() {
+        return Err(TaError::BadParam(
+            "div_with_output: out length must equal real0 length".into(),
+        ));
+    }
+    for ((o, &a), &b) in out.iter_mut().zip(real0.iter()).zip(real1.iter()) {
+        *o = a / b;
+    }
+    Ok(())
 }
 
 /// 滚动窗口最大值（TA-Lib `TA_MAX`）。前导 `period-1` 个为 [`f64::NAN`]。
 /// Rolling maximum (TA-Lib `TA_MAX`). The leading `period - 1` positions are [`f64::NAN`].
 pub fn max(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(rolling_max(values, time_period))
+    let mut out = vec![f64::NAN; values.len()];
+    max_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最大值的零拷贝写入变体。见 [`max`]。
+/// Zero-copy write variant of [`max`]. See [`max`].
+pub fn max_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "max_with_output: out length must equal values length".into(),
+        ));
+    }
+    let r = rolling_max(values, time_period);
+    out.copy_from_slice(&r);
+    Ok(())
 }
 
 /// 滚动窗口最小值（TA-Lib `TA_MIN`）。前导 `period-1` 个为 [`f64::NAN`]。
 /// Rolling minimum (TA-Lib `TA_MIN`). The leading `period - 1` positions are [`f64::NAN`].
 pub fn min(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(rolling_min(values, time_period))
+    let mut out = vec![f64::NAN; values.len()];
+    min_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最小值的零拷贝写入变体。见 [`min`]。
+/// Zero-copy write variant of [`min`]. See [`min`].
+pub fn min_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "min_with_output: out length must equal values length".into(),
+        ));
+    }
+    let r = rolling_min(values, time_period);
+    out.copy_from_slice(&r);
+    Ok(())
 }
 
 /// 滚动窗口求和（TA-Lib `TA_SUM`）。前导 `period-1` 个为 [`f64::NAN`]。
 /// Rolling sum (TA-Lib `TA_SUM`). The leading `period - 1` positions are [`f64::NAN`].
 pub fn sum(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(rolling_sum(values, time_period))
+    let mut out = vec![f64::NAN; values.len()];
+    sum_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口求和的零拷贝写入变体。见 [`sum`]。
+/// Zero-copy write variant of [`sum`]. See [`sum`].
+pub fn sum_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "sum_with_output: out length must equal values length".into(),
+        ));
+    }
+    let r = rolling_sum(values, time_period);
+    out.copy_from_slice(&r);
+    Ok(())
 }
 
 /// 滚动窗口最大值的**索引**（TA-Lib `TA_MAXINDEX`），返回窗口内最大值的绝对位置
@@ -72,7 +188,27 @@ pub fn sum(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
 /// of the max in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
 pub fn max_index(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(rolling_extreme_index(values, time_period, true))
+    let mut out = vec![f64::NAN; values.len()];
+    max_index_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最大值索引的零拷贝写入变体。见 [`max_index`]。
+/// Zero-copy write variant of [`max_index`]. See [`max_index`].
+pub fn max_index_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "max_index_with_output: out length must equal values length".into(),
+        ));
+    }
+    let r = rolling_extreme_index(values, time_period, true);
+    out.copy_from_slice(&r);
+    Ok(())
 }
 
 /// 滚动窗口最小值的**索引**（TA-Lib `TA_MININDEX`），返回窗口内最小值的绝对位置
@@ -81,7 +217,27 @@ pub fn max_index(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError
 /// of the min in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
 pub fn min_index(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
     check_period(time_period)?;
-    Ok(rolling_extreme_index(values, time_period, false))
+    let mut out = vec![f64::NAN; values.len()];
+    min_index_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最小值索引的零拷贝写入变体。见 [`min_index`]。
+/// Zero-copy write variant of [`min_index`]. See [`min_index`].
+pub fn min_index_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    if out.len() != values.len() {
+        return Err(TaError::BadParam(
+            "min_index_with_output: out length must equal values length".into(),
+        ));
+    }
+    let r = rolling_extreme_index(values, time_period, false);
+    out.copy_from_slice(&r);
+    Ok(())
 }
 
 /// 滚动窗口最小/最大值的双向量结果（TA-Lib `TA_MINMAX`）。
@@ -93,16 +249,45 @@ pub struct MinMax {
     pub max: Vec<f64>,
 }
 
-/// 滚动窗口最小/最大值（TA-Lib `TA_MINMAX`）。等长双向量，前导 `period-1` 为 [`f64::NAN`]。
-/// Rolling window min/max (TA-Lib `TA_MINMAX`); two equal-length vectors, leading `period - 1` `NaN`.
+/// 滚动窗口最小/最大值的双向量结果（TA-Lib `TA_MINMAX`），与前导 `period-1` 为 [`f64::NAN`]。
+/// Two-vector result of the rolling-window min/max (TA-Lib `TA_MINMAX`), with leading `period - 1` `NaN`.
 ///
 /// 单遍实现：复用 `core::rolling_minmax` 一次遍历同时求得最大与最小（最右 tie-break、前导
 /// `NaN` 与分别调用 `rolling_max`/`rolling_min` 逐位相等，见 `core::rolling_minmax` 文档），
 /// 将原本的两次独立窗口扫描合并为一次，规避重复遍历开销（P1 候选②，ADR 0005 零偏差）。
 pub fn minmax(values: &[f64], time_period: usize) -> Result<MinMax, TaError> {
     check_period(time_period)?;
+    let n = values.len();
+    let mut out = MinMax {
+        min: vec![f64::NAN; n],
+        max: vec![f64::NAN; n],
+    };
+    minmax_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最小/最大值的零拷贝写入变体。见 [`minmax`]。
+/// Zero-copy write variant of [`minmax`]. See [`minmax`].
+///
+/// `out` 的 `min` / `max` 向量长度均必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// Both `min` and `max` vectors of `out` must have length equal to `values.len()`; otherwise
+/// [`TaError::BadParam`] is returned.
+pub fn minmax_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut MinMax,
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    if out.min.len() != n || out.max.len() != n {
+        return Err(TaError::BadParam(
+            "minmax_with_output: out vectors must have length == values length".into(),
+        ));
+    }
     let (mx, mn) = rolling_minmax(values, time_period);
-    Ok(MinMax { min: mn, max: mx })
+    out.max.copy_from_slice(&mx);
+    out.min.copy_from_slice(&mn);
+    Ok(())
 }
 
 /// 滚动窗口最小/最大值索引的双向量结果（TA-Lib `TA_MINMAXINDEX`），平局取最左。
@@ -123,7 +308,36 @@ pub struct MinMaxIndex {
 /// naïve O(n·period) nested scan with two O(n) passes (candidate ③, ADR 0005 zero-deviation).
 pub fn minmax_index(values: &[f64], time_period: usize) -> Result<MinMaxIndex, TaError> {
     check_period(time_period)?;
+    let n = values.len();
+    let mut out = MinMaxIndex {
+        min_idx: vec![f64::NAN; n],
+        max_idx: vec![f64::NAN; n],
+    };
+    minmax_index_with_output(values, time_period, &mut out)?;
+    Ok(out)
+}
+
+/// 滚动窗口最小/最大值索引的零拷贝写入变体。见 [`minmax_index`]。
+/// Zero-copy write variant of [`minmax_index`]. See [`minmax_index`].
+///
+/// `out` 的 `min_idx` / `max_idx` 向量长度均必须等于 `values.len()`，否则返回 [`TaError::BadParam`]。
+/// Both `min_idx` and `max_idx` vectors of `out` must have length equal to `values.len()`; otherwise
+/// [`TaError::BadParam`] is returned.
+pub fn minmax_index_with_output(
+    values: &[f64],
+    time_period: usize,
+    out: &mut MinMaxIndex,
+) -> Result<(), TaError> {
+    check_period(time_period)?;
+    let n = values.len();
+    if out.min_idx.len() != n || out.max_idx.len() != n {
+        return Err(TaError::BadParam(
+            "minmax_index_with_output: out vectors must have length == values length".into(),
+        ));
+    }
     let min_idx = rolling_extreme_index(values, time_period, false);
     let max_idx = rolling_extreme_index(values, time_period, true);
-    Ok(MinMaxIndex { min_idx, max_idx })
+    out.min_idx.copy_from_slice(&min_idx);
+    out.max_idx.copy_from_slice(&max_idx);
+    Ok(())
 }
