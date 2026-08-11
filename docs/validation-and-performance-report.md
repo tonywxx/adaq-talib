@@ -232,6 +232,26 @@ shifted **82/54/25 (0.792×) → 85/60/16 (0.786×)**. The FMA contraction is th
 change of the whole optimization effort — it alone closed the entire EMA-family gap that algorithmic
 work (P2) could not reach.
 
+### 3.4 P3-7 single-thread micro-opt probe — no remaining lever (negative result, kept for the record)
+
+After the FMA pass, the 16 residual-slower functions were probed for any *remaining* single-thread
+lever, gated by the project's 度量前置 protocol (A/B bench, ±5% noise tolerance; revert if not ≥5%
+and 1:1 with golden vectors). Two candidate levers were implemented, `cargo test`-verified (326/0),
+and A/B-measured on a focused bench (`examples/bench_p3.rs`, N = 100,000, median of 5):
+
+| Candidate lever | Target | Before → After (ns/elem) | Δ | Verdict |
+|---|---|---:|---|---|
+| FMA contraction on the rolling sum-of-products (`s00 += a*a`, `s01 += a*b`) | `correl` (1.550×) | 4.795 → 4.897 | **+2.1%** (noise) | **Reverted** — bottleneck is the per-bar `sqrt` + divisions, not the sum recurrences; FMA is negligible here (unlike the EMA family where the recurrence *is* the whole function). |
+| Early color-change guard + `bool` color (restructure of the 2-candle compare) | `cdl_engulfing` (1.996×) | 5.316 → 5.683 | **+6.9%** (regression) | **Reverted** — the 2× gap is structural codegen, not branch shape; the rewrite made the hot path slightly worse. |
+
+Both fell within (or worse than) the ±5% gate, so they were **reverted** per protocol. The probe
+**confirms** the prior conclusion: the 16 residual functions are genuine single-thread floors — the
+dual-deque scans, strict recurrences, sliding-window divisions/sqrt, and candle-decision branches
+have no further single-thread lever. The FMA contraction that rescued the EMA family does **not**
+generalize (those functions are *pure* recurrences; the floors are not). Per `NEXT-ACTIONS-perf.md`
+**P3-2**, the only path to <1× for these 16 is **parallel chunking** (or explicit SIMD) behind a
+default-off feature flag, with boundary-state seeding to preserve 1:1 output.
+
 ## 4. Performance Results — All 161 Indicators
 
 | Indicator | TA Group | Rust ns/elem | Native C ns/elem | Rust/C | Status | Parity |
