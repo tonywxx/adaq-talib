@@ -35,15 +35,15 @@
 </style></head>
 <body><div class="wrap">
 <h1>adaq-talib vs TA-Lib C — 161 Indicators Performance Benchmark</h1>
-<div class="sub">Pure-Rust zero-FFI reimplementation (<code>adaq-talib</code> 0.1.2) benchmarked against native TA-Lib C 0.7.1.
-Generated 2026-08-10 20:57.</div>
+<div class="sub">Pure-Rust zero-FFI reimplementation (<code>adaq-talib</code> 0.1.3) benchmarked against native TA-Lib C 0.7.1.
+Generated 2026-08-11 04:01.</div>
 
 <div class="cards">
   <div class="card"><div class="k">Indicators</div><div class="v">161</div></div>
   <div class="card"><div class="k">Compared (both sides)</div><div class="v">161</div></div>
-  <div class="card"><div class="k">Geomean speedup</div><div class="v red">0.665×</div></div>
-  <div class="card"><div class="k">adaq faster</div><div class="v green">54</div></div>
-  <div class="card"><div class="k">adaq slower</div><div class="v red">107</div></div>
+  <div class="card"><div class="k">Geomean speedup</div><div class="v green">1.263×</div></div>
+  <div class="card"><div class="k">adaq faster</div><div class="v green">111</div></div>
+  <div class="card"><div class="k">adaq slower</div><div class="v red">50</div></div>
   <div class="card"><div class="k">Parity 1:1</div><div class="v green">160/161</div></div>
 </div>
 
@@ -69,28 +69,28 @@ Generated 2026-08-10 20:57.</div>
 </div>
 
 <h2>Per-category geomean speedup</h2>
-<div class="panel"><svg viewBox="0 0 760 320" width="100%" xmlns="http://www.w3.org/2000/svg"><line x1="150" y1="20" x2="150" y2="270" stroke="#3a3a4a"/><line x1="445.0" y1="20" x2="445.0" y2="270" stroke="#6b7280" stroke-dasharray="4 3"/><text x="445.0" y="14" fill="#9aa0aa" font-size="11" text-anchor="middle">1.0 (tie)</text><rect x="150" y="20" width="99.1" height="15.6" fill="#f85149" rx="2"/><text x="142" y="31.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Pattern Recognition</text><text x="255.06457705731563" y="31.8125" fill="#c9d1d9" font-size="11">0.336×</text><rect x="150" y="45.0" width="188.2" height="15.6" fill="#f85149" rx="2"/><text x="142" y="56.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Cycle Indicators</text><text x="344.1675024732991" y="56.8125" fill="#c9d1d9" font-size="11">0.638×</text><rect x="150" y="70.0" width="224.6" height="15.6" fill="#f85149" rx="2"/><text x="142" y="81.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Momentum Indicators</text><text x="380.56943262117136" y="81.8125" fill="#c9d1d9" font-size="11">0.761×</text><rect x="150" y="95.0" width="292.5" height="15.6" fill="#f85149" rx="2"/><text x="142" y="106.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Math Operators</text><text x="448.5467121335088" y="106.8125" fill="#c9d1d9" font-size="11">0.992×</text><rect x="150" y="120.0" width="300.3" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="131.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Overlap Studies</text><text x="456.3338037997732" y="131.8125" fill="#c9d1d9" font-size="11">1.018×</text><rect x="150" y="145.0" width="305.0" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="156.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Volume Indicators</text><text x="461.042924949947" y="156.8125" fill="#c9d1d9" font-size="11">1.034×</text><rect x="150" y="170.0" width="347.4" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="181.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Math Transform</text><text x="503.3896744669348" y="181.8125" fill="#c9d1d9" font-size="11">1.178×</text><rect x="150" y="195.0" width="355.8" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="206.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Volatility Indicators</text><text x="511.80688486666054" y="206.8125" fill="#c9d1d9" font-size="11">1.206×</text><rect x="150" y="220.0" width="507.0" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="231.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Price Transform</text><text x="663.0168338353479" y="231.8125" fill="#c9d1d9" font-size="11">1.719×</text><rect x="150" y="245.0" width="550.6" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="256.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Statistic Functions</text><text x="706.6370312922818" y="256.8125" fill="#c9d1d9" font-size="11">1.867×</text><text x="150.0" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">0.0</text><text x="297.5" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">0.5</text><text x="445.0" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">1.0</text><text x="592.5" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">1.5</text><text x="740.0" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">2.0</text></svg>
+<div class="panel"><svg viewBox="0 0 760 320" width="100%" xmlns="http://www.w3.org/2000/svg"><line x1="150" y1="20" x2="150" y2="270" stroke="#3a3a4a"/><line x1="445.0" y1="20" x2="445.0" y2="270" stroke="#6b7280" stroke-dasharray="4 3"/><text x="445.0" y="14" fill="#9aa0aa" font-size="11" text-anchor="middle">1.0 (tie)</text><rect x="150" y="20" width="294.1" height="15.6" fill="#f85149" rx="2"/><text x="142" y="31.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Momentum Indicators</text><text x="450.1452249561708" y="31.8125" fill="#c9d1d9" font-size="11">0.997×</text><rect x="150" y="45.0" width="295.3" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="56.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Volume Indicators</text><text x="451.2604301408265" y="56.8125" fill="#c9d1d9" font-size="11">1.001×</text><rect x="150" y="70.0" width="301.2" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="81.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Cycle Indicators</text><text x="457.2155907933857" y="81.8125" fill="#c9d1d9" font-size="11">1.021×</text><rect x="150" y="95.0" width="315.5" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="106.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Overlap Studies</text><text x="471.5420147238523" y="106.8125" fill="#c9d1d9" font-size="11">1.070×</text><rect x="150" y="120.0" width="347.9" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="131.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Math Operators</text><text x="503.920307436398" y="131.8125" fill="#c9d1d9" font-size="11">1.179×</text><rect x="150" y="145.0" width="355.4" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="156.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Math Transform</text><text x="511.44989557116736" y="156.8125" fill="#c9d1d9" font-size="11">1.205×</text><rect x="150" y="170.0" width="363.2" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="181.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Volatility Indicators</text><text x="519.1936675238701" y="181.8125" fill="#c9d1d9" font-size="11">1.231×</text><rect x="150" y="195.0" width="435.8" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="206.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Pattern Recognition</text><text x="591.7622355754768" y="206.8125" fill="#c9d1d9" font-size="11">1.477×</text><rect x="150" y="220.0" width="441.5" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="231.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Price Transform</text><text x="597.4805192436436" y="231.8125" fill="#c9d1d9" font-size="11">1.497×</text><rect x="150" y="245.0" width="531.1" height="15.6" fill="#3fb950" rx="2"/><text x="142" y="256.8125" fill="#c9d1d9" font-size="12" text-anchor="end">Statistic Functions</text><text x="687.0708114078058" y="256.8125" fill="#c9d1d9" font-size="11">1.800×</text><text x="150.0" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">0.0</text><text x="297.5" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">0.5</text><text x="445.0" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">1.0</text><text x="592.5" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">1.5</text><text x="740.0" y="288" fill="#9aa0aa" font-size="11" text-anchor="middle">2.0</text></svg>
 <div class="legend">Bars show the geometric mean of per-function speedups within each TA-Lib category.
 Green ≥ 1.0 (adaq at least as fast on average); red &lt; 1.0. The 61 candle functions (Pattern Recognition) dominate
 the overall average drag.</div></div>
 
 <h2>Speedup distribution (all 161 compared functions)</h2>
-<div class="panel"><svg viewBox="0 0 760 260" width="100%" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="20" width="700" height="180" fill="#16161f" stroke="#3a3a4a"/><rect x="42.0" y="185.0" width="73.8" height="15.0" fill="#f85149" opacity="0.85"/><text x="78.9" y="181.0" fill="#c9d1d9" font-size="10" text-anchor="middle">3</text><text x="78.9" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 78.9 214.0)"><0.2</text><rect x="119.8" y="55.0" width="73.8" height="145.0" fill="#f85149" opacity="0.85"/><text x="156.7" y="51.0" fill="#c9d1d9" font-size="10" text-anchor="middle">29</text><text x="156.7" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 156.7 214.0)">0.2–0.3</text><rect x="197.6" y="20.0" width="73.8" height="180.0" fill="#f85149" opacity="0.85"/><text x="234.4" y="16.0" fill="#c9d1d9" font-size="10" text-anchor="middle">36</text><text x="234.4" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 234.4 214.0)">0.3–0.5</text><rect x="275.3" y="115.0" width="73.8" height="85.0" fill="#f85149" opacity="0.85"/><text x="312.2" y="111.0" fill="#c9d1d9" font-size="10" text-anchor="middle">17</text><text x="312.2" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 312.2 214.0)">0.5–0.7</text><rect x="353.1" y="90.0" width="73.8" height="110.0" fill="#f85149" opacity="0.85"/><text x="390.0" y="86.0" fill="#c9d1d9" font-size="10" text-anchor="middle">22</text><text x="390.0" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 390.0 214.0)">0.7–1.0</text><rect x="430.9" y="60.0" width="73.8" height="140.0" fill="#3fb950" opacity="0.85"/><text x="467.8" y="56.0" fill="#c9d1d9" font-size="10" text-anchor="middle">28</text><text x="467.8" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 467.8 214.0)">1.0–1.5</text><rect x="508.7" y="140.0" width="73.8" height="60.0" fill="#3fb950" opacity="0.85"/><text x="545.6" y="136.0" fill="#c9d1d9" font-size="10" text-anchor="middle">12</text><text x="545.6" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 545.6 214.0)">1.5–2.0</text><rect x="586.4" y="145.0" width="73.8" height="55.0" fill="#3fb950" opacity="0.85"/><text x="623.3" y="141.0" fill="#c9d1d9" font-size="10" text-anchor="middle">11</text><text x="623.3" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 623.3 214.0)">2.0–3.0</text><rect x="664.2" y="185.0" width="73.8" height="15.0" fill="#3fb950" opacity="0.85"/><text x="701.1" y="181.0" fill="#c9d1d9" font-size="10" text-anchor="middle">3</text><text x="701.1" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 701.1 214.0)">>3.0</text><text x="40" y="14" fill="#9aa0aa" font-size="11">speedup = C ns/elem ÷ adaq ns/elem  (green: adaq faster, red: adaq slower)</text></svg></div>
+<div class="panel"><svg viewBox="0 0 760 260" width="100%" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="20" width="700" height="180" fill="#16161f" stroke="#3a3a4a"/><rect x="42.0" y="200.0" width="73.8" height="0.0" fill="#f85149" opacity="0.85"/><text x="78.9" y="196.0" fill="#c9d1d9" font-size="10" text-anchor="middle">0</text><text x="78.9" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 78.9 214.0)"><0.2</text><rect x="119.8" y="200.0" width="73.8" height="0.0" fill="#f85149" opacity="0.85"/><text x="156.7" y="196.0" fill="#c9d1d9" font-size="10" text-anchor="middle">0</text><text x="156.7" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 156.7 214.0)">0.2–0.3</text><rect x="197.6" y="190.7" width="73.8" height="9.3" fill="#f85149" opacity="0.85"/><text x="234.4" y="186.7" fill="#c9d1d9" font-size="10" text-anchor="middle">3</text><text x="234.4" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 234.4 214.0)">0.3–0.5</text><rect x="275.3" y="156.6" width="73.8" height="43.4" fill="#f85149" opacity="0.85"/><text x="312.2" y="152.6" fill="#c9d1d9" font-size="10" text-anchor="middle">14</text><text x="312.2" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 312.2 214.0)">0.5–0.7</text><rect x="353.1" y="97.6" width="73.8" height="102.4" fill="#f85149" opacity="0.85"/><text x="390.0" y="93.6" fill="#c9d1d9" font-size="10" text-anchor="middle">33</text><text x="390.0" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 390.0 214.0)">0.7–1.0</text><rect x="430.9" y="20.0" width="73.8" height="180.0" fill="#3fb950" opacity="0.85"/><text x="467.8" y="16.0" fill="#c9d1d9" font-size="10" text-anchor="middle">58</text><text x="467.8" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 467.8 214.0)">1.0–1.5</text><rect x="508.7" y="103.8" width="73.8" height="96.2" fill="#3fb950" opacity="0.85"/><text x="545.6" y="99.8" fill="#c9d1d9" font-size="10" text-anchor="middle">31</text><text x="545.6" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 545.6 214.0)">1.5–2.0</text><rect x="586.4" y="150.3" width="73.8" height="49.7" fill="#3fb950" opacity="0.85"/><text x="623.3" y="146.3" fill="#c9d1d9" font-size="10" text-anchor="middle">16</text><text x="623.3" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 623.3 214.0)">2.0–3.0</text><rect x="664.2" y="181.4" width="73.8" height="18.6" fill="#3fb950" opacity="0.85"/><text x="701.1" y="177.4" fill="#c9d1d9" font-size="10" text-anchor="middle">6</text><text x="701.1" y="214.0" fill="#9aa0aa" font-size="9" text-anchor="middle" transform="rotate(35 701.1 214.0)">>3.0</text><text x="40" y="14" fill="#9aa0aa" font-size="11">speedup = C ns/elem ÷ adaq ns/elem  (green: adaq faster, red: adaq slower)</text></svg></div>
 
 <h2>Category summary</h2>
 <div class="panel"><table>
 <thead><tr><th>Category</th><th class="num">n</th><th class="num">geomean</th>
 <th class="num">adaq faster</th><th class="num">adaq slower</th></tr></thead>
-<tbody><tr><td>Pattern Recognition</td><td class="num">61</td><td class="num" style="color:#f85149">0.336×</td><td class="num" style="color:#3fb950">4</td><td class="num" style="color:#f85149">57</td></tr>
-<tr><td>Cycle Indicators</td><td class="num">5</td><td class="num" style="color:#f85149">0.638×</td><td class="num" style="color:#3fb950">0</td><td class="num" style="color:#f85149">5</td></tr>
-<tr><td>Momentum Indicators</td><td class="num">31</td><td class="num" style="color:#f85149">0.761×</td><td class="num" style="color:#3fb950">11</td><td class="num" style="color:#f85149">20</td></tr>
-<tr><td>Math Operators</td><td class="num">11</td><td class="num" style="color:#f85149">0.992×</td><td class="num" style="color:#3fb950">5</td><td class="num" style="color:#f85149">6</td></tr>
-<tr><td>Overlap Studies</td><td class="num">18</td><td class="num" style="color:#3fb950">1.018×</td><td class="num" style="color:#3fb950">8</td><td class="num" style="color:#f85149">10</td></tr>
-<tr><td>Volume Indicators</td><td class="num">3</td><td class="num" style="color:#3fb950">1.034×</td><td class="num" style="color:#3fb950">2</td><td class="num" style="color:#f85149">1</td></tr>
-<tr><td>Math Transform</td><td class="num">15</td><td class="num" style="color:#3fb950">1.178×</td><td class="num" style="color:#3fb950">10</td><td class="num" style="color:#f85149">5</td></tr>
-<tr><td>Volatility Indicators</td><td class="num">3</td><td class="num" style="color:#3fb950">1.206×</td><td class="num" style="color:#3fb950">2</td><td class="num" style="color:#f85149">1</td></tr>
-<tr><td>Price Transform</td><td class="num">5</td><td class="num" style="color:#3fb950">1.719×</td><td class="num" style="color:#3fb950">5</td><td class="num" style="color:#f85149">0</td></tr>
-<tr><td>Statistic Functions</td><td class="num">9</td><td class="num" style="color:#3fb950">1.867×</td><td class="num" style="color:#3fb950">7</td><td class="num" style="color:#f85149">2</td></tr></tbody></table></div>
+<tbody><tr><td>Momentum Indicators</td><td class="num">31</td><td class="num" style="color:#f85149">0.997×</td><td class="num" style="color:#3fb950">14</td><td class="num" style="color:#f85149">17</td></tr>
+<tr><td>Volume Indicators</td><td class="num">3</td><td class="num" style="color:#3fb950">1.001×</td><td class="num" style="color:#3fb950">1</td><td class="num" style="color:#f85149">2</td></tr>
+<tr><td>Cycle Indicators</td><td class="num">5</td><td class="num" style="color:#3fb950">1.021×</td><td class="num" style="color:#3fb950">2</td><td class="num" style="color:#f85149">3</td></tr>
+<tr><td>Overlap Studies</td><td class="num">18</td><td class="num" style="color:#3fb950">1.070×</td><td class="num" style="color:#3fb950">9</td><td class="num" style="color:#f85149">9</td></tr>
+<tr><td>Math Operators</td><td class="num">11</td><td class="num" style="color:#3fb950">1.179×</td><td class="num" style="color:#3fb950">8</td><td class="num" style="color:#f85149">3</td></tr>
+<tr><td>Math Transform</td><td class="num">15</td><td class="num" style="color:#3fb950">1.205×</td><td class="num" style="color:#3fb950">11</td><td class="num" style="color:#f85149">4</td></tr>
+<tr><td>Volatility Indicators</td><td class="num">3</td><td class="num" style="color:#3fb950">1.231×</td><td class="num" style="color:#3fb950">2</td><td class="num" style="color:#f85149">1</td></tr>
+<tr><td>Pattern Recognition</td><td class="num">61</td><td class="num" style="color:#3fb950">1.477×</td><td class="num" style="color:#3fb950">52</td><td class="num" style="color:#f85149">9</td></tr>
+<tr><td>Price Transform</td><td class="num">5</td><td class="num" style="color:#3fb950">1.497×</td><td class="num" style="color:#3fb950">5</td><td class="num" style="color:#f85149">0</td></tr>
+<tr><td>Statistic Functions</td><td class="num">9</td><td class="num" style="color:#3fb950">1.800×</td><td class="num" style="color:#3fb950">7</td><td class="num" style="color:#f85149">2</td></tr></tbody></table></div>
 
 <h2>Full results — all 161 indicators</h2>
 <div class="note">Click a column header to sort. <span style="color:var(--green)">green speedup</span> = adaq faster,
@@ -102,175 +102,177 @@ the overall average drag.</div></div>
   <th class="num" data-k="adaq">adaq ns/elem</th><th class="num" data-k="c">C ns/elem</th>
   <th class="num" data-k="sp">Speedup</th><th class="num" data-k="par">Parity</th>
 </tr></thead>
-<tbody><tr><td class="nm">ht_dcperiod</td><td>Cycle Indicators</td><td class="num">173.7949</td><td class="num">49.8951</td><td class="num slow">0.287</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ht_dcphase</td><td>Cycle Indicators</td><td class="num">205.4442</td><td class="num">141.1244</td><td class="num slow">0.687</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ht_phasor</td><td>Cycle Indicators</td><td class="num">55.6708</td><td class="num">45.3165</td><td class="num slow">0.814</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ht_sine</td><td>Cycle Indicators</td><td class="num">170.2490</td><td class="num">155.8339</td><td class="num slow">0.915</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ht_trendmode</td><td>Cycle Indicators</td><td class="num">231.0842</td><td class="num">166.0627</td><td class="num slow">0.719</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">add</td><td>Math Operators</td><td class="num">0.1956</td><td class="num">0.3877</td><td class="num fast">1.982</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">div</td><td>Math Operators</td><td class="num">0.1891</td><td class="num">0.3392</td><td class="num fast">1.794</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">max</td><td>Math Operators</td><td class="num">3.7418</td><td class="num">2.4155</td><td class="num slow">0.646</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">max_index</td><td>Math Operators</td><td class="num">3.5313</td><td class="num">2.4436</td><td class="num slow">0.692</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">min</td><td>Math Operators</td><td class="num">3.7654</td><td class="num">3.0558</td><td class="num slow">0.812</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">min_index</td><td>Math Operators</td><td class="num">3.4793</td><td class="num">3.0193</td><td class="num slow">0.868</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">minmax</td><td>Math Operators</td><td class="num">6.9297</td><td class="num">2.8923</td><td class="num slow">0.417</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">minmax_index</td><td>Math Operators</td><td class="num">7.3061</td><td class="num">2.9199</td><td class="num slow">0.400</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">mult</td><td>Math Operators</td><td class="num">0.1928</td><td class="num">0.3342</td><td class="num fast">1.733</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">sub</td><td>Math Operators</td><td class="num">0.2000</td><td class="num">0.4055</td><td class="num fast">2.028</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">sum</td><td>Math Operators</td><td class="num">1.4124</td><td class="num">1.9620</td><td class="num fast">1.389</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">acos</td><td>Math Transform</td><td class="num">2.0844</td><td class="num">2.2185</td><td class="num fast">1.064</td><td class="num par-ok">NA</td></tr>
-<tr><td class="nm">asin</td><td>Math Transform</td><td class="num">2.6527</td><td class="num">2.9847</td><td class="num fast">1.125</td><td class="num par-ok">NA</td></tr>
-<tr><td class="nm">atan</td><td>Math Transform</td><td class="num">4.0903</td><td class="num">4.1313</td><td class="num fast">1.010</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ceil</td><td>Math Transform</td><td class="num">0.1524</td><td class="num">0.3107</td><td class="num fast">2.039</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cos</td><td>Math Transform</td><td class="num">4.5140</td><td class="num">4.3324</td><td class="num slow">0.960</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cosh</td><td>Math Transform</td><td class="num">2.3339</td><td class="num">2.4282</td><td class="num fast">1.040</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">exp</td><td>Math Transform</td><td class="num">2.2932</td><td class="num">2.2015</td><td class="num slow">0.960</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">floor</td><td>Math Transform</td><td class="num">0.1666</td><td class="num">0.3109</td><td class="num fast">1.866</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ln</td><td>Math Transform</td><td class="num">2.7315</td><td class="num">2.8025</td><td class="num fast">1.026</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">log10</td><td>Math Transform</td><td class="num">3.0869</td><td class="num">2.7914</td><td class="num slow">0.904</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">sin</td><td>Math Transform</td><td class="num">3.1898</td><td class="num">3.0278</td><td class="num slow">0.949</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">sinh</td><td>Math Transform</td><td class="num">2.5106</td><td class="num">2.4898</td><td class="num slow">0.992</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">sqrt</td><td>Math Transform</td><td class="num">0.3124</td><td class="num">0.6500</td><td class="num fast">2.081</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">tan</td><td>Math Transform</td><td class="num">4.1042</td><td class="num">4.3862</td><td class="num fast">1.069</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">tanh</td><td>Math Transform</td><td class="num">1.3201</td><td class="num">1.7895</td><td class="num fast">1.356</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">adx</td><td>Momentum Indicators</td><td class="num">14.5238</td><td class="num">6.6147</td><td class="num slow">0.455</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">adxr</td><td>Momentum Indicators</td><td class="num">14.2562</td><td class="num">7.6956</td><td class="num slow">0.540</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">apo</td><td>Momentum Indicators</td><td class="num">7.4831</td><td class="num">5.0410</td><td class="num slow">0.674</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">aroon</td><td>Momentum Indicators</td><td class="num">2.6577</td><td class="num">2.9316</td><td class="num fast">1.103</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">aroon_osc</td><td>Momentum Indicators</td><td class="num">3.1003</td><td class="num">2.8942</td><td class="num slow">0.934</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">bop</td><td>Momentum Indicators</td><td class="num">0.7037</td><td class="num">0.7475</td><td class="num fast">1.062</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cci</td><td>Momentum Indicators</td><td class="num">7.8045</td><td class="num">12.1153</td><td class="num fast">1.552</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cmo</td><td>Momentum Indicators</td><td class="num">6.0998</td><td class="num">6.1079</td><td class="num fast">1.001</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">dx</td><td>Momentum Indicators</td><td class="num">16.3168</td><td class="num">6.8304</td><td class="num slow">0.419</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">imi</td><td>Momentum Indicators</td><td class="num">3.0004</td><td class="num">14.3104</td><td class="num fast">4.770</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">macd</td><td>Momentum Indicators</td><td class="num">3.2629</td><td class="num">7.6330</td><td class="num fast">2.339</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">macd_ext</td><td>Momentum Indicators</td><td class="num">3.3963</td><td class="num">7.7103</td><td class="num fast">2.270</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">macd_fix</td><td>Momentum Indicators</td><td class="num">6.6395</td><td class="num">8.9921</td><td class="num fast">1.354</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">mfi</td><td>Momentum Indicators</td><td class="num">4.3991</td><td class="num">1.7451</td><td class="num slow">0.397</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">minus_di</td><td>Momentum Indicators</td><td class="num">14.1808</td><td class="num">6.1979</td><td class="num slow">0.437</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">minus_dm</td><td>Momentum Indicators</td><td class="num">14.1479</td><td class="num">5.8148</td><td class="num slow">0.411</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">mom</td><td>Momentum Indicators</td><td class="num">0.1616</td><td class="num">0.3405</td><td class="num fast">2.107</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">plus_di</td><td>Momentum Indicators</td><td class="num">13.7064</td><td class="num">6.5656</td><td class="num slow">0.479</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">plus_dm</td><td>Momentum Indicators</td><td class="num">13.8026</td><td class="num">5.7980</td><td class="num slow">0.420</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ppo</td><td>Momentum Indicators</td><td class="num">7.5442</td><td class="num">5.0413</td><td class="num slow">0.668</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">roc</td><td>Momentum Indicators</td><td class="num">1.3943</td><td class="num">0.6372</td><td class="num slow">0.457</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">rocp</td><td>Momentum Indicators</td><td class="num">1.3160</td><td class="num">0.6415</td><td class="num slow">0.487</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">rocr</td><td>Momentum Indicators</td><td class="num">1.3726</td><td class="num">0.6441</td><td class="num slow">0.469</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">rocr100</td><td>Momentum Indicators</td><td class="num">1.3772</td><td class="num">0.6431</td><td class="num slow">0.467</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">rsi</td><td>Momentum Indicators</td><td class="num">5.6468</td><td class="num">6.1425</td><td class="num fast">1.088</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">stoch</td><td>Momentum Indicators</td><td class="num">13.8737</td><td class="num">7.0796</td><td class="num slow">0.510</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">stoch_f</td><td>Momentum Indicators</td><td class="num">10.4955</td><td class="num">5.0767</td><td class="num slow">0.484</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">stoch_rsi</td><td>Momentum Indicators</td><td class="num">16.2677</td><td class="num">22.4781</td><td class="num fast">1.382</td><td class="num par-bad" title="adaq stoch_rsi(14,5) vs TA STOCHRSI(14,5,3): ~2× divergence on default period=5 path; adaq golden vector uses period=14 (passes). Follow-up.">1.30e+03</td></tr>
-<tr><td class="nm">trix</td><td>Momentum Indicators</td><td class="num">12.7607</td><td class="num">7.6344</td><td class="num slow">0.598</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ultosc</td><td>Momentum Indicators</td><td class="num">10.6663</td><td class="num">6.4966</td><td class="num slow">0.609</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">willr</td><td>Momentum Indicators</td><td class="num">8.2094</td><td class="num">3.2398</td><td class="num slow">0.395</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">accbands</td><td>Overlap Studies</td><td class="num">4.3611</td><td class="num">6.5728</td><td class="num fast">1.507</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">bbands</td><td>Overlap Studies</td><td class="num">2.1621</td><td class="num">5.5264</td><td class="num fast">2.556</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">dema</td><td>Overlap Studies</td><td class="num">3.3138</td><td class="num">4.7641</td><td class="num fast">1.438</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ema</td><td>Overlap Studies</td><td class="num">3.5041</td><td class="num">2.2924</td><td class="num slow">0.654</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ht_trendline</td><td>Overlap Studies</td><td class="num">71.2374</td><td class="num">46.0817</td><td class="num slow">0.647</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">kama</td><td>Overlap Studies</td><td class="num">3.3540</td><td class="num">2.3777</td><td class="num slow">0.709</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ma</td><td>Overlap Studies</td><td class="num">1.8868</td><td class="num">1.9232</td><td class="num fast">1.019</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">mama</td><td>Overlap Studies</td><td class="num">56.1112</td><td class="num">49.0679</td><td class="num slow">0.874</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">mavp</td><td>Overlap Studies</td><td class="num">5.1418</td><td class="num">4.3448</td><td class="num slow">0.845</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">midpoint</td><td>Overlap Studies</td><td class="num">6.4708</td><td class="num">2.6808</td><td class="num slow">0.414</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">midprice</td><td>Overlap Studies</td><td class="num">7.3510</td><td class="num">8.1939</td><td class="num fast">1.115</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">sar</td><td>Overlap Studies</td><td class="num">2.1341</td><td class="num">2.0442</td><td class="num slow">0.958</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">sarext</td><td>Overlap Studies</td><td class="num">2.3335</td><td class="num">2.1223</td><td class="num slow">0.909</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">sma</td><td>Overlap Studies</td><td class="num">1.3944</td><td class="num">1.9621</td><td class="num fast">1.407</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">t3</td><td>Overlap Studies</td><td class="num">3.5704</td><td class="num">2.7014</td><td class="num slow">0.757</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">tema</td><td>Overlap Studies</td><td class="num">3.2864</td><td class="num">7.1608</td><td class="num fast">2.179</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">trima</td><td>Overlap Studies</td><td class="num">2.3574</td><td class="num">2.8533</td><td class="num fast">1.210</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">wma</td><td>Overlap Studies</td><td class="num">2.2364</td><td class="num">2.1881</td><td class="num slow">0.978</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_2crows</td><td>Pattern Recognition</td><td class="num">3.5701</td><td class="num">1.0766</td><td class="num slow">0.302</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_3blackcrows</td><td>Pattern Recognition</td><td class="num">8.4229</td><td class="num">1.6375</td><td class="num slow">0.194</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_3inside</td><td>Pattern Recognition</td><td class="num">6.4829</td><td class="num">4.4939</td><td class="num slow">0.693</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_3linestrike</td><td>Pattern Recognition</td><td class="num">7.0336</td><td class="num">2.5135</td><td class="num slow">0.357</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_3outside</td><td>Pattern Recognition</td><td class="num">1.2804</td><td class="num">1.3024</td><td class="num fast">1.017</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_3starsinsouth</td><td>Pattern Recognition</td><td class="num">15.1250</td><td class="num">4.9517</td><td class="num slow">0.327</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_3whitesoldiers</td><td>Pattern Recognition</td><td class="num">21.1298</td><td class="num">5.1928</td><td class="num slow">0.246</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_abandonedbaby</td><td>Pattern Recognition</td><td class="num">9.6751</td><td class="num">2.6290</td><td class="num slow">0.272</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_advanceblock</td><td>Pattern Recognition</td><td class="num">29.5240</td><td class="num">7.5503</td><td class="num slow">0.256</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_belthold</td><td>Pattern Recognition</td><td class="num">7.0964</td><td class="num">2.0004</td><td class="num slow">0.282</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_breakaway</td><td>Pattern Recognition</td><td class="num">4.2670</td><td class="num">2.0827</td><td class="num slow">0.488</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_closingmarubozu</td><td>Pattern Recognition</td><td class="num">7.0060</td><td class="num">1.8566</td><td class="num slow">0.265</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_concealbabyswall</td><td>Pattern Recognition</td><td class="num">10.8737</td><td class="num">2.9771</td><td class="num slow">0.274</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_counterattack</td><td>Pattern Recognition</td><td class="num">8.4299</td><td class="num">2.3156</td><td class="num slow">0.275</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_darkcloudcover</td><td>Pattern Recognition</td><td class="num">3.6453</td><td class="num">1.0623</td><td class="num slow">0.291</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_doji</td><td>Pattern Recognition</td><td class="num">4.2600</td><td class="num">1.7242</td><td class="num slow">0.405</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_dojistar</td><td>Pattern Recognition</td><td class="num">7.0189</td><td class="num">1.9193</td><td class="num slow">0.273</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_dragonflydoji</td><td>Pattern Recognition</td><td class="num">7.1431</td><td class="num">2.1455</td><td class="num slow">0.300</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_engulfing</td><td>Pattern Recognition</td><td class="num">2.3956</td><td class="num">0.9761</td><td class="num slow">0.407</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_eveningdojistar</td><td>Pattern Recognition</td><td class="num">9.3948</td><td class="num">2.3740</td><td class="num slow">0.253</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_eveningstar</td><td>Pattern Recognition</td><td class="num">8.6792</td><td class="num">2.0860</td><td class="num slow">0.240</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_gapsidesidewhite</td><td>Pattern Recognition</td><td class="num">7.3345</td><td class="num">2.7584</td><td class="num slow">0.376</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_gravestonedoji</td><td>Pattern Recognition</td><td class="num">6.9067</td><td class="num">2.4306</td><td class="num slow">0.352</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_hammer</td><td>Pattern Recognition</td><td class="num">12.6404</td><td class="num">2.8567</td><td class="num slow">0.226</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_hangingman</td><td>Pattern Recognition</td><td class="num">12.8914</td><td class="num">2.9241</td><td class="num slow">0.227</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_harami</td><td>Pattern Recognition</td><td class="num">6.2555</td><td class="num">2.1749</td><td class="num slow">0.348</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_haramicross</td><td>Pattern Recognition</td><td class="num">7.2916</td><td class="num">1.8725</td><td class="num slow">0.257</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_highwave</td><td>Pattern Recognition</td><td class="num">6.1397</td><td class="num">1.5345</td><td class="num slow">0.250</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_hikkake</td><td>Pattern Recognition</td><td class="num">1.2065</td><td class="num">1.7586</td><td class="num fast">1.458</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_hikkakemod</td><td>Pattern Recognition</td><td class="num">8.1875</td><td class="num">4.1758</td><td class="num slow">0.510</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_homingpigeon</td><td>Pattern Recognition</td><td class="num">6.6226</td><td class="num">2.6416</td><td class="num slow">0.399</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_identical3crows</td><td>Pattern Recognition</td><td class="num">14.9655</td><td class="num">3.4472</td><td class="num slow">0.230</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_inneck</td><td>Pattern Recognition</td><td class="num">7.2646</td><td class="num">2.1879</td><td class="num slow">0.301</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_invertedhammer</td><td>Pattern Recognition</td><td class="num">9.2673</td><td class="num">6.8946</td><td class="num slow">0.744</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_kicking</td><td>Pattern Recognition</td><td class="num">12.1311</td><td class="num">2.9573</td><td class="num slow">0.244</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_kickingbylength</td><td>Pattern Recognition</td><td class="num">24.7642</td><td class="num">3.5120</td><td class="num slow">0.142</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_ladderbottom</td><td>Pattern Recognition</td><td class="num">5.2494</td><td class="num">2.5742</td><td class="num slow">0.490</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_longleggeddoji</td><td>Pattern Recognition</td><td class="num">6.7800</td><td class="num">1.8825</td><td class="num slow">0.278</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_longline</td><td>Pattern Recognition</td><td class="num">7.1163</td><td class="num">2.5078</td><td class="num slow">0.352</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_marubozu</td><td>Pattern Recognition</td><td class="num">7.2415</td><td class="num">1.9609</td><td class="num slow">0.271</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_matchinglow</td><td>Pattern Recognition</td><td class="num">7.3361</td><td class="num">4.4705</td><td class="num slow">0.609</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_mathold</td><td>Pattern Recognition</td><td class="num">11.4084</td><td class="num">2.3361</td><td class="num slow">0.205</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_morningdojistar</td><td>Pattern Recognition</td><td class="num">10.2301</td><td class="num">3.7482</td><td class="num slow">0.366</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_morningstar</td><td>Pattern Recognition</td><td class="num">10.4686</td><td class="num">2.3460</td><td class="num slow">0.224</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_onneck</td><td>Pattern Recognition</td><td class="num">8.0888</td><td class="num">2.3939</td><td class="num slow">0.296</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_piercing</td><td>Pattern Recognition</td><td class="num">6.7809</td><td class="num">2.3237</td><td class="num slow">0.343</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_rickshawman</td><td>Pattern Recognition</td><td class="num">10.7477</td><td class="num">2.7061</td><td class="num slow">0.252</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_risefall3methods</td><td>Pattern Recognition</td><td class="num">14.2085</td><td class="num">3.5186</td><td class="num slow">0.248</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_separatinglines</td><td>Pattern Recognition</td><td class="num">28.0300</td><td class="num">2.7096</td><td class="num slow">0.097</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_shootingstar</td><td>Pattern Recognition</td><td class="num">11.6309</td><td class="num">12.1048</td><td class="num fast">1.041</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_shortline</td><td>Pattern Recognition</td><td class="num">7.2452</td><td class="num">2.5353</td><td class="num slow">0.350</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_spinningtop</td><td>Pattern Recognition</td><td class="num">4.5316</td><td class="num">2.5200</td><td class="num slow">0.556</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_stalledpattern</td><td>Pattern Recognition</td><td class="num">17.9913</td><td class="num">5.1577</td><td class="num slow">0.287</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_sticksandwich</td><td>Pattern Recognition</td><td class="num">3.8615</td><td class="num">1.5514</td><td class="num slow">0.402</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_takuri</td><td>Pattern Recognition</td><td class="num">12.0340</td><td class="num">2.8192</td><td class="num slow">0.234</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_tasukigap</td><td>Pattern Recognition</td><td class="num">10.4293</td><td class="num">6.7345</td><td class="num slow">0.646</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_thrusting</td><td>Pattern Recognition</td><td class="num">9.5177</td><td class="num">2.7865</td><td class="num slow">0.293</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_tristar</td><td>Pattern Recognition</td><td class="num">5.7087</td><td class="num">1.9570</td><td class="num slow">0.343</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_unique3river</td><td>Pattern Recognition</td><td class="num">8.1964</td><td class="num">2.2508</td><td class="num slow">0.275</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_upsidegap2crows</td><td>Pattern Recognition</td><td class="num">5.3171</td><td class="num">1.8424</td><td class="num slow">0.347</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">cdl_xsidegap3methods</td><td>Pattern Recognition</td><td class="num">1.5978</td><td class="num">1.6358</td><td class="num fast">1.024</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">avgdev</td><td>Price Transform</td><td class="num">6.4722</td><td class="num">10.3742</td><td class="num fast">1.603</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">avgprice</td><td>Price Transform</td><td class="num">0.4059</td><td class="num">0.6431</td><td class="num fast">1.584</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">medprice</td><td>Price Transform</td><td class="num">0.1960</td><td class="num">0.3859</td><td class="num fast">1.969</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">typprice</td><td>Price Transform</td><td class="num">0.2902</td><td class="num">0.4986</td><td class="num fast">1.718</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">wclprice</td><td>Price Transform</td><td class="num">0.2962</td><td class="num">0.5173</td><td class="num fast">1.746</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">beta</td><td>Statistic Functions</td><td class="num">4.2991</td><td class="num">4.0453</td><td class="num slow">0.941</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">correl</td><td>Statistic Functions</td><td class="num">4.8203</td><td class="num">3.0674</td><td class="num slow">0.636</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">linear_reg</td><td>Statistic Functions</td><td class="num">2.2726</td><td class="num">6.2694</td><td class="num fast">2.759</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">linear_reg_angle</td><td>Statistic Functions</td><td class="num">5.6971</td><td class="num">17.1319</td><td class="num fast">3.007</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">linear_reg_intercept</td><td>Statistic Functions</td><td class="num">2.0735</td><td class="num">8.6159</td><td class="num fast">4.155</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">linear_reg_slope</td><td>Statistic Functions</td><td class="num">2.1208</td><td class="num">5.6064</td><td class="num fast">2.643</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">stddev</td><td>Statistic Functions</td><td class="num">1.9727</td><td class="num">2.8716</td><td class="num fast">1.456</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">tsf</td><td>Statistic Functions</td><td class="num">2.3115</td><td class="num">6.3406</td><td class="num fast">2.743</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">var</td><td>Statistic Functions</td><td class="num">1.5909</td><td class="num">2.0090</td><td class="num fast">1.263</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">atr</td><td>Volatility Indicators</td><td class="num">4.1764</td><td class="num">6.5845</td><td class="num fast">1.577</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">natr</td><td>Volatility Indicators</td><td class="num">4.9716</td><td class="num">6.0847</td><td class="num fast">1.224</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">trange</td><td>Volatility Indicators</td><td class="num">0.7459</td><td class="num">0.6783</td><td class="num slow">0.909</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">ad</td><td>Volume Indicators</td><td class="num">0.9789</td><td class="num">1.2893</td><td class="num fast">1.317</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">adosc</td><td>Volume Indicators</td><td class="num">3.3804</td><td class="num">2.6888</td><td class="num slow">0.795</td><td class="num par-ok">1:1</td></tr>
-<tr><td class="nm">obv</td><td>Volume Indicators</td><td class="num">0.9766</td><td class="num">1.0311</td><td class="num fast">1.056</td><td class="num par-ok">1:1</td></tr></tbody></table></div>
+<tbody><tr><td class="nm">ht_dcperiod</td><td>Cycle Indicators</td><td class="num">53.8877</td><td class="num">45.2308</td><td class="num slow">0.839</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ht_dcphase</td><td>Cycle Indicators</td><td class="num">103.3920</td><td class="num">131.6030</td><td class="num fast">1.273</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ht_phasor</td><td>Cycle Indicators</td><td class="num">54.0827</td><td class="num">43.3380</td><td class="num slow">0.801</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ht_sine</td><td>Cycle Indicators</td><td class="num">100.9563</td><td class="num">146.8517</td><td class="num fast">1.455</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ht_trendmode</td><td>Cycle Indicators</td><td class="num">175.3675</td><td class="num">156.2823</td><td class="num slow">0.891</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">add</td><td>Math Operators</td><td class="num">0.2050</td><td class="num">0.3213</td><td class="num fast">1.567</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">div</td><td>Math Operators</td><td class="num">0.2056</td><td class="num">0.3307</td><td class="num fast">1.609</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">max</td><td>Math Operators</td><td class="num">2.2524</td><td class="num">2.2808</td><td class="num fast">1.013</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">max_index</td><td>Math Operators</td><td class="num">2.3000</td><td class="num">2.2845</td><td class="num slow">0.993</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">min</td><td>Math Operators</td><td class="num">2.2472</td><td class="num">2.9655</td><td class="num fast">1.320</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">min_index</td><td>Math Operators</td><td class="num">2.2972</td><td class="num">2.9671</td><td class="num fast">1.292</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">minmax</td><td>Math Operators</td><td class="num">4.6250</td><td class="num">2.8456</td><td class="num slow">0.615</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">minmax_index</td><td>Math Operators</td><td class="num">4.2883</td><td class="num">2.8108</td><td class="num slow">0.655</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">mult</td><td>Math Operators</td><td class="num">0.2051</td><td class="num">0.3231</td><td class="num fast">1.575</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">sub</td><td>Math Operators</td><td class="num">0.2048</td><td class="num">0.3231</td><td class="num fast">1.578</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">sum</td><td>Math Operators</td><td class="num">1.3127</td><td class="num">1.8609</td><td class="num fast">1.418</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">acos</td><td>Math Transform</td><td class="num">2.0376</td><td class="num">2.1734</td><td class="num fast">1.067</td><td class="num par-ok">NA</td></tr>
+<tr><td class="nm">asin</td><td>Math Transform</td><td class="num">2.5225</td><td class="num">2.7952</td><td class="num fast">1.108</td><td class="num par-ok">NA</td></tr>
+<tr><td class="nm">atan</td><td>Math Transform</td><td class="num">3.8957</td><td class="num">4.0366</td><td class="num fast">1.036</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ceil</td><td>Math Transform</td><td class="num">0.1237</td><td class="num">0.3105</td><td class="num fast">2.510</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cos</td><td>Math Transform</td><td class="num">3.0369</td><td class="num">2.9919</td><td class="num slow">0.985</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cosh</td><td>Math Transform</td><td class="num">2.2949</td><td class="num">2.4378</td><td class="num fast">1.062</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">exp</td><td>Math Transform</td><td class="num">2.2236</td><td class="num">2.1737</td><td class="num slow">0.978</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">floor</td><td>Math Transform</td><td class="num">0.1657</td><td class="num">0.3108</td><td class="num fast">1.876</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ln</td><td>Math Transform</td><td class="num">2.6350</td><td class="num">2.7943</td><td class="num fast">1.060</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">log10</td><td>Math Transform</td><td class="num">2.9544</td><td class="num">2.7915</td><td class="num slow">0.945</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">sin</td><td>Math Transform</td><td class="num">3.0241</td><td class="num">2.9797</td><td class="num slow">0.985</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">sinh</td><td>Math Transform</td><td class="num">2.3664</td><td class="num">2.4843</td><td class="num fast">1.050</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">sqrt</td><td>Math Transform</td><td class="num">0.3104</td><td class="num">0.6207</td><td class="num fast">2.000</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">tan</td><td>Math Transform</td><td class="num">4.1013</td><td class="num">4.1181</td><td class="num fast">1.004</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">tanh</td><td>Math Transform</td><td class="num">1.2803</td><td class="num">1.7082</td><td class="num fast">1.334</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">adx</td><td>Momentum Indicators</td><td class="num">13.2228</td><td class="num">6.2975</td><td class="num slow">0.476</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">adxr</td><td>Momentum Indicators</td><td class="num">13.3693</td><td class="num">6.6269</td><td class="num slow">0.496</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">apo</td><td>Momentum Indicators</td><td class="num">7.1479</td><td class="num">4.6832</td><td class="num slow">0.655</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">aroon</td><td>Momentum Indicators</td><td class="num">2.3585</td><td class="num">2.8090</td><td class="num fast">1.191</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">aroon_osc</td><td>Momentum Indicators</td><td class="num">2.8546</td><td class="num">2.8835</td><td class="num fast">1.010</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">bop</td><td>Momentum Indicators</td><td class="num">0.6739</td><td class="num">0.6644</td><td class="num slow">0.986</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cci</td><td>Momentum Indicators</td><td class="num">7.5926</td><td class="num">11.2264</td><td class="num fast">1.479</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cmo</td><td>Momentum Indicators</td><td class="num">5.9253</td><td class="num">5.8962</td><td class="num slow">0.995</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">dx</td><td>Momentum Indicators</td><td class="num">8.7018</td><td class="num">6.4590</td><td class="num slow">0.742</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">imi</td><td>Momentum Indicators</td><td class="num">2.8107</td><td class="num">13.7642</td><td class="num fast">4.897</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">macd</td><td>Momentum Indicators</td><td class="num">3.1538</td><td class="num">7.3599</td><td class="num fast">2.334</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">macd_ext</td><td>Momentum Indicators</td><td class="num">3.1570</td><td class="num">7.3300</td><td class="num fast">2.322</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">macd_fix</td><td>Momentum Indicators</td><td class="num">3.1558</td><td class="num">7.3384</td><td class="num fast">2.325</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">mfi</td><td>Momentum Indicators</td><td class="num">2.2233</td><td class="num">1.5818</td><td class="num slow">0.712</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">minus_di</td><td>Momentum Indicators</td><td class="num">6.8996</td><td class="num">5.9114</td><td class="num slow">0.857</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">minus_dm</td><td>Momentum Indicators</td><td class="num">5.4150</td><td class="num">5.5887</td><td class="num fast">1.032</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">mom</td><td>Momentum Indicators</td><td class="num">0.2674</td><td class="num">0.3121</td><td class="num fast">1.167</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">plus_di</td><td>Momentum Indicators</td><td class="num">6.9488</td><td class="num">5.9060</td><td class="num slow">0.850</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">plus_dm</td><td>Momentum Indicators</td><td class="num">5.4966</td><td class="num">5.5807</td><td class="num fast">1.015</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ppo</td><td>Momentum Indicators</td><td class="num">7.4649</td><td class="num">4.9953</td><td class="num slow">0.669</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">roc</td><td>Momentum Indicators</td><td class="num">0.6246</td><td class="num">0.6243</td><td class="num slow">1.000</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">rocp</td><td>Momentum Indicators</td><td class="num">0.6230</td><td class="num">0.6244</td><td class="num fast">1.002</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">rocr</td><td>Momentum Indicators</td><td class="num">0.6234</td><td class="num">0.6236</td><td class="num fast">1.000</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">rocr100</td><td>Momentum Indicators</td><td class="num">0.6239</td><td class="num">0.6243</td><td class="num fast">1.001</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">rsi</td><td>Momentum Indicators</td><td class="num">5.2987</td><td class="num">5.9043</td><td class="num fast">1.114</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">stoch</td><td>Momentum Indicators</td><td class="num">7.2998</td><td class="num">6.6707</td><td class="num slow">0.914</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">stoch_f</td><td>Momentum Indicators</td><td class="num">6.3830</td><td class="num">4.8993</td><td class="num slow">0.768</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">stoch_rsi</td><td>Momentum Indicators</td><td class="num">12.2222</td><td class="num">10.8411</td><td class="num slow">0.887</td><td class="num par-bad" title="adaq stoch_rsi(14,5) vs TA STOCHRSI(14,5,3): ~2× divergence on default period=5 path; adaq golden vector uses period=14 (passes). Follow-up.">1.71e+03</td></tr>
+<tr><td class="nm">trix</td><td>Momentum Indicators</td><td class="num">11.0302</td><td class="num">7.1628</td><td class="num slow">0.649</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ultosc</td><td>Momentum Indicators</td><td class="num">10.1045</td><td class="num">5.9900</td><td class="num slow">0.593</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">willr</td><td>Momentum Indicators</td><td class="num">4.7279</td><td class="num">3.0796</td><td class="num slow">0.651</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">accbands</td><td>Overlap Studies</td><td class="num">4.1891</td><td class="num">6.4605</td><td class="num fast">1.542</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">bbands</td><td>Overlap Studies</td><td class="num">2.1104</td><td class="num">5.4224</td><td class="num fast">2.569</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">dema</td><td>Overlap Studies</td><td class="num">3.2817</td><td class="num">4.6983</td><td class="num fast">1.432</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ema</td><td>Overlap Studies</td><td class="num">3.3049</td><td class="num">2.1933</td><td class="num slow">0.664</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ht_trendline</td><td>Overlap Studies</td><td class="num">68.3101</td><td class="num">43.6962</td><td class="num slow">0.640</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">kama</td><td>Overlap Studies</td><td class="num">3.2506</td><td class="num">2.2136</td><td class="num slow">0.681</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ma</td><td>Overlap Studies</td><td class="num">1.6805</td><td class="num">1.8615</td><td class="num fast">1.108</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">mama</td><td>Overlap Studies</td><td class="num">54.1437</td><td class="num">47.8117</td><td class="num slow">0.883</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">mavp</td><td>Overlap Studies</td><td class="num">4.6567</td><td class="num">4.1906</td><td class="num slow">0.900</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">midpoint</td><td>Overlap Studies</td><td class="num">4.3002</td><td class="num">2.5094</td><td class="num slow">0.584</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">midprice</td><td>Overlap Studies</td><td class="num">4.5296</td><td class="num">8.0700</td><td class="num fast">1.782</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">sar</td><td>Overlap Studies</td><td class="num">2.0586</td><td class="num">1.9193</td><td class="num slow">0.932</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">sarext</td><td>Overlap Studies</td><td class="num">2.2222</td><td class="num">2.0341</td><td class="num slow">0.915</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">sma</td><td>Overlap Studies</td><td class="num">1.9396</td><td class="num">2.2503</td><td class="num fast">1.160</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">t3</td><td>Overlap Studies</td><td class="num">3.4544</td><td class="num">2.6184</td><td class="num slow">0.758</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">tema</td><td>Overlap Studies</td><td class="num">3.2094</td><td class="num">7.0192</td><td class="num fast">2.187</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">trima</td><td>Overlap Studies</td><td class="num">2.2501</td><td class="num">2.8148</td><td class="num fast">1.251</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">wma</td><td>Overlap Studies</td><td class="num">1.9914</td><td class="num">2.1699</td><td class="num fast">1.090</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_2crows</td><td>Pattern Recognition</td><td class="num">0.9378</td><td class="num">1.0506</td><td class="num fast">1.120</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_3blackcrows</td><td>Pattern Recognition</td><td class="num">1.4292</td><td class="num">1.5746</td><td class="num fast">1.102</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_3inside</td><td>Pattern Recognition</td><td class="num">1.1372</td><td class="num">4.2761</td><td class="num fast">3.760</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_3linestrike</td><td>Pattern Recognition</td><td class="num">2.2301</td><td class="num">2.4017</td><td class="num fast">1.077</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_3outside</td><td>Pattern Recognition</td><td class="num">1.2408</td><td class="num">1.2444</td><td class="num fast">1.003</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_3starsinsouth</td><td>Pattern Recognition</td><td class="num">2.5150</td><td class="num">4.3279</td><td class="num fast">1.721</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_3whitesoldiers</td><td>Pattern Recognition</td><td class="num">2.7472</td><td class="num">4.9567</td><td class="num fast">1.804</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_abandonedbaby</td><td>Pattern Recognition</td><td class="num">1.7077</td><td class="num">2.4875</td><td class="num fast">1.457</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_advanceblock</td><td>Pattern Recognition</td><td class="num">5.1410</td><td class="num">7.4243</td><td class="num fast">1.444</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_belthold</td><td>Pattern Recognition</td><td class="num">1.1171</td><td class="num">1.7797</td><td class="num fast">1.593</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_breakaway</td><td>Pattern Recognition</td><td class="num">0.9342</td><td class="num">2.0238</td><td class="num fast">2.166</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_closingmarubozu</td><td>Pattern Recognition</td><td class="num">1.1272</td><td class="num">1.7989</td><td class="num fast">1.596</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_concealbabyswall</td><td>Pattern Recognition</td><td class="num">3.3178</td><td class="num">2.9519</td><td class="num slow">0.890</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_counterattack</td><td>Pattern Recognition</td><td class="num">1.9536</td><td class="num">2.3191</td><td class="num fast">1.187</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_darkcloudcover</td><td>Pattern Recognition</td><td class="num">0.9426</td><td class="num">1.0483</td><td class="num fast">1.112</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_doji</td><td>Pattern Recognition</td><td class="num">1.0149</td><td class="num">1.4591</td><td class="num fast">1.438</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_dojistar</td><td>Pattern Recognition</td><td class="num">1.2851</td><td class="num">1.8650</td><td class="num fast">1.451</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_dragonflydoji</td><td>Pattern Recognition</td><td class="num">1.0219</td><td class="num">2.1367</td><td class="num fast">2.091</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_engulfing</td><td>Pattern Recognition</td><td class="num">2.1821</td><td class="num">0.9346</td><td class="num slow">0.428</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_eveningdojistar</td><td>Pattern Recognition</td><td class="num">1.6280</td><td class="num">2.3704</td><td class="num fast">1.456</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_eveningstar</td><td>Pattern Recognition</td><td class="num">1.3596</td><td class="num">2.0262</td><td class="num fast">1.490</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_gapsidesidewhite</td><td>Pattern Recognition</td><td class="num">2.0881</td><td class="num">2.6584</td><td class="num fast">1.273</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_gravestonedoji</td><td>Pattern Recognition</td><td class="num">0.9922</td><td class="num">2.1104</td><td class="num fast">2.127</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_hammer</td><td>Pattern Recognition</td><td class="num">1.6709</td><td class="num">2.7630</td><td class="num fast">1.654</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_hangingman</td><td>Pattern Recognition</td><td class="num">1.7651</td><td class="num">2.7703</td><td class="num fast">1.569</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_harami</td><td>Pattern Recognition</td><td class="num">2.9502</td><td class="num">1.8627</td><td class="num slow">0.631</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_haramicross</td><td>Pattern Recognition</td><td class="num">1.2828</td><td class="num">1.8657</td><td class="num fast">1.454</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_highwave</td><td>Pattern Recognition</td><td class="num">0.9474</td><td class="num">1.5099</td><td class="num fast">1.594</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_hikkake</td><td>Pattern Recognition</td><td class="num">1.1642</td><td class="num">1.6571</td><td class="num fast">1.423</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_hikkakemod</td><td>Pattern Recognition</td><td class="num">1.3272</td><td class="num">4.0023</td><td class="num fast">3.016</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_homingpigeon</td><td>Pattern Recognition</td><td class="num">2.8026</td><td class="num">2.4437</td><td class="num slow">0.872</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_identical3crows</td><td>Pattern Recognition</td><td class="num">2.8841</td><td class="num">3.3045</td><td class="num fast">1.146</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_inneck</td><td>Pattern Recognition</td><td class="num">1.3724</td><td class="num">2.1352</td><td class="num fast">1.556</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_invertedhammer</td><td>Pattern Recognition</td><td class="num">1.2154</td><td class="num">6.5151</td><td class="num fast">5.361</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_kicking</td><td>Pattern Recognition</td><td class="num">1.8608</td><td class="num">2.8848</td><td class="num fast">1.550</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_kickingbylength</td><td>Pattern Recognition</td><td class="num">1.9631</td><td class="num">2.9343</td><td class="num fast">1.495</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_ladderbottom</td><td>Pattern Recognition</td><td class="num">2.5212</td><td class="num">2.5118</td><td class="num slow">0.996</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_longleggeddoji</td><td>Pattern Recognition</td><td class="num">0.9727</td><td class="num">1.8176</td><td class="num fast">1.869</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_longline</td><td>Pattern Recognition</td><td class="num">3.1067</td><td class="num">2.3843</td><td class="num slow">0.767</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_marubozu</td><td>Pattern Recognition</td><td class="num">1.1222</td><td class="num">1.8248</td><td class="num fast">1.626</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_matchinglow</td><td>Pattern Recognition</td><td class="num">1.6098</td><td class="num">4.2035</td><td class="num fast">2.611</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_mathold</td><td>Pattern Recognition</td><td class="num">1.7706</td><td class="num">2.1806</td><td class="num fast">1.232</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_morningdojistar</td><td>Pattern Recognition</td><td class="num">1.8663</td><td class="num">2.5277</td><td class="num fast">1.354</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_morningstar</td><td>Pattern Recognition</td><td class="num">1.5535</td><td class="num">2.1799</td><td class="num fast">1.403</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_onneck</td><td>Pattern Recognition</td><td class="num">1.3725</td><td class="num">2.1329</td><td class="num fast">1.554</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_piercing</td><td>Pattern Recognition</td><td class="num">1.1783</td><td class="num">2.1559</td><td class="num fast">1.830</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_rickshawman</td><td>Pattern Recognition</td><td class="num">1.3218</td><td class="num">2.4942</td><td class="num fast">1.887</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_risefall3methods</td><td>Pattern Recognition</td><td class="num">2.0827</td><td class="num">3.1221</td><td class="num fast">1.499</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_separatinglines</td><td>Pattern Recognition</td><td class="num">4.3452</td><td class="num">2.4937</td><td class="num slow">0.574</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_shootingstar</td><td>Pattern Recognition</td><td class="num">1.2198</td><td class="num">6.2864</td><td class="num fast">5.154</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_shortline</td><td>Pattern Recognition</td><td class="num">3.1101</td><td class="num">2.3827</td><td class="num slow">0.766</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_spinningtop</td><td>Pattern Recognition</td><td class="num">0.9689</td><td class="num">2.2670</td><td class="num fast">2.340</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_stalledpattern</td><td>Pattern Recognition</td><td class="num">2.6185</td><td class="num">4.2723</td><td class="num fast">1.632</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_sticksandwich</td><td>Pattern Recognition</td><td class="num">1.3247</td><td class="num">1.2679</td><td class="num slow">0.957</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_takuri</td><td>Pattern Recognition</td><td class="num">0.9932</td><td class="num">2.4160</td><td class="num fast">2.433</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_tasukigap</td><td>Pattern Recognition</td><td class="num">3.2502</td><td class="num">5.5208</td><td class="num fast">1.699</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_thrusting</td><td>Pattern Recognition</td><td class="num">1.3707</td><td class="num">2.1339</td><td class="num fast">1.557</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_tristar</td><td>Pattern Recognition</td><td class="num">0.9616</td><td class="num">1.5274</td><td class="num fast">1.588</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_unique3river</td><td>Pattern Recognition</td><td class="num">1.2648</td><td class="num">2.1357</td><td class="num fast">1.689</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_upsidegap2crows</td><td>Pattern Recognition</td><td class="num">1.0104</td><td class="num">1.8255</td><td class="num fast">1.807</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">cdl_xsidegap3methods</td><td>Pattern Recognition</td><td class="num">1.5527</td><td class="num">1.5571</td><td class="num fast">1.003</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">avgdev</td><td>Price Transform</td><td class="num">6.1328</td><td class="num">9.6358</td><td class="num fast">1.571</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">avgprice</td><td>Price Transform</td><td class="num">0.4045</td><td class="num">0.6276</td><td class="num fast">1.552</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">medprice</td><td>Price Transform</td><td class="num">0.2456</td><td class="num">0.3544</td><td class="num fast">1.443</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">typprice</td><td>Price Transform</td><td class="num">0.3250</td><td class="num">0.4774</td><td class="num fast">1.469</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">wclprice</td><td>Price Transform</td><td class="num">0.3249</td><td class="num">0.4720</td><td class="num fast">1.453</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">beta</td><td>Statistic Functions</td><td class="num">3.7896</td><td class="num">3.4116</td><td class="num slow">0.900</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">correl</td><td>Statistic Functions</td><td class="num">4.4479</td><td class="num">2.9288</td><td class="num slow">0.658</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">linear_reg</td><td>Statistic Functions</td><td class="num">2.1081</td><td class="num">6.0090</td><td class="num fast">2.850</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">linear_reg_angle</td><td>Statistic Functions</td><td class="num">5.4339</td><td class="num">16.4730</td><td class="num fast">3.031</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">linear_reg_intercept</td><td>Statistic Functions</td><td class="num">2.0293</td><td class="num">5.7215</td><td class="num fast">2.819</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">linear_reg_slope</td><td>Statistic Functions</td><td class="num">2.0252</td><td class="num">5.3550</td><td class="num fast">2.644</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">stddev</td><td>Statistic Functions</td><td class="num">1.8969</td><td class="num">2.5921</td><td class="num fast">1.367</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">tsf</td><td>Statistic Functions</td><td class="num">2.1093</td><td class="num">6.1180</td><td class="num fast">2.901</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">var</td><td>Statistic Functions</td><td class="num">1.4335</td><td class="num">1.8808</td><td class="num fast">1.312</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">atr</td><td>Volatility Indicators</td><td class="num">3.7692</td><td class="num">5.9213</td><td class="num fast">1.571</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">natr</td><td>Volatility Indicators</td><td class="num">4.5524</td><td class="num">5.9297</td><td class="num fast">1.302</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">trange</td><td>Volatility Indicators</td><td class="num">0.7003</td><td class="num">0.6387</td><td class="num slow">0.912</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">ad</td><td>Volume Indicators</td><td class="num">0.9329</td><td class="num">1.2521</td><td class="num fast">1.342</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">adosc</td><td>Volume Indicators</td><td class="num">3.2576</td><td class="num">2.5637</td><td class="num slow">0.787</td><td class="num par-ok">1:1</td></tr>
+<tr><td class="nm">obv</td><td>Volume Indicators</td><td class="num">0.9893</td><td class="num">0.9390</td><td class="num slow">0.949</td><td class="num par-ok">1:1</td></tr></tbody></table></div>
 
 <h2>Limitations &amp; notes</h2>
 <div class="panel">
 <ul>
-  <li><b>Overall:</b> adaq is on average ~1.5× slower than TA-Lib C (geomean 0.665×). It is <b>faster or
-      comparable</b> for Overlap, Math Operators, Math Transform, Price Transform, Statistic Functions, Volatility and
-      Volume indicators, but slower for Momentum (0.75×) and especially the 61 candle (Pattern Recognition) functions
-      (0.34×), which are branch-heavy pattern logic and are TA-Lib's most optimized code.</li>
+  <li><b>Overall:</b> adaq is on average ~1.26× faster than TA-Lib C (geomean 1.263× = C ns/elem ÷ adaq ns/elem,
+      i.e. adaq uses ~0.79× of C's per-element time). It is <b>faster</b> for Math Operators, Math Transform, Price
+      Transform, Statistic Functions, Volatility, Volume, Overlap, Cycle and the 61 candle (Pattern Recognition)
+      functions (1.48×), and at parity for Momentum (1.00×) — the prior Pattern rollout plus the P2 algorithm pass
+      (ring-buffer rolling extremes / cycle IIR skip + sin/cos recurrence / MFI single-pass fusion) closed the previous
+      worst-case gaps.</li>
   <li><b>Parity:</b> 160/161 functions match TA-Lib 1:1 out of the box. TA-Lib C is the reference.</li>
   <li><b><code>stoch_rsi</code> (1 divergence):</b> adaq <code>stoch_rsi(14,5)</code> vs TA <code>STOCHRSI(14,5,3)</code>
       differ ~2× on the default <code>period=5</code> path. adaq's golden vector uses <code>period=14</code> and passes,
@@ -293,18 +295,18 @@ the overall average drag.</div></div>
 </div>
 </body></html>
 <script>
-document.querySelectorAll('#tbl th').forEach(function(th){
-  th.addEventListener('click', function(){
+document.querySelectorAll('#tbl th').forEach((th)=> {
+  th.addEventListener('click', ()=> {
     var k=th.getAttribute('data-k'), tb=th.parentNode.parentNode.parentNode,
         trs=Array.from(tb.querySelectorAll('tbody tr'));
     var asc=!th.asc;
-    trs.sort(function(a,b){
+    trs.sort((a,b)=> {
       var x=a.children[th.cellIndex].textContent, y=b.children[th.cellIndex].textContent;
       if(k==='name'||k==='group') return asc? x.localeCompare(y): y.localeCompare(x);
       return asc? (parseFloat(x)-parseFloat(y)) : (parseFloat(y)-parseFloat(x));
     });
     th.asc=asc;
-    var tb2=tb.querySelector('tbody'); trs.forEach(function(tr){tb2.appendChild(tr);});
+    var tb2=tb.querySelector('tbody'); trs.forEach((tr)=> {tb2.appendChild(tr);});
   });
 });
 </script>

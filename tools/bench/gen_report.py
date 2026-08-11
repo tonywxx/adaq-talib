@@ -267,10 +267,12 @@ the overall average drag.</div></div>
 <h2>Limitations &amp; notes</h2>
 <div class="panel">
 <ul>
-  <li><b>Overall:</b> adaq is on average ~1.5× slower than TA-Lib C (geomean {geomean:.3f}×). It is <b>faster or
-      comparable</b> for Overlap, Math Operators, Math Transform, Price Transform, Statistic Functions, Volatility and
-      Volume indicators, but slower for Momentum (0.75×) and especially the 61 candle (Pattern Recognition) functions
-      (0.34×), which are branch-heavy pattern logic and are TA-Lib's most optimized code.</li>
+  <li><b>Overall:</b> adaq is on average ~1.26× faster than TA-Lib C (geomean {geomean:.3f}× = C ns/elem ÷ adaq ns/elem,
+      i.e. adaq uses ~0.79× of C's per-element time). It is <b>faster</b> for Math Operators, Math Transform, Price
+      Transform, Statistic Functions, Volatility, Volume, Overlap, Cycle and the 61 candle (Pattern Recognition)
+      functions (1.48×), and at parity for Momentum (1.00×) — the prior Pattern rollout plus the P2 algorithm pass
+      (ring-buffer rolling extremes / cycle IIR skip + sin/cos recurrence / MFI single-pass fusion) closed the previous
+      worst-case gaps.</li>
   <li><b>Parity:</b> {n_parity_clean}/{compared} functions match TA-Lib 1:1 out of the box. TA-Lib C is the reference.</li>
   <li><b><code>stoch_rsi</code> (1 divergence):</b> adaq <code>stoch_rsi(14,5)</code> vs TA <code>STOCHRSI(14,5,3)</code>
       differ ~2× on the default <code>period=5</code> path. adaq's golden vector uses <code>period=14</code> and passes,

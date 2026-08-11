@@ -51,25 +51,46 @@ pub fn cdl_belthold_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut avg_body = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 0);
-    let mut avg_vs = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 0);
+    let mut sum_avg_body = {
+        let mut s = (lookback - 0 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 0) {
+            acc += real_body(open[s], close[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_body = (lookback - 0 - 10);
+    let mut sum_avg_vs = {
+        let mut s = (lookback - 0 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 0) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_vs = (lookback - 0 - 10);
     let mut i = lookback;
     while i < n {
-        if real_body(open[i], close[i]) > avg_body.value(i, open, high, low, close)
+        let cur_avg_body = real_body(open[i], close[i]);
+        let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
+        let cur_avg_vs = high_low_range(high[i], low[i]);
+        let val_avg_vs = sum_avg_vs / 10 as f64 * 0.1;
+        out[i] = if real_body(open[i], close[i]) > val_avg_body
             && ((candle_color(open[i], close[i]) == 1.0
-                && lower_shadow(open[i], low[i], close[i]) < avg_vs.value(i, open, high, low, close))
+                && lower_shadow(open[i], low[i], close[i]) < val_avg_vs)
                 || (candle_color(open[i], close[i]) == -1.0
                     && upper_shadow(open[i], high[i], close[i])
-                        < avg_vs.value(i, open, high, low, close)))
-        {
-            out[i] = candle_color(open[i], close[i]) * 100.0;
-        } else {
-            out[i] = 0.0;
-        }
-        avg_body.advance(i, open, high, low, close);
-        avg_vs.advance(i, open, high, low, close);
+                        < val_avg_vs))
+        { candle_color(open[i], close[i]) * 100.0 } else { 0.0 };
+        sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
+        trail_avg_body += 1;
+        sum_avg_vs += cur_avg_vs - high_low_range(high[trail_avg_vs], low[trail_avg_vs]);
+        trail_avg_vs += 1;
         i += 1;
     }
+
     Ok(())
 }
 
@@ -112,10 +133,21 @@ pub fn cdl_breakaway_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut avg_body = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 4);
+    let mut sum_avg_body = {
+        let mut s = (lookback - 4 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 4) {
+            acc += real_body(open[s], close[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_body = (lookback - 4 - 10);
     let mut i = lookback;
     while i < n {
-        if real_body(open[i - 4], close[i - 4]) > avg_body.value(i, open, high, low, close)
+        let cur_avg_body = real_body(open[(i - 4)], close[(i - 4)]);
+        let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
+        out[i] = if real_body(open[i - 4], close[i - 4]) > val_avg_body
             && candle_color(open[i - 4], close[i - 4]) == candle_color(open[i - 3], close[i - 3])
             && candle_color(open[i - 3], close[i - 3]) == candle_color(open[i - 1], close[i - 1])
             && candle_color(open[i - 1], close[i - 1]) == -candle_color(open[i], close[i])
@@ -135,14 +167,12 @@ pub fn cdl_breakaway_with_output(
                     && low[i - 1] > low[i - 2]
                     && close[i] < open[i - 3]
                     && close[i] > close[i - 4]))
-        {
-            out[i] = candle_color(open[i], close[i]) * 100.0;
-        } else {
-            out[i] = 0.0;
-        }
-        avg_body.advance(i, open, high, low, close);
+        { candle_color(open[i], close[i]) * 100.0 } else { 0.0 };
+        sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
+        trail_avg_body += 1;
         i += 1;
     }
+
     Ok(())
 }
 
@@ -186,24 +216,45 @@ pub fn cdl_closingmarubozu_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut avg_body = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 0);
-    let mut avg_vs = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 0);
+    let mut sum_avg_body = {
+        let mut s = (lookback - 0 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 0) {
+            acc += real_body(open[s], close[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_body = (lookback - 0 - 10);
+    let mut sum_avg_vs = {
+        let mut s = (lookback - 0 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 0) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_vs = (lookback - 0 - 10);
     let mut i = lookback;
     while i < n {
-        if real_body(open[i], close[i]) > avg_body.value(i, open, high, low, close)
+        let cur_avg_body = real_body(open[i], close[i]);
+        let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
+        let cur_avg_vs = high_low_range(high[i], low[i]);
+        let val_avg_vs = sum_avg_vs / 10 as f64 * 0.1;
+        out[i] = if real_body(open[i], close[i]) > val_avg_body
             && ((candle_color(open[i], close[i]) == 1.0
-                && upper_shadow(open[i], high[i], close[i]) < avg_vs.value(i, open, high, low, close))
+                && upper_shadow(open[i], high[i], close[i]) < val_avg_vs)
                 || (candle_color(open[i], close[i]) == -1.0
-                    && lower_shadow(open[i], low[i], close[i]) < avg_vs.value(i, open, high, low, close)))
-        {
-            out[i] = candle_color(open[i], close[i]) * 100.0;
-        } else {
-            out[i] = 0.0;
-        }
-        avg_body.advance(i, open, high, low, close);
-        avg_vs.advance(i, open, high, low, close);
+                    && lower_shadow(open[i], low[i], close[i]) < val_avg_vs))
+        { candle_color(open[i], close[i]) * 100.0 } else { 0.0 };
+        sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
+        trail_avg_body += 1;
+        sum_avg_vs += cur_avg_vs - high_low_range(high[trail_avg_vs], low[trail_avg_vs]);
+        trail_avg_vs += 1;
         i += 1;
     }
+
     Ok(())
 }
 
@@ -247,34 +298,67 @@ pub fn cdl_concealbabyswall_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut avg_vs_3 = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 3);
-    let mut avg_vs_2 = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 2);
-    let mut avg_vs_1 = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 1);
+    let mut sum_avg_vs_3 = {
+        let mut s = (lookback - 3 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 3) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_vs_3 = (lookback - 3 - 10);
+    let mut sum_avg_vs_2 = {
+        let mut s = (lookback - 2 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 2) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_vs_2 = (lookback - 2 - 10);
+    let mut sum_avg_vs_1 = {
+        let mut s = (lookback - 1 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 1) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_vs_1 = (lookback - 1 - 10);
     let mut i = lookback;
     while i < n {
-        if candle_color(open[i - 3], close[i - 3]) == -1.0
+        let cur_avg_vs_3 = high_low_range(high[(i - 3)], low[(i - 3)]);
+        let val_avg_vs_3 = sum_avg_vs_3 / 10 as f64 * 0.1;
+        let cur_avg_vs_2 = high_low_range(high[(i - 2)], low[(i - 2)]);
+        let val_avg_vs_2 = sum_avg_vs_2 / 10 as f64 * 0.1;
+        let cur_avg_vs_1 = high_low_range(high[(i - 1)], low[(i - 1)]);
+        let val_avg_vs_1 = sum_avg_vs_1 / 10 as f64 * 0.1;
+        out[i] = if candle_color(open[i - 3], close[i - 3]) == -1.0
             && candle_color(open[i - 2], close[i - 2]) == -1.0
             && candle_color(open[i - 1], close[i - 1]) == -1.0
             && candle_color(open[i], close[i]) == -1.0
-            && lower_shadow(open[i - 3], low[i - 3], close[i - 3]) < avg_vs_3.value(i, open, high, low, close)
-            && upper_shadow(open[i - 3], high[i - 3], close[i - 3]) < avg_vs_3.value(i, open, high, low, close)
-            && lower_shadow(open[i - 2], low[i - 2], close[i - 2]) < avg_vs_2.value(i, open, high, low, close)
-            && upper_shadow(open[i - 2], high[i - 2], close[i - 2]) < avg_vs_2.value(i, open, high, low, close)
+            && lower_shadow(open[i - 3], low[i - 3], close[i - 3]) < val_avg_vs_3
+            && upper_shadow(open[i - 3], high[i - 3], close[i - 3]) < val_avg_vs_3
+            && lower_shadow(open[i - 2], low[i - 2], close[i - 2]) < val_avg_vs_2
+            && upper_shadow(open[i - 2], high[i - 2], close[i - 2]) < val_avg_vs_2
             && real_body_gap_down(open[i - 1], close[i - 1], open[i - 2], close[i - 2])
-            && upper_shadow(open[i - 1], high[i - 1], close[i - 1]) > avg_vs_1.value(i, open, high, low, close)
+            && upper_shadow(open[i - 1], high[i - 1], close[i - 1]) > val_avg_vs_1
             && high[i - 1] > close[i - 2]
             && high[i] > high[i - 1]
             && low[i] < low[i - 1]
-        {
-            out[i] = 100.0;
-        } else {
-            out[i] = 0.0;
-        }
-        avg_vs_3.advance(i, open, high, low, close);
-        avg_vs_2.advance(i, open, high, low, close);
-        avg_vs_1.advance(i, open, high, low, close);
+        { 100.0 } else { 0.0 };
+        sum_avg_vs_3 += cur_avg_vs_3 - high_low_range(high[trail_avg_vs_3], low[trail_avg_vs_3]);
+        trail_avg_vs_3 += 1;
+        sum_avg_vs_2 += cur_avg_vs_2 - high_low_range(high[trail_avg_vs_2], low[trail_avg_vs_2]);
+        trail_avg_vs_2 += 1;
+        sum_avg_vs_1 += cur_avg_vs_1 - high_low_range(high[trail_avg_vs_1], low[trail_avg_vs_1]);
+        trail_avg_vs_1 += 1;
         i += 1;
     }
+
     Ok(())
 }
 
@@ -318,26 +402,59 @@ pub fn cdl_counterattack_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut avg_equal = CandleAvg::new(EQUAL, open, high, low, close, lookback, 1);
-    let mut avg_body_1 = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
-    let mut avg_body_0 = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 0);
+    let mut sum_avg_equal = {
+        let mut s = (lookback - 1 - 5);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 1) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_equal = (lookback - 1 - 5);
+    let mut sum_avg_body_1 = {
+        let mut s = (lookback - 1 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 1) {
+            acc += real_body(open[s], close[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_body_1 = (lookback - 1 - 10);
+    let mut sum_avg_body_0 = {
+        let mut s = (lookback - 0 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 0) {
+            acc += real_body(open[s], close[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_body_0 = (lookback - 0 - 10);
     let mut i = lookback;
     while i < n {
-        if candle_color(open[i - 1], close[i - 1]) == -candle_color(open[i], close[i])
-            && real_body(open[i - 1], close[i - 1]) > avg_body_1.value(i, open, high, low, close)
-            && real_body(open[i], close[i]) > avg_body_0.value(i, open, high, low, close)
-            && close[i] <= close[i - 1] + avg_equal.value(i, open, high, low, close)
-            && close[i] >= close[i - 1] - avg_equal.value(i, open, high, low, close)
-        {
-            out[i] = candle_color(open[i], close[i]) * 100.0;
-        } else {
-            out[i] = 0.0;
-        }
-        avg_equal.advance(i, open, high, low, close);
-        avg_body_1.advance(i, open, high, low, close);
-        avg_body_0.advance(i, open, high, low, close);
+        let cur_avg_equal = high_low_range(high[(i - 1)], low[(i - 1)]);
+        let val_avg_equal = sum_avg_equal / 5 as f64 * 0.05;
+        let cur_avg_body_1 = real_body(open[(i - 1)], close[(i - 1)]);
+        let val_avg_body_1 = sum_avg_body_1 / 10 as f64 * 1.0;
+        let cur_avg_body_0 = real_body(open[i], close[i]);
+        let val_avg_body_0 = sum_avg_body_0 / 10 as f64 * 1.0;
+        out[i] = if candle_color(open[i - 1], close[i - 1]) == -candle_color(open[i], close[i])
+            && real_body(open[i - 1], close[i - 1]) > val_avg_body_1
+            && real_body(open[i], close[i]) > val_avg_body_0
+            && close[i] <= close[i - 1] + val_avg_equal
+            && close[i] >= close[i - 1] - val_avg_equal
+        { candle_color(open[i], close[i]) * 100.0 } else { 0.0 };
+        sum_avg_equal += cur_avg_equal - high_low_range(high[trail_avg_equal], low[trail_avg_equal]);
+        trail_avg_equal += 1;
+        sum_avg_body_1 += cur_avg_body_1 - real_body(open[trail_avg_body_1], close[trail_avg_body_1]);
+        trail_avg_body_1 += 1;
+        sum_avg_body_0 += cur_avg_body_0 - real_body(open[trail_avg_body_0], close[trail_avg_body_0]);
+        trail_avg_body_0 += 1;
         i += 1;
     }
+
     Ok(())
 }
 
@@ -382,23 +499,32 @@ pub fn cdl_darkcloudcover_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut avg_body = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
+    let mut sum_avg_body = {
+        let mut s = (lookback - 1 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 1) {
+            acc += real_body(open[s], close[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_body = (lookback - 1 - 10);
     let mut i = lookback;
     while i < n {
-        if candle_color(open[i - 1], close[i - 1]) == 1.0
-            && real_body(open[i - 1], close[i - 1]) > avg_body.value(i, open, high, low, close)
+        let cur_avg_body = real_body(open[(i - 1)], close[(i - 1)]);
+        let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
+        out[i] = if candle_color(open[i - 1], close[i - 1]) == 1.0
+            && real_body(open[i - 1], close[i - 1]) > val_avg_body
             && candle_color(open[i], close[i]) == -1.0
             && open[i] > high[i - 1]
             && close[i] > open[i - 1]
             && close[i] < close[i - 1] - real_body(open[i - 1], close[i - 1]) * penetration
-        {
-            out[i] = -100.0;
-        } else {
-            out[i] = 0.0;
-        }
-        avg_body.advance(i, open, high, low, close);
+        { -100.0 } else { 0.0 };
+        sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
+        trail_avg_body += 1;
         i += 1;
     }
+
     Ok(())
 }
 
@@ -443,25 +569,46 @@ pub fn cdl_dojistar_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut avg_body = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
-    let mut avg_doji = CandleAvg::new(BODY_DOJI, open, high, low, close, lookback, 0);
+    let mut sum_avg_body = {
+        let mut s = (lookback - 1 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 1) {
+            acc += real_body(open[s], close[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_body = (lookback - 1 - 10);
+    let mut sum_avg_doji = {
+        let mut s = (lookback - 0 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 0) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_doji = (lookback - 0 - 10);
     let mut i = lookback;
     while i < n {
-        if real_body(open[i - 1], close[i - 1]) > avg_body.value(i, open, high, low, close)
-            && real_body(open[i], close[i]) <= avg_doji.value(i, open, high, low, close)
+        let cur_avg_body = real_body(open[(i - 1)], close[(i - 1)]);
+        let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
+        let cur_avg_doji = high_low_range(high[i], low[i]);
+        let val_avg_doji = sum_avg_doji / 10 as f64 * 0.1;
+        out[i] = if real_body(open[i - 1], close[i - 1]) > val_avg_body
+            && real_body(open[i], close[i]) <= val_avg_doji
             && ((candle_color(open[i - 1], close[i - 1]) == 1.0
                 && real_body_gap_up(open[i], close[i], open[i - 1], close[i - 1]))
                 || (candle_color(open[i - 1], close[i - 1]) == -1.0
                     && real_body_gap_down(open[i], close[i], open[i - 1], close[i - 1])))
-        {
-            out[i] = -candle_color(open[i - 1], close[i - 1]) * 100.0;
-        } else {
-            out[i] = 0.0;
-        }
-        avg_body.advance(i, open, high, low, close);
-        avg_doji.advance(i, open, high, low, close);
+        { -candle_color(open[i - 1], close[i - 1]) * 100.0 } else { 0.0 };
+        sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
+        trail_avg_body += 1;
+        sum_avg_doji += cur_avg_doji - high_low_range(high[trail_avg_doji], low[trail_avg_doji]);
+        trail_avg_doji += 1;
         i += 1;
     }
+
     Ok(())
 }
 
@@ -505,22 +652,43 @@ pub fn cdl_dragonflydoji_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut avg_doji = CandleAvg::new(BODY_DOJI, open, high, low, close, lookback, 0);
-    let mut avg_vs = CandleAvg::new(SHADOW_VERY_SHORT, open, high, low, close, lookback, 0);
+    let mut sum_avg_doji = {
+        let mut s = (lookback - 0 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 0) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_doji = (lookback - 0 - 10);
+    let mut sum_avg_vs = {
+        let mut s = (lookback - 0 - 10);
+        let mut acc = 0.0_f64;
+        while s < (lookback - 0) {
+            acc += high_low_range(high[s], low[s]);
+            s += 1;
+        }
+        acc
+    };
+    let mut trail_avg_vs = (lookback - 0 - 10);
     let mut i = lookback;
     while i < n {
-        if real_body(open[i], close[i]) <= avg_doji.value(i, open, high, low, close)
-            && upper_shadow(open[i], high[i], close[i]) < avg_vs.value(i, open, high, low, close)
-            && lower_shadow(open[i], low[i], close[i]) > avg_vs.value(i, open, high, low, close)
-        {
-            out[i] = 100.0;
-        } else {
-            out[i] = 0.0;
-        }
-        avg_doji.advance(i, open, high, low, close);
-        avg_vs.advance(i, open, high, low, close);
+        let cur_avg_doji = high_low_range(high[i], low[i]);
+        let val_avg_doji = sum_avg_doji / 10 as f64 * 0.1;
+        let cur_avg_vs = high_low_range(high[i], low[i]);
+        let val_avg_vs = sum_avg_vs / 10 as f64 * 0.1;
+        out[i] = if real_body(open[i], close[i]) <= val_avg_doji
+            && upper_shadow(open[i], high[i], close[i]) < val_avg_vs
+            && lower_shadow(open[i], low[i], close[i]) > val_avg_vs
+        { 100.0 } else { 0.0 };
+        sum_avg_doji += cur_avg_doji - high_low_range(high[trail_avg_doji], low[trail_avg_doji]);
+        trail_avg_doji += 1;
+        sum_avg_vs += cur_avg_vs - high_low_range(high[trail_avg_vs], low[trail_avg_vs]);
+        trail_avg_vs += 1;
         i += 1;
     }
+
     Ok(())
 }
 

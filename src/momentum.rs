@@ -139,25 +139,51 @@ pub fn mom_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// - `mode = 1`：`ROCP = (cur - prev) / prev`
 /// - `mode = 2`：`ROCR = cur / prev`
 /// - `mode = 3`：`ROCR100 = 100 * cur / prev`
-fn rate_of_change(values: &[f64], time_period: usize, mode: u8) -> Result<Vec<f64>, TaError> {
+/// 变动率族的共享计算内核（与 TA-Lib 0.7.1 `TA_ROC*` 逐项一致）。
+///
+/// 零拷贝写入调用方提供的 `out`（长度必须等于 `values.len()`），避免临时向量分配与
+/// `copy_from_slice` 往返；并按 `mode` 将分支提出热循环外（P3-2，ADR 0010）。
+/// `mode`：0=`ROC`（×100 差值比）、1=`ROCP`（差值比）、2=`ROCR`（比值）、3=`ROCR100`（×100 比值）。
+/// 前导 `time_period` 个位置填 [`f64::NAN`]；除数为零时输出 `0.0`（与 TA-Lib 一致）。
+fn rate_of_change(values: &[f64], time_period: usize, mode: u8, out: &mut [f64]) -> Result<(), TaError> {
     check_period(time_period)?;
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
-    for i in time_period..n {
-        let prev = values[i - time_period];
-        let cur = values[i];
-        out[i] = if prev == 0.0 {
-            0.0
-        } else {
-            match mode {
-                0 => 100.0 * (cur - prev) / prev,
-                1 => (cur - prev) / prev,
-                2 => cur / prev,
-                _ => 100.0 * cur / prev,
-            }
-        };
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "rate_of_change: out length must equal values length".into(),
+        ));
     }
-    Ok(out)
+    for v in out.iter_mut().take(time_period) {
+        *v = f64::NAN;
+    }
+    let p = time_period;
+    match mode {
+        0 => {
+            for i in p..n {
+                let prev = values[i - p];
+                out[i] = if prev == 0.0 { 0.0 } else { 100.0 * (values[i] - prev) / prev };
+            }
+        }
+        1 => {
+            for i in p..n {
+                let prev = values[i - p];
+                out[i] = if prev == 0.0 { 0.0 } else { (values[i] - prev) / prev };
+            }
+        }
+        2 => {
+            for i in p..n {
+                let prev = values[i - p];
+                out[i] = if prev == 0.0 { 0.0 } else { values[i] / prev };
+            }
+        }
+        _ => {
+            for i in p..n {
+                let prev = values[i - p];
+                out[i] = if prev == 0.0 { 0.0 } else { 100.0 * values[i] / prev };
+            }
+        }
+    }
+    Ok(())
 }
 
 /// 变动率（Rate of Change，`TA_MOM` 的 `ROC` 变体，TA-Lib `TA_ROC`）。
@@ -181,8 +207,7 @@ pub fn roc_with_output(
             "roc_with_output: out length must equal values length".into(),
         ));
     }
-    out.copy_from_slice(&rate_of_change(values, time_period, 0)?);
-    Ok(())
+    rate_of_change(values, time_period, 0, out)
 }
 
 /// `roc` 便捷版本，默认周期 10。/ `roc` with default period (10).
@@ -210,8 +235,7 @@ pub fn rocp_with_output(
             "rocp_with_output: out length must equal values length".into(),
         ));
     }
-    out.copy_from_slice(&rate_of_change(values, time_period, 1)?);
-    Ok(())
+    rate_of_change(values, time_period, 1, out)
 }
 
 /// `rocp` 便捷版本，默认周期 10。/ `rocp` with default period (10).
@@ -239,8 +263,7 @@ pub fn rocr_with_output(
             "rocr_with_output: out length must equal values length".into(),
         ));
     }
-    out.copy_from_slice(&rate_of_change(values, time_period, 2)?);
-    Ok(())
+    rate_of_change(values, time_period, 2, out)
 }
 
 /// `rocr` 便捷版本，默认周期 10。/ `rocr` with default period (10).
@@ -268,8 +291,7 @@ pub fn rocr100_with_output(
             "rocr100_with_output: out length must equal values length".into(),
         ));
     }
-    out.copy_from_slice(&rate_of_change(values, time_period, 3)?);
-    Ok(())
+    rate_of_change(values, time_period, 3, out)
 }
 
 /// `rocr100` 便捷版本，默认周期 10。/ `rocr100` with default period (10).
@@ -875,31 +897,55 @@ pub fn mfi_with_output(
         ));
     }
     let n = close.len();
-    let mut tp = vec![0.0_f64; n];
-    let mut mf = vec![0.0_f64; n];
-    for i in 0..n {
-        tp[i] = (high[i] + low[i] + close[i]) / 3.0;
-        if i > 0 {
-            mf[i] = tp[i] * volume[i];
-        }
+    if n == 0 {
+        return Ok(());
     }
-    let mut pos = vec![0.0_f64; n];
-    let mut neg = vec![0.0_f64; n];
+    // 单遍滑动窗口（O(n)）：维护正负资金流的滚动和，消除原实现的多趟扫描与多次分配
+    // （tp/mf/pos/neg/sp/sn 共 6 次分配 + 5 趟），与原逐窗口求和在数值上逐项一致
+    // （黄金向量 1:1）。TA-Lib C 的 MFI 同为单遍运行和。
+    // Single-pass sliding window (O(n)): maintain running positive/negative money-flow
+    // sums, eliminating the original multi-pass scan and extra allocations. Numerically
+    // 1:1 with the per-window sum (golden vector). TA-Lib's C MFI is also single-pass.
+    let p = time_period;
+    let mut pos_ring = vec![0.0_f64; p]; // 窗口 pos 环形缓冲，供滑窗剔除左端
+    let mut neg_ring = vec![0.0_f64; p]; // 窗口 neg 环形缓冲
+    let mut pos_sum = 0.0_f64;
+    let mut neg_sum = 0.0_f64;
+    let mut idx = 0_usize;
+    let mut tp_prev = (high[0] + low[0] + close[0]) / 3.0;
     for i in 1..n {
-        if tp[i] > tp[i - 1] {
-            pos[i] = mf[i];
-        } else if tp[i] < tp[i - 1] {
-            neg[i] = mf[i];
+        let tp = (high[i] + low[i] + close[i]) / 3.0;
+        let mf = tp * volume[i];
+        let (pos_i, neg_i) = if tp > tp_prev {
+            (mf, 0.0)
+        } else if tp < tp_prev {
+            (0.0, mf)
+        } else {
+            (0.0, 0.0)
+        };
+        // 窗口已满（i >= p）：剔除左端离开窗口的元素（bar i-p，pos[0]=neg[0]=0 由未写槽位表示）。
+        // Window full (i >= p): evict the left element leaving the window (bar i-p;
+        // pos[0]=neg[0]=0 is represented by the never-written slot).
+        if i >= p {
+            pos_sum -= pos_ring[idx];
+            neg_sum -= neg_ring[idx];
         }
-    }
-    let sp = rolling_sum(&pos, time_period);
-    let sn = rolling_sum(&neg, time_period);
-    for i in time_period..n {
-        let (p, l) = (sp[i], sn[i]);
-        if p.is_nan() || l.is_nan() {
-            continue;
+        pos_sum += pos_i;
+        neg_sum += neg_i;
+        pos_ring[idx] = pos_i;
+        neg_ring[idx] = neg_i;
+        // 首个有效输出在 i = p（窗口 [1..p]，含 p 个资金流），与 TA-Lib lookback = period 一致。
+        // First valid output at i = p (window [1..p], p money flows), matching TA-Lib's
+        // lookback = period.
+        if i >= p {
+            out[i] = if neg_sum == 0.0 {
+                100.0
+            } else {
+                100.0 - 100.0 / (1.0 + pos_sum / neg_sum)
+            };
         }
-        out[i] = if l == 0.0 { 100.0 } else { 100.0 - 100.0 / (1.0 + p / l) };
+        tp_prev = tp;
+        idx = (idx + 1) % p;
     }
     Ok(())
 }
@@ -1114,37 +1160,25 @@ pub fn ultosc_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f6
 /// to each TA-Lib lookback): `pdm`/`mdm` (Wilder-smoothed ±DM), `pdi`/`mdi` (= 100·DM/TR),
 /// `adx` (Wilder-smoothed DX), `adxr` ((ADX[i]+ADX[i-(period-1)])/2).
 #[allow(clippy::too_many_arguments)]
-fn directional(
+/// Wilder-smoothed +DM / -DM / TR pass — the shared directional-movement kernel.
+///
+/// Seed = sum of the first `period-1` DM1/TR1 values (placed at index `period-1`), then
+/// Wilder recursion. Byte-for-byte identical to the historical `directional` kernel (P3-2).
+#[allow(clippy::too_many_arguments)]
+fn dm_tr(
     high: &[f64],
     low: &[f64],
     close: &[f64],
     period: usize,
-) -> (
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-) {
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
     let n = high.len();
     let mut pdm = vec![f64::NAN; n];
     let mut mdm = vec![f64::NAN; n];
     let mut tr = vec![f64::NAN; n];
-    let mut pdi = vec![f64::NAN; n];
-    let mut mdi = vec![f64::NAN; n];
-    let mut adx = vec![f64::NAN; n];
-    let mut adxr = vec![f64::NAN; n];
-
-    // 需要至少 period+1 个价格才能产出首个 +DM/-DM（位于索引 period-1）。
-    // Need at least period+1 prices to yield the first ±DM (at index period-1).
     if n < period + 1 {
-        return (pdm, mdm, pdi, mdi, adx, adxr);
+        return (pdm, mdm, tr);
     }
     let p = period as f64;
-
-    // --- +DM/-DM/TR 的 Wilder 平滑流（种子 = 前 period-1 个 DM1/TR1 之和）---
-    // Seed = sum of the first `period-1` DM1/TR1 values, then Wilder recursion.
     let mut today = 0usize;
     let mut prev_high = high[0];
     let mut prev_low = low[0];
@@ -1166,7 +1200,6 @@ fn directional(
         } else if diff_p > 0.0 && diff_p > diff_m {
             prev_plus_dm += diff_p;
         }
-        // 该柱的真实波幅（使用前一收盘价）。/ True Range at this bar (uses previous close).
         let mut range = prev_high - prev_low;
         let mut tmp = (prev_high - prev_close).abs();
         if tmp > range {
@@ -1180,16 +1213,9 @@ fn directional(
         prev_close = close[today];
         i -= 1;
     }
-    // 种子值置于索引 `period-1`（首个有效 +DM/-DM/TR）。
-    // Seed placed at index `period-1` (first valid ±DM/TR).
     pdm[period - 1] = prev_plus_dm;
     mdm[period - 1] = prev_minus_dm;
     tr[period - 1] = prev_tr;
-    // 后续 Wilder 递推（prev -= prev/period (+= dm1)）。
-    // Subsequent Wilder recursion (prev -= prev/period (+= dm1)).
-    // 注意：`today += 1` 后再写入 `pdm[today]`，故循环条件须为 `today < n - 1`，
-    // 否则最后一轮会把 `today` 推到 `n` 越界。
-    // Note: `today += 1` precedes the `pdm[today]` write, so the guard must stay `today < n - 1`.
     while today < n - 1 {
         today += 1;
         let tp = high[today];
@@ -1220,9 +1246,14 @@ fn directional(
         mdm[today] = prev_minus_dm;
         tr[today] = prev_tr;
     }
+    (pdm, mdm, tr)
+}
 
-    // --- +DI/-DI（= 100*DM/TR），首个有效于 `period`（比 DM 多递推一步）。---
-    // +DI/-DI (= 100·DM/TR), first valid at `period` (one Wilder step after DM).
+/// +DI / -DI from Wilder-smoothed DM/TR: `= 100 * DM / TR`. First valid at `period`.
+fn di_from_dm_tr(pdm: &[f64], mdm: &[f64], tr: &[f64], period: usize) -> (Vec<f64>, Vec<f64>) {
+    let n = tr.len();
+    let mut pdi = vec![f64::NAN; n];
+    let mut mdi = vec![f64::NAN; n];
     for i in period..n {
         if !tr[i].is_nan() {
             if tr[i] == 0.0 {
@@ -1234,10 +1265,15 @@ fn directional(
             }
         }
     }
+    (pdi, mdi)
+}
 
-    // --- DX / ADX ---
-    // DX[i] = 100*|pdi-mdi|/(pdi+mdi)，首个有效于 `period`。
-    // ADX：种子 = 前 period 个 DX 的均值（位于 `2*period-1`），其后 Wilder 递推。
+/// ADX / ADXR from +DI / -DI (Wilder-smoothed DX). Identical to the historical `directional`.
+fn adx_adxr_from_di(pdi: &[f64], mdi: &[f64], period: usize) -> (Vec<f64>, Vec<f64>) {
+    let n = pdi.len();
+    let mut adx = vec![f64::NAN; n];
+    let mut adxr = vec![f64::NAN; n];
+    let p = period as f64;
     let dx_seed_end = 2 * period - 1;
     if n > dx_seed_end {
         let mut sum_dx = 0.0_f64;
@@ -1260,9 +1296,6 @@ fn directional(
             adx[i] = prev_adx;
         }
     }
-
-    // --- ADXR = (ADX[i] + ADX[i-(period-1)]) / 2，首个有效于 `3*period-2`。---
-    // ADXR = (ADX[i] + ADX[i-(period-1)]) / 2, first valid at `3*period-2`.
     let adxr_start = 3 * period - 2;
     for i in adxr_start..n {
         let earlier = i - (period - 1);
@@ -1270,9 +1303,34 @@ fn directional(
             adxr[i] = (adx[i] + adx[earlier]) / 2.0;
         }
     }
+    (adx, adxr)
+}
 
+/// 方向性运动族的共享计算（与 TA-Lib 0.7.1 逐项一致）。
+///
+/// 组合 [`dm_tr`] + [`di_from_dm_tr`] + [`adx_adxr_from_di`]，返回六个等长向量
+/// （前导不稳定期填 [`f64::NAN`]，对齐到 TA-Lib 各自 lookback）。公开函数按需取用其中子集，
+/// 避免冗余计算（P3-2，ADR 0010）。
+fn directional(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    period: usize,
+) -> (
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+) {
+    let (pdm, mdm, tr) = dm_tr(high, low, close, period);
+    let (pdi, mdi) = di_from_dm_tr(&pdm, &mdm, &tr, period);
+    let (adx, adxr) = adx_adxr_from_di(&pdi, &mdi, period);
     (pdm, mdm, pdi, mdi, adx, adxr)
 }
+
+
 
 /// 正方向性运动（TA-Lib `TA_PLUS_DM`，Wilder 平滑）。前导 `period-1` 个为 [`f64::NAN`]。
 ///
@@ -1308,7 +1366,8 @@ pub fn plus_dm_with_output(
             "plus_dm_with_output: out length must equal high length".into(),
         ));
     }
-    out.copy_from_slice(&directional(high, low, close, time_period).0);
+    let (pdm, _, _) = dm_tr(high, low, close, time_period);
+    out.copy_from_slice(&pdm);
     Ok(())
 }
 
@@ -1347,7 +1406,8 @@ pub fn minus_dm_with_output(
             "minus_dm_with_output: out length must equal high length".into(),
         ));
     }
-    out.copy_from_slice(&directional(high, low, close, time_period).1);
+    let (_, mdm, _) = dm_tr(high, low, close, time_period);
+    out.copy_from_slice(&mdm);
     Ok(())
 }
 
@@ -1383,7 +1443,9 @@ pub fn plus_di_with_output(
             "plus_di_with_output: out length must equal high length".into(),
         ));
     }
-    out.copy_from_slice(&directional(high, low, close, time_period).2);
+    let (pdm, mdm, tr) = dm_tr(high, low, close, time_period);
+    let (pdi, _) = di_from_dm_tr(&pdm, &mdm, &tr, time_period);
+    out.copy_from_slice(&pdi);
     Ok(())
 }
 
@@ -1419,7 +1481,9 @@ pub fn minus_di_with_output(
             "minus_di_with_output: out length must equal high length".into(),
         ));
     }
-    out.copy_from_slice(&directional(high, low, close, time_period).3);
+    let (pdm, mdm, tr) = dm_tr(high, low, close, time_period);
+    let (_, mdi) = di_from_dm_tr(&pdm, &mdm, &tr, time_period);
+    out.copy_from_slice(&mdi);
     Ok(())
 }
 
@@ -1947,7 +2011,8 @@ pub fn dx(high: &[f64], low: &[f64], close: &[f64], period: usize) -> Result<Vec
         return Ok(out);
     }
     // 复用共享的 Wilder ±DI。/ Reuse the shared Wilder ±DI.
-    let (_pdm, _mdm, pdi, mdi, _adx, _adxr) = directional(high, low, close, period);
+    let (pdm, mdm, tr) = dm_tr(high, low, close, period);
+    let (pdi, mdi) = di_from_dm_tr(&pdm, &mdm, &tr, period);
     let mut last = f64::NAN; // 用于 TR/分母为零时的前向填充。/ carry-forward state.
     for i in period..n {
         let pdi_i = pdi[i];

@@ -268,6 +268,7 @@ impl CandleAvg {
     /// - `avgPeriod == 0` 时用当前（偏移后）K 线范围 `range(i − off)`；
     /// - 否则用 `total / avgPeriod`（running sum）；
     /// Shadows 范围再除以 2。
+    #[inline(always)]
     pub fn value(&self, i: usize, open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> f64 {
         let rt = self.setting.range_type;
         let idx = i - self.off;
@@ -282,6 +283,7 @@ impl CandleAvg {
     /// 推进滚动窗口（每根 K 线判定后调用一次）。对应 C 的
     /// `total += range(i − off) − range(trailing); trailing++`
     ///（与 `ta_CDLHAMMER.c` `NearPeriodTotal += TA_CANDLERANGE(Near, i−1) − …` 一致）。
+    #[inline(always)]
     pub fn advance(&mut self, i: usize, open: &[f64], high: &[f64], low: &[f64], close: &[f64]) {
         let rt = self.setting.range_type;
         let idx = i - self.off;

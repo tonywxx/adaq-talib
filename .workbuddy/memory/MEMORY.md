@@ -47,3 +47,11 @@
 - `trange`（`TA_TRANGE`）：索引 0 因无前收盘价输出 `NaN`（lookback 1）；故 `atr`/`natr` 首个
   有效点落在索引 `period`（lookback = period），Wilder 种子 = 前 `period` 个有效 TR 的均值。
 - `TA_IS_ZERO(v)` = `(-1e-8 < v) && (v < 1e-8)`（C 侧收益率分母保护），移植时需保留该 epsilon 判定。
+
+## 性能对标可行性结论（2026-08-10 深度研究，权威）
+- **161/161 全量 >2× 快于原生 C 在现有硬约束（Zero-FFI/No-Deps/单线程/safe/SIMD 延后）下不可达**：严格递推指标（EMA/RSI/MACD/ATR/ADX/DX/STOCH/CMO/TRIX/APO/PPO/KAMA/SAR/MAMA ~40 + 全部 Cycle 5）单线程触及每元素最小工作量地板，递推禁止跨时间向量化。
+- **可达子集**：Elementwise/可向量化（math/price_transform/部分 stat）已自然 >2×；Pattern Recognition 消除冗余后单线程可超 1×、部分近 2×，全量 >2× 需并行（放宽 No-Deps 或 unsafe 手搓线程）；顺序 IIR 至多 parity（1×）。
+- **实测现状**（speedup=C/adaq）：≥2× 仅 14、107 慢于 C；Pattern 平均 0.38×（57/61 落后）、Cycle 0.68×。
+- **基准方法学坑**：非蜡烛 C 计时走抽象 API `TA_CallFunc`（per-call scratch 分配，抬高 C）；蜡烛走直连 FFI（干净）→ Pattern 0.38× 真实。修正非蜡烛为直连 FFI 只会拉大 Rust 劣势（基准对 Rust 偏乐观）。
+- **已验证 PoC**：`cdl_hammer` 改"每 bar 原语算一次 + 内联 running-sum"（与 `CandleAvg` 同递推、逐位一致）→ adaq 12.64→1.60 ns/elem，Rust/C 4.42→0.571（单线程 1.75× 快于 C），黄金向量 1:1 保持。即候选① revert 后"`macro_rules!` 展开独立局部 avg 变量"路径的手写印证；推广至 61 CDL 须逐函数核对 settings/off/range 并 A/B 实测（双基准：Δ≤±5% + 1:1）。
+- 建议 KPI：由"161/161 全部 >2×"改为"消除所有 <1× 伪慢（全量 ≥1×）+ 可并行子集 >2×"。

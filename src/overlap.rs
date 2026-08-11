@@ -166,8 +166,7 @@ pub fn ema_with_output(
             "ema_with_output: out length must equal values length".into(),
         ));
     }
-    let res = crate::core::ema(values, time_period);
-    out.copy_from_slice(&res);
+    crate::core::ema_with_output(values, time_period, out);
     Ok(())
 }
 
@@ -238,8 +237,7 @@ pub fn wma_with_output(
             "wma_with_output: out length must equal values length".into(),
         ));
     }
-    let res = crate::core::wma(values, time_period);
-    out.copy_from_slice(&res);
+    crate::core::wma_with_output(values, time_period, out);
     Ok(())
 }
 

@@ -343,32 +343,6 @@ fn ta_is_zero(v: f64) -> bool {
 /// 计算第 `idx` 个相邻价格（索引 `idx-1 -> idx`）的收益率对 `(x, y)`，
 /// 其中 `x` 来自 `real0`、`y` 来自 `real1`，并更新各自的"上一价格"游标。
 /// Computes the (x, y) return pair between prices `idx-1` and `idx`,
-/// updating each series' "last price" cursor in place.
-#[inline]
-fn return_pair(
-    real0: &[f64],
-    real1: &[f64],
-    idx: i64,
-    last_x: &mut f64,
-    last_y: &mut f64,
-) -> (f64, f64) {
-    let cur_x = real0[idx as usize];
-    let x = if ta_is_zero(*last_x) {
-        0.0
-    } else {
-        (cur_x - *last_x) / *last_x
-    };
-    *last_x = cur_x;
-    let cur_y = real1[idx as usize];
-    let y = if ta_is_zero(*last_y) {
-        0.0
-    } else {
-        (cur_y - *last_y) / *last_y
-    };
-    *last_y = cur_y;
-    (x, y)
-}
-
 /// 贝塔系数内核（TA-Lib `TA_BETA`，逐字移植 C 流式算法）。
 ///
 /// TA-Lib 的 BETA **不是** 对原始价格的协方差/方差，而是：对相邻价格取相对变化
@@ -376,7 +350,13 @@ fn return_pair(
 /// 返回斜率 `β = (n·Sxy − Sx·Sy) / (n·Sxx − Sx²)`。
 /// 由于每个收益点对需要 2 个价格，首个有效输出落在索引 `period`（lookback = period）。
 ///
-/// Beta kernel (verbatim port of TA-Lib's streaming C algorithm).
+/// Beta kernel (verbatim numeric port of TA-Lib's streaming C algorithm).
+///
+/// 与 C 的逐字双游标移植不同，此处先把收益率序列 `(rx, ry)` 预计算一次（含 `TA_IS_ZERO`
+/// 守卫，逐位等价于 C 的 `return_pair`），再以 O(1) 滑动窗口累加 `s_xx/s_xy/s_x/s_y`
+/// （与 [`correl_core_with_output`] 同构）。窗口集合恒为 `[i-period+1 .. i]`，故 C 的求和
+/// 顺序与数值得以保留（1e-8 容差内，ADR 0005）；每元素除法由 2 次降为 1 次，消除对尾部
+/// 收益对的重复重算（P3-2，ADR 0010）。
 fn beta_core(real0: &[f64], real1: &[f64], period: usize) -> Vec<f64> {
     let n = real0.len();
     let mut out = vec![f64::NAN; n];
@@ -385,63 +365,46 @@ fn beta_core(real0: &[f64], real1: &[f64], period: usize) -> Vec<f64> {
         return out;
     }
     let p = period as f64;
-    // 对应 C 中 `i = ++trailingIdx`：主循环 `i` 从 1 起步，trailing 游标也预增到 1，
-    // 因此首个尾部读取计算 (0->1) 收益点对（与首个被加入的对互逆）。
-    // Mirrors C `i = ++trailingIdx`: main `i` starts at 1 and trailing cursor is
-    // pre-incremented to 1, so the first trailing read is the (0->1) pair.
-    let mut trailing_idx: i64 = 1;
+    // 预计算收益率序列（与 C `return_pair` 逐位一致：含 TA_IS_ZERO 守卫，游标顺序推进）。
+    let mut rx = vec![0.0_f64; n];
+    let mut ry = vec![0.0_f64; n];
     let mut last_x = real0[0];
     let mut last_y = real1[0];
-    let mut trail_last_x = real0[0];
-    let mut trail_last_y = real1[0];
+    for i in 1..n {
+        let cur_x = real0[i];
+        rx[i] = if ta_is_zero(last_x) { 0.0 } else { (cur_x - last_x) / last_x };
+        last_x = cur_x;
+        let cur_y = real1[i];
+        ry[i] = if ta_is_zero(last_y) { 0.0 } else { (cur_y - last_y) / last_y };
+        last_y = cur_y;
+    }
+    // 种子：首个窗口（输出索引 `period`）的朴素前向求和（窗口 = [1 .. period]）。
     let mut s_xx = 0.0_f64;
     let mut s_xy = 0.0_f64;
     let mut s_x = 0.0_f64;
     let mut s_y = 0.0_f64;
-
-    // 预填充：消费索引 1..period（共 period-1 个收益点对），trailing 游标保持 0。
-    let mut i: i64 = 1;
-    while i < period as i64 {
-        let (x, y) = return_pair(real0, real1, i, &mut last_x, &mut last_y);
-        s_xx += x * x;
-        s_xy += x * y;
-        s_x += x;
-        s_y += y;
-        i += 1;
+    for k in 1..=period {
+        let a = rx[k];
+        let b = ry[k];
+        s_xx += a * a;
+        s_xy += a * b;
+        s_x += a;
+        s_y += b;
     }
-
-    // do-循环：首个有效输出落在索引 `period`，之后每步滑动一个价格。
-    let end = n as i64 - 1;
-    loop {
-        // 1) 加入当前收益点对 (i-1 -> i)
-        let (x, y) = return_pair(real0, real1, i, &mut last_x, &mut last_y);
-        s_xx += x * x;
-        s_xy += x * y;
-        s_x += x;
-        s_y += y;
-
-        // 2) 计算将被移除的尾部收益点对（基于 trailing 游标），但不计入 S。
-        let (tx, ty) = return_pair(real0, real1, trailing_idx, &mut trail_last_x, &mut trail_last_y);
-
-        // 3) 写出输出（索引 i）
+    let denom = p * s_xx - s_x * s_x;
+    out[period] = if ta_is_zero(denom) { 0.0 } else { (p * s_xy - s_x * s_y) / denom };
+    // 滑动：窗口右移一格，加入右端新收益率对、剔除左端出窗对（O(1)）。
+    for i in (period + 1)..n {
+        let a_new = rx[i];
+        let b_new = ry[i];
+        let a_old = rx[i - period];
+        let b_old = ry[i - period];
+        s_xx = s_xx + a_new * a_new - a_old * a_old;
+        s_xy = s_xy + a_new * b_new - a_old * b_old;
+        s_x = s_x + a_new - a_old;
+        s_y = s_y + b_new - b_old;
         let denom = p * s_xx - s_x * s_x;
-        out[i as usize] = if ta_is_zero(denom) {
-            0.0
-        } else {
-            (p * s_xy - s_x * s_y) / denom
-        };
-
-        // 4) 从 S 中移除尾部收益点对（与第 2 步计算值完全互逆）。
-        s_xx -= tx * tx;
-        s_xy -= tx * ty;
-        s_x -= tx;
-        s_y -= ty;
-
-        i += 1;
-        trailing_idx += 1;
-        if i > end {
-            break;
-        }
+        out[i] = if ta_is_zero(denom) { 0.0 } else { (p * s_xy - s_x * s_y) / denom };
     }
     out
 }

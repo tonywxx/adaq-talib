@@ -82,16 +82,21 @@ pub fn rolling_mean(values: &[f64], period: usize) -> Vec<f64> {
 ///
 /// # Panics
 /// 调用方须保证 `period >= 1`。/ Caller must ensure `period >= 1`.
-pub fn ema(values: &[f64], period: usize) -> Vec<f64> {
+/// 指数移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`ema`]。
+/// Exponential Moving Average, written zero-copy into `out`. See [`ema`].
+pub fn ema_with_output(values: &[f64], period: usize, out: &mut [f64]) {
     debug_assert!(period >= 1);
+    debug_assert_eq!(out.len(), values.len());
+    for v in out.iter_mut() {
+        *v = f64::NAN;
+    }
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
     let start = match values.iter().position(|&x| !x.is_nan()) {
         Some(s) => s,
-        None => return out,
+        None => return,
     };
     if n - start < period {
-        return out;
+        return;
     }
     let seed: f64 = values[start..start + period].iter().copied().sum::<f64>() / period as f64;
     out[start + period - 1] = seed;
@@ -101,6 +106,11 @@ pub fn ema(values: &[f64], period: usize) -> Vec<f64> {
         prev = (values[i] - prev) * k + prev;
         out[i] = prev;
     }
+}
+
+pub fn ema(values: &[f64], period: usize) -> Vec<f64> {
+    let mut out = vec![f64::NAN; values.len()];
+    ema_with_output(values, period, &mut out);
     out
 }
 
@@ -227,12 +237,17 @@ pub fn nested_ema_with_output<const L: usize, F>(
 ///
 /// # Panics
 /// 调用方须保证 `period >= 1`。/ Caller must ensure `period >= 1`.
-pub fn wma(values: &[f64], period: usize) -> Vec<f64> {
+/// 加权移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`wma`]。
+/// Weighted Moving Average, written zero-copy into `out`. See [`wma`].
+pub fn wma_with_output(values: &[f64], period: usize, out: &mut [f64]) {
     debug_assert!(period >= 1);
+    debug_assert_eq!(out.len(), values.len());
+    for v in out.iter_mut() {
+        *v = f64::NAN;
+    }
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
     if n < period {
-        return out;
+        return;
     }
     let denom = (period * (period + 1) / 2) as f64;
     // 种子：首个窗口（i = period-1）的朴素加权和与朴素窗口和。
@@ -254,6 +269,11 @@ pub fn wma(values: &[f64], period: usize) -> Vec<f64> {
         // 滑动窗口和：加入右端新元素，剔除左端出窗元素。/ slide window sum.
         sw += values[i] - values[i - period];
     }
+}
+
+pub fn wma(values: &[f64], period: usize) -> Vec<f64> {
+    let mut out = vec![f64::NAN; values.len()];
+    wma_with_output(values, period, &mut out);
     out
 }
 
@@ -280,19 +300,76 @@ fn wma_naive(values: &[f64], period: usize) -> Vec<f64> {
     out
 }
 
+/// 定长环形缓冲双端队列（容量固定为 ≥ `period` 的 2 的幂），用于 O(1) 单调队列极值。
+///
+/// Fixed-capacity ring-buffer deque (capacity = next power of two ≥ `period`) backing the
+/// monotonic-queue extremes. Compared with `std::collections::VecDeque` it avoids the internal
+/// offset arithmetic / bounds checks and any reallocation, giving the compiler a tighter
+/// inlinable hot loop (the index is masked with `cap - 1`, a power-of-two, so no division).
+struct MonoQueue {
+    buf: Vec<usize>,
+    mask: usize, // capacity - 1 (capacity is a power of two)
+    head: usize, // position of the front element (masked on access)
+    tail: usize, // position just past the back element (masked on access)
+    len: usize,
+}
+
+impl MonoQueue {
+    #[inline]
+    fn with_capacity(period: usize) -> Self {
+        let cap = period.next_power_of_two().max(1);
+        MonoQueue {
+            buf: vec![0usize; cap],
+            mask: cap - 1,
+            head: 0,
+            tail: 0,
+            len: 0,
+        }
+    }
+    #[inline]
+    fn push_back(&mut self, v: usize) {
+        self.buf[self.tail & self.mask] = v;
+        self.tail += 1;
+        self.len += 1;
+    }
+    #[inline]
+    fn pop_back(&mut self) {
+        self.tail -= 1;
+        self.len -= 1;
+    }
+    #[inline]
+    fn pop_front(&mut self) {
+        self.head += 1;
+        self.len -= 1;
+    }
+    #[inline]
+    fn front(&self) -> usize {
+        self.buf[self.head & self.mask]
+    }
+    #[inline]
+    fn back(&self) -> usize {
+        self.buf[(self.tail - 1) & self.mask]
+    }
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+}
+
 /// 滚动窗口极值（最大或最小），与输入等长的全索引向量，前导 `period-1` 为 [`f64::NAN`]。
 ///
 /// Rolling-window extreme (max or min), a full-indexed vector with the same length as the
 /// input; the leading `period - 1` positions are [`f64::NAN`].
 ///
-/// 采用 **单调队列** O(n) 实现（P2-2，ADR 0010）：以双端队列维护窗口内的单调候选，每元素
-/// 入队/出队均摊 O(1)。并列极值取**窗口内最右**者（弹出 `<=`/`>=` 候选），与朴素扫描
+/// 采用 **环形缓冲单调队列** O(n) 实现（P2-2，ADR 0010）：以 [`MonoQueue`] 维护窗口内的单调候选，
+/// 每元素入队/出队均摊 O(1)。并列极值取**窗口内最右**者（弹出 `<=`/`>=` 候选），与朴素扫描
 /// [`rolling_extreme_naive`] 的 tie-break 完全一致，数值逐项相等（零偏差，ADR 0005）。
 ///
-/// Uses an O(n) monotonic-queue (P2-2, ADR 0010): a deque maintains the monotonic candidates
-/// inside the window so each element is enqueued/dequeued in amortized O(1). Ties resolve to
-/// the **rightmost** occurrence in the window (popping `<=`/`>=` candidates), which matches the
-/// tie-break of the naïve [`rolling_extreme_naive`] scan exactly — bit-for-bit equal (ADR 0005).
+/// Uses an O(n) ring-buffer monotonic-queue (P2-2, ADR 0010): [`MonoQueue`] maintains the
+/// monotonic candidates inside the window so each element is enqueued/dequeued in amortized
+/// O(1). Ties resolve to the **rightmost** occurrence in the window (popping `<=`/`>=`
+/// candidates), which matches the tie-break of the naïve [`rolling_extreme_naive`] scan exactly
+/// — bit-for-bit equal (ADR 0005).
 #[inline]
 fn rolling_extreme(values: &[f64], period: usize, take_max: bool) -> Vec<f64> {
     debug_assert!(period >= 1);
@@ -301,40 +378,28 @@ fn rolling_extreme(values: &[f64], period: usize, take_max: bool) -> Vec<f64> {
     if n < period {
         return out;
     }
-    let mut dq: std::collections::VecDeque<usize> = std::collections::VecDeque::with_capacity(period);
+    let mut dq = MonoQueue::with_capacity(period);
     for i in 0..n {
         // 移除已滑出窗口的最左候选 / drop the leftmost candidate that left the window
-        while let Some(&front) = dq.front() {
-            if front + period <= i {
-                dq.pop_front();
-            } else {
-                break;
-            }
+        while !dq.is_empty() && dq.front() + period <= i {
+            dq.pop_front();
         }
         if take_max {
             // 弹出 <= 候选者（含相等），使队首为窗口最右最大值
             // pop <= candidates (incl. equal) so the front is the rightmost max
-            while let Some(&back) = dq.back() {
-                if values[back] <= values[i] {
-                    dq.pop_back();
-                } else {
-                    break;
-                }
+            while !dq.is_empty() && values[dq.back()] <= values[i] {
+                dq.pop_back();
             }
         } else {
             // 弹出 >= 候选者，使队首为窗口最右最小值
             // pop >= candidates so the front is the rightmost min
-            while let Some(&back) = dq.back() {
-                if values[back] >= values[i] {
-                    dq.pop_back();
-                } else {
-                    break;
-                }
+            while !dq.is_empty() && values[dq.back()] >= values[i] {
+                dq.pop_back();
             }
         }
         dq.push_back(i);
         if i >= period - 1 {
-            out[i] = values[*dq.front().unwrap()];
+            out[i] = values[dq.front()];
         }
     }
     out
@@ -390,47 +455,29 @@ pub(crate) fn rolling_minmax(values: &[f64], period: usize) -> (Vec<f64>, Vec<f6
     if n < period {
         return (max_out, min_out);
     }
-    let mut max_dq: std::collections::VecDeque<usize> =
-        std::collections::VecDeque::with_capacity(period);
-    let mut min_dq: std::collections::VecDeque<usize> =
-        std::collections::VecDeque::with_capacity(period);
+    let mut max_dq = MonoQueue::with_capacity(period);
+    let mut min_dq = MonoQueue::with_capacity(period);
     for i in 0..n {
         // 移除已滑出窗口的最左候选（两个队列同步）。/ drop out-of-window leftmost (both deques).
-        while let Some(&f) = max_dq.front() {
-            if f + period <= i {
-                max_dq.pop_front();
-            } else {
-                break;
-            }
+        while !max_dq.is_empty() && max_dq.front() + period <= i {
+            max_dq.pop_front();
         }
-        while let Some(&f) = min_dq.front() {
-            if f + period <= i {
-                min_dq.pop_front();
-            } else {
-                break;
-            }
+        while !min_dq.is_empty() && min_dq.front() + period <= i {
+            min_dq.pop_front();
         }
         // 最大值队列（递减）：弹出 <= 候选者 / max deque (decreasing): pop <= candidates
-        while let Some(&b) = max_dq.back() {
-            if values[b] <= values[i] {
-                max_dq.pop_back();
-            } else {
-                break;
-            }
+        while !max_dq.is_empty() && values[max_dq.back()] <= values[i] {
+            max_dq.pop_back();
         }
         // 最小值队列（递增）：弹出 >= 候选者 / min deque (increasing): pop >= candidates
-        while let Some(&b) = min_dq.back() {
-            if values[b] >= values[i] {
-                min_dq.pop_back();
-            } else {
-                break;
-            }
+        while !min_dq.is_empty() && values[min_dq.back()] >= values[i] {
+            min_dq.pop_back();
         }
         max_dq.push_back(i);
         min_dq.push_back(i);
         if i >= period - 1 {
-            max_out[i] = values[*max_dq.front().unwrap()];
-            min_out[i] = values[*min_dq.front().unwrap()];
+            max_out[i] = values[max_dq.front()];
+            min_out[i] = values[min_dq.front()];
         }
     }
     (max_out, min_out)
@@ -459,40 +506,28 @@ pub(crate) fn rolling_extreme_index(values: &[f64], period: usize, take_max: boo
     if n < period {
         return out;
     }
-    let mut dq: std::collections::VecDeque<usize> = std::collections::VecDeque::with_capacity(period);
+    let mut dq = MonoQueue::with_capacity(period);
     for i in 0..n {
         // 移除已滑出窗口的最左候选 / drop the leftmost candidate that left the window
-        while let Some(&front) = dq.front() {
-            if front + period <= i {
-                dq.pop_front();
-            } else {
-                break;
-            }
+        while !dq.is_empty() && dq.front() + period <= i {
+            dq.pop_front();
         }
         if take_max {
             // 弹出 < 候选者（严格小于），相等者保留 -> 队首为窗口最左最大值
             // pop < candidates (strict), keep equal -> front is the leftmost max
-            while let Some(&back) = dq.back() {
-                if values[back] < values[i] {
-                    dq.pop_back();
-                } else {
-                    break;
-                }
+            while !dq.is_empty() && values[dq.back()] < values[i] {
+                dq.pop_back();
             }
         } else {
             // 弹出 > 候选者（严格大于），相等者保留 -> 队首为窗口最左最小值
             // pop > candidates (strict), keep equal -> front is the leftmost min
-            while let Some(&back) = dq.back() {
-                if values[back] > values[i] {
-                    dq.pop_back();
-                } else {
-                    break;
-                }
+            while !dq.is_empty() && values[dq.back()] > values[i] {
+                dq.pop_back();
             }
         }
         dq.push_back(i);
         if i >= period - 1 {
-            out[i] = *dq.front().unwrap() as f64;
+            out[i] = dq.front() as f64;
         }
     }
     out
