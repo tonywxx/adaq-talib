@@ -15,22 +15,8 @@ use crate::core::defaults::{
     STOCH_SLOW_K, STOCHRSI_PERIOD, STOCHRSI_RSI_PERIOD, TRIX_PERIOD, ULTOSC_PERIOD1,
     ULTOSC_PERIOD2, ULTOSC_PERIOD3,
 };
-use crate::core::{ema, rolling_mean, rolling_mean_skip, rolling_sum};
+use crate::core::{check_eq_len, ema, rolling_mean, rolling_mean_skip, rolling_sum};
 use crate::error::{check_period, TaError};
-
-/// 校验多数组长度一致（对应 TA-Lib 多输入函数的长度约束）。
-/// Validate that several slices share the same length.
-fn check_eq_len(lists: &[&[f64]], name: &str) -> Result<(), TaError> {
-    let len = lists[0].len();
-    for l in lists.iter().skip(1) {
-        if l.len() != len {
-            return Err(TaError::BadParam(format!(
-                "{name}: all input arrays must have equal length"
-            )));
-        }
-    }
-    Ok(())
-}
 
 /// MACD 多输出结果（与 TA-Lib `TA_MACD` 三数组一一对应）。
 ///

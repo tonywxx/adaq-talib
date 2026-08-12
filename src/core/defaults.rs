@@ -5,10 +5,18 @@
 //! 数值取自 TA-Lib 0.7.1 原函数默认值（见 `ta_func.h`）。
 //! Values are taken from TA-Lib 0.7.1 per-function defaults (see `ta_func.h`).
 //!
-//! 注：当前仅 `DEFAULT_TIME_PERIOD` 被 `sma_default` 使用；其余常量是为后续里程碑指标
-//! （RSI/MACD/BBANDS/…）预留的占位，未使用属正常，故允许 dead_code。
-//! Note: only `DEFAULT_TIME_PERIOD` is used (by `sma_default`) today; the rest are
-//! placeholders for upcoming milestone indicators (RSI/MACD/BBANDS/…), so dead_code is allowed.
+//! 每个常量均被对应指标的 `*_default` 入口引用（如 `MACD_FAST/SLOW/SIGNAL` 用于
+//! `macd_default`、`BBANDS_PERIOD` 用于 `bbands_default`）。集中放置便于与 TA-Lib
+//! `ta_func.h` 的 `optIn*` 默认值逐项对齐，也避免各指标模块内散落魔法数字。
+//!
+//! Every constant is referenced by its indicator's `*_default` entry point (e.g.
+//! `MACD_FAST/SLOW/SIGNAL` by `macd_default`, `BBANDS_PERIOD` by `bbands_default`),
+//! or by the test/bench suite. Centralizing them keeps the TA-Lib `ta_func.h` `optIn*`
+//! defaults aligned 1:1 and avoids scattered magic numbers across indicator modules.
+//!
+//! `dead_code` is allowed at module level: a few constants are consumed only by the
+//! integration tests / benchmarks (separate crates), so the lib build would otherwise
+//! flag them as unused.
 #![allow(dead_code)]
 
 /// 默认时间周期（通用重叠/动量指标，对应 `TA_SMA`/`TA_EMA`/`TA_WMA`/`TA_DEMA`/`TA_TEMA` 的 30）。
