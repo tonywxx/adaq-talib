@@ -15,14 +15,12 @@ use crate::core::{
     check_eq_len, rolling_extreme_index, rolling_max, rolling_min, rolling_minmax, rolling_sum,
 };
 use crate::error::{check_period, TaError};
+use crate::indicator::indicator;
 
-/// 逐元素相加（TA-Lib `TA_ADD`）：`out = real0 + real1`，等长返回。
-/// Element-wise addition (TA-Lib `TA_ADD`): `out = real0 + real1`; equal-length.
-pub fn add(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[real0, real1], "add")?;
-    let mut out = vec![f64::NAN; real0.len()];
-    add_with_output(real0, real1, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 逐元素相加（TA-Lib `TA_ADD`）：`out = real0 + real1`，等长返回。
+    /// Element-wise addition (TA-Lib `TA_ADD`): `out = real0 + real1`; equal-length.
+    fn add(real0: &[f64], real1: &[f64]) -> Vec<f64> with add_with_output;
 }
 
 /// 逐元素相加的零拷贝写入变体。见 [`add`]。
@@ -40,13 +38,10 @@ pub fn add_with_output(real0: &[f64], real1: &[f64], out: &mut [f64]) -> Result<
     Ok(())
 }
 
-/// 逐元素相减（TA-Lib `TA_SUB`）：`out = real0 - real1`，等长返回。
-/// Element-wise subtraction (TA-Lib `TA_SUB`): `out = real0 - real1`; equal-length.
-pub fn sub(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[real0, real1], "sub")?;
-    let mut out = vec![f64::NAN; real0.len()];
-    sub_with_output(real0, real1, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 逐元素相减（TA-Lib `TA_SUB`）：`out = real0 - real1`，等长返回。
+    /// Element-wise subtraction (TA-Lib `TA_SUB`): `out = real0 - real1`; equal-length.
+    fn sub(real0: &[f64], real1: &[f64]) -> Vec<f64> with sub_with_output;
 }
 
 /// 逐元素相减的零拷贝写入变体。见 [`sub`]。
@@ -64,13 +59,10 @@ pub fn sub_with_output(real0: &[f64], real1: &[f64], out: &mut [f64]) -> Result<
     Ok(())
 }
 
-/// 逐元素相乘（TA-Lib `TA_MULT`）：`out = real0 * real1`，等长返回。
-/// Element-wise multiplication (TA-Lib `TA_MULT`): `out = real0 * real1`; equal-length.
-pub fn mult(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[real0, real1], "mult")?;
-    let mut out = vec![f64::NAN; real0.len()];
-    mult_with_output(real0, real1, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 逐元素相乘（TA-Lib `TA_MULT`）：`out = real0 * real1`，等长返回。
+    /// Element-wise multiplication (TA-Lib `TA_MULT`): `out = real0 * real1`; equal-length.
+    fn mult(real0: &[f64], real1: &[f64]) -> Vec<f64> with mult_with_output;
 }
 
 /// 逐元素相乘的零拷贝写入变体。见 [`mult`]。
@@ -88,14 +80,11 @@ pub fn mult_with_output(real0: &[f64], real1: &[f64], out: &mut [f64]) -> Result
     Ok(())
 }
 
-/// 逐元素相除（TA-Lib `TA_DIV`）：`out = real0 / real1`，等长返回；除零产生 `inf`/`NaN`。
-/// Element-wise division (TA-Lib `TA_DIV`): `out = real0 / real1`; equal-length;
-/// division by zero yields `inf`/`NaN`, matching the original.
-pub fn div(real0: &[f64], real1: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[real0, real1], "div")?;
-    let mut out = vec![f64::NAN; real0.len()];
-    div_with_output(real0, real1, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 逐元素相除（TA-Lib `TA_DIV`）：`out = real0 / real1`，等长返回；除零产生 `inf`/`NaN`。
+    /// Element-wise division (TA-Lib `TA_DIV`): `out = real0 / real1`; equal-length;
+    /// division by zero yields `inf`/`NaN`, matching the original.
+    fn div(real0: &[f64], real1: &[f64]) -> Vec<f64> with div_with_output;
 }
 
 /// 逐元素相除的零拷贝写入变体。见 [`div`]。
@@ -113,13 +102,10 @@ pub fn div_with_output(real0: &[f64], real1: &[f64], out: &mut [f64]) -> Result<
     Ok(())
 }
 
-/// 滚动窗口最大值（TA-Lib `TA_MAX`）。前导 `period-1` 个为 [`f64::NAN`]。
-/// Rolling maximum (TA-Lib `TA_MAX`). The leading `period - 1` positions are [`f64::NAN`].
-pub fn max(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    max_with_output(values, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 滚动窗口最大值（TA-Lib `TA_MAX`）。前导 `period-1` 个为 [`f64::NAN`]。
+    /// Rolling maximum (TA-Lib `TA_MAX`). The leading `period - 1` positions are [`f64::NAN`].
+    fn max(values: &[f64], time_period: usize) -> Vec<f64> with max_with_output;
 }
 
 /// 滚动窗口最大值的零拷贝写入变体。见 [`max`]。
@@ -136,13 +122,10 @@ pub fn max_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> R
     Ok(())
 }
 
-/// 滚动窗口最小值（TA-Lib `TA_MIN`）。前导 `period-1` 个为 [`f64::NAN`]。
-/// Rolling minimum (TA-Lib `TA_MIN`). The leading `period - 1` positions are [`f64::NAN`].
-pub fn min(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    min_with_output(values, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 滚动窗口最小值（TA-Lib `TA_MIN`）。前导 `period-1` 个为 [`f64::NAN`]。
+    /// Rolling minimum (TA-Lib `TA_MIN`). The leading `period - 1` positions are [`f64::NAN`].
+    fn min(values: &[f64], time_period: usize) -> Vec<f64> with min_with_output;
 }
 
 /// 滚动窗口最小值的零拷贝写入变体。见 [`min`]。
@@ -159,13 +142,10 @@ pub fn min_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> R
     Ok(())
 }
 
-/// 滚动窗口求和（TA-Lib `TA_SUM`）。前导 `period-1` 个为 [`f64::NAN`]。
-/// Rolling sum (TA-Lib `TA_SUM`). The leading `period - 1` positions are [`f64::NAN`].
-pub fn sum(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    sum_with_output(values, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 滚动窗口求和（TA-Lib `TA_SUM`）。前导 `period-1` 个为 [`f64::NAN`]。
+    /// Rolling sum (TA-Lib `TA_SUM`). The leading `period - 1` positions are [`f64::NAN`].
+    fn sum(values: &[f64], time_period: usize) -> Vec<f64> with sum_with_output;
 }
 
 /// 滚动窗口求和的零拷贝写入变体。见 [`sum`]。
@@ -182,15 +162,12 @@ pub fn sum_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> R
     Ok(())
 }
 
-/// 滚动窗口最大值的**索引**（TA-Lib `TA_MAXINDEX`），返回窗口内最大值的绝对位置
-/// （0 基；平局取最左）。前导 `period-1` 个为 **0.0**（与原版一致，非 `NaN`）。
-/// Index of the rolling-window maximum (TA-Lib `TA_MAXINDEX`), the absolute (0-based) position
-/// of the max in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
-pub fn max_index(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    max_index_with_output(values, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 滚动窗口最大值的**索引**（TA-Lib `TA_MAXINDEX`），返回窗口内最大值的绝对位置
+    /// （0 基；平局取最左）。前导 `period-1` 个为 **0.0**（与原版一致，非 `NaN`）。
+    /// Index of the rolling-window maximum (TA-Lib `TA_MAXINDEX`), the absolute (0-based) position
+    /// of the max in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
+    fn max_index(values: &[f64], time_period: usize) -> Vec<f64> with max_index_with_output;
 }
 
 /// 滚动窗口最大值索引的零拷贝写入变体。见 [`max_index`]。
@@ -211,15 +188,12 @@ pub fn max_index_with_output(
     Ok(())
 }
 
-/// 滚动窗口最小值的**索引**（TA-Lib `TA_MININDEX`），返回窗口内最小值的绝对位置
-/// （0 基；平局取最左）。前导 `period-1` 个为 **0.0**（与原版一致，非 `NaN`）。
-/// Index of the rolling-window minimum (TA-Lib `TA_MININDEX`), the absolute (0-based) position
-/// of the min in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
-pub fn min_index(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    min_index_with_output(values, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 滚动窗口最小值的**索引**（TA-Lib `TA_MININDEX`），返回窗口内最小值的绝对位置
+    /// （0 基；平局取最左）。前导 `period-1` 个为 **0.0**（与原版一致，非 `NaN`）。
+    /// Index of the rolling-window minimum (TA-Lib `TA_MININDEX`), the absolute (0-based) position
+    /// of the min in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
+    fn min_index(values: &[f64], time_period: usize) -> Vec<f64> with min_index_with_output;
 }
 
 /// 滚动窗口最小值索引的零拷贝写入变体。见 [`min_index`]。

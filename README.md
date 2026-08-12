@@ -637,15 +637,17 @@ Milestone-based release ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 ships the complete TA-Lib 0.7.1 public surface — all 161 functions across 10 categories — with no
 deletion of published capabilities.**
 
-- ✅ **0.1.3 (current): 161 / 161 functions, faster than C on average** — Overlap Studies (18),
+- ✅ **0.1.5 (current): 161 / 161 functions, faster than C on average** — Overlap Studies (18),
   Momentum (31), Volatility (3), Volume (3), Price Transform (5), Statistic (9), Cycle / Hilbert
   Transform (7), Math Operators (11), Math Transform (15), and Pattern Recognition (61 candlestick
   patterns). Every function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` →
   326/326 green, `reconcile.py` → 161/161) across **222 golden-vector fixtures**, and a comprehensive
   all-161 benchmark + validation suite ([`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md))
-  confirms full coverage and that adaq-talib is now **~1.26× faster than C on average** (geomean
-  Rust/C = 0.792×; 82 faster / 54 at parity / 25 slower) after the 0.1.3 optimization pass — see
-  [Verification & Benchmarks](#verification--benchmarks)).
+  confirms full coverage and that adaq-talib is now **~1.27× faster than C on average** (geomean
+  Rust/C = 0.786×; 85 faster / 60 at parity / 16 slower) after the 0.1.3 optimization pass; under the
+  optional `parallel` feature this becomes 88 / 63 / 10 (0.734×). 0.1.4 and 0.1.5 were internal
+  architecture-refactor releases — core modularization and the zero-cost `indicator!` scaffold —
+  adding no new public functions or API changes (see [Changelog](#changelog)).
 - 🔜 **Future work (post-1.0)**: per [ADR 0009](docs/adr/0009-candle-settings-default-only.md) only
   the **default** candle settings are implemented and no configuration API is exposed; optional
   `bench-c` wiring for the newly optimized indicators (LINREG/CORREL/WILLR/STOCH), and
@@ -656,6 +658,21 @@ Once those land, adaq-talib reaches full coverage equivalent to TA-Lib 0.7.1.
 ---
 
 ## Changelog
+
+### 0.1.5
+- **Indicator scaffold (`indicator!` macro) — architecture-deepening candidate① (Phase 1a/1b/1c)**: added `src/indicator.rs` with a **zero-cost `macro_rules! indicator`** that unifies the repetitive "allocate an equal-length `f64::NAN` buffer → forward to the `*_with_output` kernel" glue shared by ~146 single-output public functions. Rolled out under a **measure-first double gate** (golden-vector 1:1 + A/B `cargo bench` median |Δ| ≤ ±5%):
+  - **Phase 1a**: `math_trans` 15 single-input / single-output / element-wise functions.
+  - **Phase 1b**: `stat` 7 single-input functions (`stddev`/`var`/`linear_reg`/`linear_reg_angle`/`linear_reg_intercept`/`linear_reg_slope`/`tsf`) via the new N-trailing-default arm; `beta`/`correl` (multi-input) stay hand-written (Phase 2).
+  - **Phase 1c**: `math_ops` 9 (`add`/`sub`/`mult`/`div`/`sum`/`min`/`max`/`max_index`/`min_index`) + `volatility` 3 (`trange`/`atr`/`natr`, two with default arms) + `price_transform::avgdev`; `avgprice`/`medprice`/`typprice`/`wclprice` were **intentionally reverted to hand-written** — the macro's uniform `vec![f64::NAN; n]` init regresses them (isolated micro-bench: `avgprice` +34.7%, `add` +22.2%; A/B median |Δ| = 16–17% ≫ 5%), while they need no leading NaN and carry no default args (zero macro benefit).
+- **Zero-cost guarantee verified**: the macro expands to byte-identical code (no `dyn Fn`, no indirection, no per-iteration allocation); the `*_with_output` hot paths are untouched. A/B results — Phase 1a max median |Δ| = **2.97%**, Phase 1b = **0.11%**, Phase 1c = **0.21%** (all ≤ 5% → PASS). Golden-vector gate: all **161/161** functions still reproduce TA-Lib 0.7.1 within tolerance; the full `cargo test` suite stays green (incl. new macro-emitted `doctest`s).
+- **New A/B benchmark harness (methodology)**: added `benches/math_trans_bench.rs`, `benches/stat_bench.rs`, `benches/phase1c_bench.rs` (all registered in `Cargo.toml`) — a dependency-free `Instant` harness using **warmup + interleaved rounds + median** to suppress single-shot noise (which can read ±10%). Documented in [`benches/BASELINE.md`](benches/BASELINE.md) and [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md).
+- **Release**: version bumped to `0.1.5`. No new public API surface, no deprecations, no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). User-facing behavior, calling conventions, and the `cargo test` / `cargo bench` workflows are unchanged.
+
+### 0.1.4
+- **Core modularization (architecture deepening)**: split the monolithic `src/core/mod.rs` into focused, single-responsibility modules — `ema.rs` (nested-EMA fusion), `extreme.rs` (monotonic-queue rolling extremes / indices), `window.rs` (windowed sums / variances), and `kernel.rs` (shared kernel helpers). Removed the redundant `check_eq_len` length-guard helper (length checks now live next to each kernel). Pure refactor — output remains bit-for-bit / golden-vector 1:1 with TA-Lib 0.7.1, zero performance impact.
+- **`parallel` feature promoted to a first-class module**: the overlap-seed parallel chunking (formerly a proof-of-concept) is now `src/parallel.rs`, guarded by a dedicated `tests/parallel_equality.rs` 1:1 equality test and exercised by `benches/parallel_poc.rs`. The 5 A-class window functions (`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`) gain multi-core speedups under the default-off `parallel` feature — totals move **85 Faster / 60 Parity / 16 Slower (geomean 0.786×) → 88 / 63 / 10 (0.734×)**. For the other 156 functions it is a no-op.
+- **Perf report & 161-indicator suite refresh**: refreshed [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md) and the `all161_results*.csv` benchmark data; folded in the finalized 0.1.3 optimization-pass numbers (EMA-family FMA-contraction closing the EMA gap — see [Verification & Benchmarks](#verification--benchmarks)).
+- **Release**: version bumped to `0.1.4`. No new public API surface, no deprecations, no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 
 ### 0.1.3
 - **Pattern Recognition performance rollout**: the `cdl_hammer` inline running-sum accumulator

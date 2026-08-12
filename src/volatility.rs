@@ -12,37 +12,35 @@
 use crate::core::defaults::ATR_PERIOD;
 use crate::core::{check_eq_len, ema_wilder, true_range};
 use crate::error::{check_period, TaError};
+use crate::indicator::indicator;
 
 // ──────────────────────────── TRANGE ────────────────────────────
 
-/// 真实波幅（True Range，TA-Lib `TA_TRANGE`）。
-///
-/// `TR[0] = NaN`（需前一收盘价）；`TR[i] = max(high[i], close[i-1]) - min(low[i], close[i-1])`，`i >= 1`。
-/// 与 TA-Lib `TA_TRANGE` 一致：首根无前收盘价，故前导 1 个 `NaN`（lookback 1）。
-///
-/// # 参数 / Parameters
-/// - `high` / `low` / `close`：最高/最低/收盘价序列，长度须一致。
-///   High/Low/Close series, equal length required.
-///
-/// # 返回值 / Returns
-/// 与输入等长的向量；首根为 [`f64::NAN`]（TA-Lib `TA_TRANGE` 此处输出 NaN）。
-///
-/// # 示例 / Example
-/// ```
-/// use adaq_talib::volatility::trange;
-/// let high = [10.0, 11.0, 12.0];
-/// let low  = [9.0, 9.5, 11.0];
-/// let close = [9.5, 10.5, 11.5];
-/// let tr = trange(&high, &low, &close).unwrap();
-/// assert!(tr[0].is_nan()); // 首根需前一收盘价 -> NaN
-/// // TR[1] = max(11,9.5)-min(9.5,10.5) = 11 - 9.5 = 1.5
-/// assert!((tr[1] - 1.5).abs() < 1e-12);
-/// ```
-pub fn trange(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[high, low, close], "trange")?;
-    let mut out = vec![f64::NAN; high.len()];
-    trange_with_output(high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 真实波幅（True Range，TA-Lib `TA_TRANGE`）。
+    ///
+    /// `TR[0] = NaN`（需前一收盘价）；`TR[i] = max(high[i], close[i-1]) - min(low[i], close[i-1])`，`i >= 1`。
+    /// 与 TA-Lib `TA_TRANGE` 一致：首根无前收盘价，故前导 1 个 `NaN`（lookback 1）。
+    ///
+    /// # 参数 / Parameters
+    /// - `high` / `low` / `close`：最高/最低/收盘价序列，长度须一致。
+    ///   High/Low/Close series, equal length required.
+    ///
+    /// # 返回值 / Returns
+    /// 与输入等长的向量；首根为 [`f64::NAN`]（TA-Lib `TA_TRANGE` 此处输出 NaN）。
+    ///
+    /// # 示例 / Example
+    /// ```
+    /// use adaq_talib::volatility::trange;
+    /// let high = [10.0, 11.0, 12.0];
+    /// let low  = [9.0, 9.5, 11.0];
+    /// let close = [9.5, 10.5, 11.5];
+    /// let tr = trange(&high, &low, &close).unwrap();
+    /// assert!(tr[0].is_nan()); // 首根需前一收盘价 -> NaN
+    /// // TR[1] = max(11,9.5)-min(9.5,10.5) = 11 - 9.5 = 1.5
+    /// assert!((tr[1] - 1.5).abs() < 1e-12);
+    /// ```
+    fn trange(high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with trange_with_output;
 }
 
 /// 真实波幅，零拷贝写入 `out`（与 `high` 等长）。见 [`trange`]。
@@ -66,38 +64,33 @@ pub fn trange_with_output(
 
 // ──────────────────────────── ATR ────────────────────────────
 
-/// 平均真实波幅（Average True Range，TA-Lib `TA_ATR`）。
-///
-/// 对真实波幅（TR）做 Wilder 平滑（SMMA，`k = 1/period`）：首个有效值 = 前 `period`
-/// 个有效 TR（即 `TR[1..period]`）的算术均值（种子），其后按
-/// `prev = prev + (tr - prev)/period` 递推。前导 `period` 个为 [`f64::NAN`]（lookback = period）。
-///
-/// Wilder-smoothed (SMMA) average of True Range; the first valid value is the mean of the
-/// first `period` valid TR values (seed), then recursed. The leading `period` positions are
-/// [`f64::NAN`] (lookback = period).
-///
-/// # 示例 / Example
-/// ```
-/// use adaq_talib::volatility::atr;
-/// let high = [10.0, 11.0, 12.0, 13.0, 14.0, 15.0];
-/// let low  = [9.0, 9.5, 11.0, 12.0, 13.0, 14.0];
-/// let close = [9.5, 10.5, 11.5, 12.5, 13.5, 14.5];
-/// let out = atr(&high, &low, &close, 3).unwrap();
-/// // 前导 3 个为 NaN（lookback = period = 3），首个有效在索引 3。
-/// assert!(out[0].is_nan() && out[1].is_nan() && out[2].is_nan());
-/// assert!(!out[3].is_nan());
-/// ```
-pub fn atr(
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-    time_period: usize,
-) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "atr")?;
-    let mut out = vec![f64::NAN; high.len()];
-    atr_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 平均真实波幅（Average True Range，TA-Lib `TA_ATR`）。
+    ///
+    /// 对真实波幅（TR）做 Wilder 平滑（SMMA，`k = 1/period`）：首个有效值 = 前 `period`
+    /// 个有效 TR（即 `TR[1..period]`）的算术均值（种子），其后按
+    /// `prev = prev + (tr - prev)/period` 递推。前导 `period` 个为 [`f64::NAN`]（lookback = period）。
+    ///
+    /// Wilder-smoothed (SMMA) average of True Range; the first valid value is the mean of the
+    /// first `period` valid TR values (seed), then recursed. The leading `period` positions are
+    /// [`f64::NAN`] (lookback = period).
+    ///
+    /// # 示例 / Example
+    /// ```
+    /// use adaq_talib::volatility::atr;
+    /// let high = [10.0, 11.0, 12.0, 13.0, 14.0, 15.0];
+    /// let low  = [9.0, 9.5, 11.0, 12.0, 13.0, 14.0];
+    /// let close = [9.5, 10.5, 11.5, 12.5, 13.5, 14.5];
+    /// let out = atr(&high, &low, &close, 3).unwrap();
+    /// // 前导 3 个为 NaN（lookback = period = 3），首个有效在索引 3。
+    /// assert!(out[0].is_nan() && out[1].is_nan() && out[2].is_nan());
+    /// assert!(!out[3].is_nan());
+    /// ```
+    fn atr(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with atr_with_output
+    default atr_default(high: &[f64], low: &[f64], close: &[f64]) => (ATR_PERIOD)
+    /// `atr` 便捷版本，默认周期 14（与 TA-Lib 一致）。
+    /// `atr` with default period (14), matching TA-Lib.
+    ;
 }
 
 /// 平均真实波幅，零拷贝写入 `out`（与 `high` 等长）。见 [`atr`]。
@@ -122,31 +115,21 @@ pub fn atr_with_output(
     Ok(())
 }
 
-/// `atr` 便捷版本，默认周期 14。/ `atr` with default period (14).
-pub fn atr_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
-    atr(high, low, close, ATR_PERIOD)
-}
-
 // ──────────────────────────── NATR ────────────────────────────
 
-/// 归一化平均真实波幅（Normalized ATR，TA-Lib `TA_NATR`）。
-///
-/// `NATR = 100 * ATR / close`（ATR 同样为 Wilder 平滑）。前导 `period` 个为 [`f64::NAN`]（lookback = period）；
-/// 若某位置 `close == 0`，对应 `NATR` 为 0.0（与 TA-Lib 一致，避免除零）。
-///
-/// `NATR = 100 * ATR / close`. The leading `period - 1` positions are [`f64::NAN`]; a zero
-/// `close` yields `0.0` (matches TA-Lib, avoids division by zero).
-pub fn natr(
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-    time_period: usize,
-) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "natr")?;
-    let mut out = vec![f64::NAN; close.len()];
-    natr_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 归一化平均真实波幅（Normalized ATR，TA-Lib `TA_NATR`）。
+    ///
+    /// `NATR = 100 * ATR / close`（ATR 同样为 Wilder 平滑）。前导 `period` 个为 [`f64::NAN`]（lookback = period）；
+    /// 若某位置 `close == 0`，对应 `NATR` 为 0.0（与 TA-Lib 一致，避免除零）。
+    ///
+    /// `NATR = 100 * ATR / close`. The leading `period - 1` positions are [`f64::NAN`]; a zero
+    /// `close` yields `0.0` (matches TA-Lib, avoids division by zero).
+    fn natr(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with natr_with_output
+    default natr_default(high: &[f64], low: &[f64], close: &[f64]) => (ATR_PERIOD)
+    /// `natr` 便捷版本，默认周期 14（与 TA-Lib 一致）。
+    /// `natr` with default period (14), matching TA-Lib.
+    ;
 }
 
 /// 归一化平均真实波幅，零拷贝写入 `out`（与 `close` 等长）。见 [`natr`]。
@@ -179,11 +162,6 @@ pub fn natr_with_output(
         };
     }
     Ok(())
-}
-
-/// `natr` 便捷版本，默认周期 14。/ `natr` with default period (14).
-pub fn natr_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
-    natr(high, low, close, ATR_PERIOD)
 }
 
 #[cfg(test)]

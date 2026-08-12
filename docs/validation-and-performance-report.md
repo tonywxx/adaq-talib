@@ -67,6 +67,15 @@
   `> 1.2` → Slower (matching README convention). Final numbers are the **median of 5 runs** to damp
   per-function benchmark noise (~20–40%).
 
+- **0.1.5 maintenance (indicator scaffold, 2026-08-11):** the public single-output glue was unified
+  behind a zero-cost `macro_rules! indicator` (Phase 1a `math_trans` 15 / 1b `stat` 7 / 1c `math_ops`
+  9 + `volatility` 3 + `price_transform::avgdev`; `avgprice`/`medprice`/`typprice`/`wclprice`
+  intentionally kept hand-written). Verified by a **measure-first A/B gate** (warmup + interleaved
+  rounds + median; `benches/{math_trans,stat,phase1c}_bench.rs`) — max median |Δ| = **2.97% / 0.11% /
+  0.21%** (all ≤ 5% → PASS) — and by golden vectors (161/161, 0 regressions). This refactor is
+  correctness- and performance-neutral at the aggregate level; the 85/60/16 (0.786×) headline above is
+  unchanged by 0.1.5.
+
 ## 2. Validation Results by TA-Lib Group
 
 | TA-Lib Group | Functions | Golden-vector tests | 1:1 status |

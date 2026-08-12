@@ -12,28 +12,29 @@
 use crate::core::defaults::{BETA_PERIOD, CORREL_PERIOD, LINEARREG_PERIOD, STDDEV_NB_DEV, STDDEV_PERIOD};
 use crate::core::{check_eq_len, rolling_var};
 use crate::error::{check_period, TaError};
+use crate::indicator::indicator;
 
-/// 标准差（Standard Deviation，TA-Lib `TA_STDDEV`）。
-///
-/// `STDDEV = nb_dev * sqrt(population_variance)`，`population_variance` 为窗口内总体方差
-/// （除以 `period`，见 [`crate::core::rolling_var`]）。前导 `period-1` 个为 [`f64::NAN`]。
-///
-/// `STDDEV = nb_dev * sqrt(population variance)`. The leading `period - 1` positions are
-/// [`f64::NAN`].
-///
-/// # 示例 / Example
-/// ```
-/// use adaq_talib::stat::stddev;
-/// let x = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0];
-/// let out = stddev(&x, 8, 1.0).unwrap();
-/// // 总体方差 = 32/8 = 4 -> 标准差 = 2
-/// assert!((out[7] - 2.0).abs() < 1e-9);
-/// ```
-pub fn stddev(values: &[f64], time_period: usize, nb_dev: f64) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    stddev_with_output(values, time_period, nb_dev, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 标准差（Standard Deviation，TA-Lib `TA_STDDEV`）。
+    ///
+    /// `STDDEV = nb_dev * sqrt(population_variance)`，`population_variance` 为窗口内总体方差
+    /// （除以 `period`，见 [`crate::core::rolling_var`]）。前导 `period-1` 个为 [`f64::NAN`]。
+    ///
+    /// `STDDEV = nb_dev * sqrt(population variance)`. The leading `period - 1` positions are
+    /// [`f64::NAN`].
+    ///
+    /// # 示例 / Example
+    /// ```
+    /// use adaq_talib::stat::stddev;
+    /// let x = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0];
+    /// let out = stddev(&x, 8, 1.0).unwrap();
+    /// // 总体方差 = 32/8 = 4 -> 标准差 = 2
+    /// assert!((out[7] - 2.0).abs() < 1e-9);
+    /// ```
+    fn stddev(values: &[f64], time_period: usize, nb_dev: f64) -> Vec<f64> with stddev_with_output
+    default stddev_default(values: &[f64]) => (STDDEV_PERIOD, STDDEV_NB_DEV)
+    /// `stddev` 便捷版本，默认周期 5、偏离倍数 1.0。/ `stddev` with defaults (5, 1.0).
+    ;
 }
 
 /// 标准差，零拷贝写入 `out`（与 `values` 等长）。见 [`stddev`]。
@@ -60,24 +61,19 @@ pub fn stddev_with_output(
     Ok(())
 }
 
-/// `stddev` 便捷版本，默认周期 5、偏离倍数 1.0。/ `stddev` with defaults (5, 1.0).
-pub fn stddev_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    stddev(values, STDDEV_PERIOD, STDDEV_NB_DEV)
-}
-
-/// 方差（Variance，TA-Lib `TA_VAR`）。
-///
-/// 窗口内总体方差（除以 `period`，见 [`crate::core::rolling_var`）；`nb_dev` 参数与 TA-Lib
-/// 一致被忽略（TA-Lib `TA_VAR` 不对方差应用偏离倍数）。前导 `period-1` 个为 [`f64::NAN`]。
-///
-/// Population variance (divide by `period`). Like TA-Lib `TA_VAR`, the `nb_dev` argument is
-/// accepted but **not applied** to the variance (TA-Lib ignores it for `TA_VAR`). The leading
-/// `period - 1` positions are [`f64::NAN`].
-pub fn var(values: &[f64], time_period: usize, _nb_dev: f64) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    var_with_output(values, time_period, _nb_dev, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 方差（Variance，TA-Lib `TA_VAR`）。
+    ///
+    /// 窗口内总体方差（除以 `period`，见 [`crate::core::rolling_var`）；`nb_dev` 参数与 TA-Lib
+    /// 一致被忽略（TA-Lib `TA_VAR` 不对方差应用偏离倍数）。前导 `period-1` 个为 [`f64::NAN`]。
+    ///
+    /// Population variance (divide by `period`). Like TA-Lib `TA_VAR`, the `nb_dev` argument is
+    /// accepted but **not applied** to the variance (TA-Lib ignores it for `TA_VAR`). The leading
+    /// `period - 1` positions are [`f64::NAN`].
+    fn var(values: &[f64], time_period: usize, _nb_dev: f64) -> Vec<f64> with var_with_output
+    default var_default(values: &[f64]) => (STDDEV_PERIOD, STDDEV_NB_DEV)
+    /// `var` 便捷版本，默认周期 5。/ `var` with default period (5).
+    ;
 }
 
 /// 方差，零拷贝写入 `out`（与 `values` 等长）。见 [`var`]。
@@ -99,11 +95,6 @@ pub fn var_with_output(
     Ok(())
 }
 
-/// `var` 便捷版本，默认周期 5。/ `var` with default period (5).
-pub fn var_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    var(values, STDDEV_PERIOD, STDDEV_NB_DEV)
-}
-
 // ---------------------------------------------------------------------------
 // 线性回归族 / Linear Regression: LINEARREG, _ANGLE, _INTERCEPT, _SLOPE, TSF
 // ---------------------------------------------------------------------------
@@ -116,6 +107,9 @@ pub fn var_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// - `mode = 2`：LINEARREG_INTERCEPT —— 截距。
 /// - `mode = 3`：LINEARREG_SLOPE —— 斜率。
 /// - `mode = 4`：TSF —— 回归线在窗口右端再外推一步（位置 `period`）的预测值。
+// 仅被 `mod tests`（滑动 vs 朴素对照）引用；非测试构建中 `linear_reg` 等改走
+// `*_with_output`，故标 `#[cfg(test)]` 以免 dead_code 警告。
+#[cfg(test)]
 fn linreg_core(values: &[f64], period: usize, mode: u8) -> Vec<f64> {
     let mut out = vec![f64::NAN; values.len()];
     linreg_core_with_output(values, period, mode, &mut out);
@@ -182,66 +176,51 @@ fn linreg_core_with_output(values: &[f64], period: usize, mode: u8, out: &mut [f
     }
 }
 
-/// 线性回归（Linear Regression，TA-Lib `TA_LINEARREG`）。
-///
-/// 在每个窗口（长度 `period`）上做最小二乘拟合，返回回归线在窗口右端（当前 bar）的预测值。
-/// 前导 `period-1` 个为 [`f64::NAN`]。
-pub fn linear_reg(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    Ok(linreg_core(values, time_period, 0))
+indicator! {
+    /// 线性回归（Linear Regression，TA-Lib `TA_LINEARREG`）。
+    ///
+    /// 在每个窗口（长度 `period`）上做最小二乘拟合，返回回归线在窗口右端（当前 bar）的预测值。
+    /// 前导 `period-1` 个为 [`f64::NAN`]。
+    fn linear_reg(values: &[f64], time_period: usize) -> Vec<f64> with linear_reg_with_output
+    default linear_reg_default(values: &[f64]) => (LINEARREG_PERIOD)
+    /// `linear_reg` 便捷版本，默认周期 14。/ `linear_reg` with default period (14).
+    ;
 }
 
-/// `linear_reg` 便捷版本，默认周期 14。/ `linear_reg` with default period (14).
-pub fn linear_reg_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    linear_reg(values, LINEARREG_PERIOD)
+indicator! {
+    /// 线性回归角度（TA-Lib `TA_LINEARREG_ANGLE`）。
+    ///
+    /// 返回回归线斜率的反正切，单位为**度**（TA-Lib 约定）。前导 `period-1` 个为 [`f64::NAN`]。
+    fn linear_reg_angle(values: &[f64], time_period: usize) -> Vec<f64> with linear_reg_angle_with_output
+    default linear_reg_angle_default(values: &[f64]) => (LINEARREG_PERIOD)
+    /// `linear_reg_angle` 便捷版本，默认周期 14。/ `linear_reg_angle` with default period (14).
+    ;
 }
 
-/// 线性回归角度（TA-Lib `TA_LINEARREG_ANGLE`）。
-///
-/// 返回回归线斜率的反正切，单位为**度**（TA-Lib 约定）。前导 `period-1` 个为 [`f64::NAN`]。
-pub fn linear_reg_angle(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    Ok(linreg_core(values, time_period, 1))
+indicator! {
+    /// 线性回归截距（TA-Lib `TA_LINEARREG_INTERCEPT`）。前导 `period-1` 个为 [`f64::NAN`]。
+    fn linear_reg_intercept(values: &[f64], time_period: usize) -> Vec<f64> with linear_reg_intercept_with_output
+    default linear_reg_intercept_default(values: &[f64]) => (LINEARREG_PERIOD)
+    /// `linear_reg_intercept` 便捷版本，默认周期 14。
+    ;
 }
 
-/// `linear_reg_angle` 便捷版本，默认周期 14。/ `linear_reg_angle` with default period (14).
-pub fn linear_reg_angle_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    linear_reg_angle(values, LINEARREG_PERIOD)
+indicator! {
+    /// 线性回归斜率（TA-Lib `TA_LINEARREG_SLOPE`）。前导 `period-1` 个为 [`f64::NAN`]。
+    fn linear_reg_slope(values: &[f64], time_period: usize) -> Vec<f64> with linear_reg_slope_with_output
+    default linear_reg_slope_default(values: &[f64]) => (LINEARREG_PERIOD)
+    /// `linear_reg_slope` 便捷版本，默认周期 14。
+    ;
 }
 
-/// 线性回归截距（TA-Lib `TA_LINEARREG_INTERCEPT`）。前导 `period-1` 个为 [`f64::NAN`]。
-pub fn linear_reg_intercept(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    Ok(linreg_core(values, time_period, 2))
-}
-
-/// `linear_reg_intercept` 便捷版本，默认周期 14。
-pub fn linear_reg_intercept_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    linear_reg_intercept(values, LINEARREG_PERIOD)
-}
-
-/// 线性回归斜率（TA-Lib `TA_LINEARREG_SLOPE`）。前导 `period-1` 个为 [`f64::NAN`]。
-pub fn linear_reg_slope(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    Ok(linreg_core(values, time_period, 3))
-}
-
-/// `linear_reg_slope` 便捷版本，默认周期 14。
-pub fn linear_reg_slope_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    linear_reg_slope(values, LINEARREG_PERIOD)
-}
-
-/// 时间序列预测（Time Series Forecast，TA-Lib `TA_TSF`）。
-///
-/// 在窗口上拟合回归线后，外推一步（窗口右端再 +1）得到预测值。前导 `period-1` 个为 [`f64::NAN`]。
-pub fn tsf(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    Ok(linreg_core(values, time_period, 4))
-}
-
-/// `tsf` 便捷版本，默认周期 14。
-pub fn tsf_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    tsf(values, LINEARREG_PERIOD)
+indicator! {
+    /// 时间序列预测（Time Series Forecast，TA-Lib `TA_TSF`）。
+    ///
+    /// 在窗口上拟合回归线后，外推一步（窗口右端再 +1）得到预测值。前导 `period-1` 个为 [`f64::NAN`]。
+    fn tsf(values: &[f64], time_period: usize) -> Vec<f64> with tsf_with_output
+    default tsf_default(values: &[f64]) => (LINEARREG_PERIOD)
+    /// `tsf` 便捷版本，默认周期 14。
+    ;
 }
 
 /// 线性回归，零拷贝写入 `out`（与 `values` 等长）。见 [`linear_reg`]。

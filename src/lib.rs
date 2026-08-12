@@ -56,6 +56,11 @@ pub mod pattern;
 
 pub(crate) mod core;
 
+// 指标脚手架接缝（架构评审候选①深化）：零成本 `indicator!` 宏，集中指标的
+// 「等长 NaN 缓冲分配 + 转发 _with_output」重复脚手架。详见 `src/indicator.rs`。
+// Indicator-scaffold seam (candidate-①): zero-cost `indicator!` macro.
+pub(crate) mod indicator;
+
 // 默认关闭的多核并行分块（P3-2）。仅 `parallel` feature 下参与编译。
 // Default-off multi-core parallel chunking (P3-2). Compiled only under the `parallel` feature.
 #[cfg(feature = "parallel")]

@@ -146,6 +146,39 @@ MIDPOINT 22.55→6.88（2.26×）。新增 `core::tests::rolling_extreme_matches
 - **双基准判定**：准确性满足（非妥协项）、性能提升（真实、已实测）、且修复 `core` 可见性 seam +
   显式 tie-break → 保留并计入性能优化收益。
 
+## 架构深化 候选①：指标脚手架接缝归一化（indicator! 宏，2026-08-11）
+
+> 源自 `/improve-codebase-architecture` 评审候选①：用零成本 `macro_rules! indicator` 把每个指标
+> 函数三件套里重复的「等长 `f64::NAN` 缓冲分配 + 转发到 `*_with_output` 内核」胶水归一化。完整决策
+> 见 [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md)。改动分阶段（Phase 1a/1b/1c）在
+> **度量前置双闸门**（精度 1:1 + 性能 A/B median |Δ| ≤ ±5%）下推广，受项目双重基准（准确性 > 性能）约束。
+
+- **精度**：逐项零偏差。宏仅替换外层胶水，`*_with_output` 热路径体字节级不变；宏生成 `func` 与手写
+  数值逐项 1:1（黄金向量闸门：`cargo test` 全量绿灯，161/161；含宏内 `doctest`）。
+- **性能实测方法（A/B 闸门，measure-first 协议）**：新增 `benches/math_trans_bench.rs` /
+  `benches/stat_bench.rs` / `benches/phase1c_bench.rs`（零依赖 `Instant` harness，已注册 `Cargo.toml`
+  `[[bench]]`）。每条 A/B 对「宏生成 `func`」与手写基线（重构前字面 body）做 **预热 + 交错 11 轮
+  （TRIALS=11）+ 取中位数**（`N = 1_000_000`，`ITERS = 50`）；断言 **median |Δ| ≤ ±5%**。
+  经验修正：单发 `Instant` 受 CPU 电源态 / 缓存预热 / 测量顺序影响，单次 Δ 可 ±10%（曾出现宏反而快
+  10% 的纯噪声），故以 median |Δ| 判定而非单次 Δ。
+
+  | Phase | 模块 / 函数 | median 最大 |Δ| | 闸门 |
+  |-------|-------------|------------:|------|
+  | 1a | `math_trans` 15（单输入/单输出/逐元素） | **2.97%** | PASS |
+  | 1b | `stat` 7（单输入，N 末尾默认臂） | **0.11%** | PASS |
+  | 1c | `math_ops` 9 + `volatility` 3 + `price_transform::avgdev` 1 | **0.21%** | PASS |
+
+- **Phase 1c 关键发现（measure-first 协议抓出的真实回归，非噪声）**：宏统一用 `vec![f64::NAN; n]`
+  初始化输出缓冲；而 `avgprice` / `medprice` / `typprice` / `wclprice` 这 4 个**逐元素全覆写、无前导
+  NaN、无默认参数**的函数，其手写原版用 `vec![0.0_f64; n]`。实测 NAN 初始化比零初始化慢（隔离微基准
+  `avgprice` NAN vs ZERO = **+34.7%**、`add` = **+22.2%**）；A/B 闸门报 `avgprice` median |Δ| =
+  **16–17%**（远超 ±5%）。这 4 个函数**既无前导 NaN 需求、也无默认参数、宏对其零收益**，仅因统一 NAN
+  初始化而变慢 —— 故**刻意回退手写**（`0.0_f64` 原生初始化），不纳入宏。其余宏生成函数（含 `trange`/
+  `atr` 等同样全覆写者）因计算/拷贝主导、或本身即需 NAN 初始化，median |Δ| 均在 ±0.3% 内，闸门通过。
+- **双基准判定**：准确性满足（非妥协项）、性能未退化（median |Δ| 均 ≤ 5%，中性）、且消除约 146 处
+  单输出脚手架、降低复制粘贴漂移面 → 保留；**不计入性能优化收益**（宏为「消除重复」而非「改变算法」，
+  展开体与手写字节级相同）。`avgprice` 等 4 函数已从 A/B 移除（已回退手写），其回归由隔离微基准单独确认。
+
 ## 复现 / Reproduce
 
 ```text
@@ -192,3 +225,9 @@ python3 tools/bench/compare.py
   命中 ADR 0010 闸门（自动向量化失败 且 慢 >20%），但瓶颈本质不可向量化（C 侧 `TA_MIDPOINT` 同为
   `MINMAXINDEX`/`无 SIMD`）。判定 **NO-GO**：不引入 `unsafe`/SIMD/`nightly`，维持现状；二者为KNOWN
   结构性权衡，非缺陷。性能优化工作至此收口（见 `docs/perf-verify-report.md`）。
+
+- **2026-08-11 更新（指标脚手架 / 0.1.5）**：新增 0.1.5 的 `indicator!` 宏脚手架（架构深化候选①，
+  Phase 1a/1b/1c），在 measure-first 双闸门下推广；A/B 闸门（预热 + 交错 11 轮 + 中位数，median |Δ| ≤ 5%）
+  全 PASS（1a 2.97% / 1b 0.11% / 1c 0.21%），黄金向量 161/161 仍 1:1。详见上方「架构深化 候选①」小节
+  与 [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md)。此为「消除重复」重构，非性能优化，故不计入
+  性能收益，但证明零成本（展开体与手写字节级相同）。

@@ -20,6 +20,7 @@
 - **单调队列 (monotonic queue)**：O(n) 滚动极值算法，替代朴素 O(n·period) 窗口扫描，用于 MIDPOINT / MIDPRICE 等热路径（见 ADR 0010 D1）。
 - **融合单遍核 (fused single-pass kernel)**：将多次独立扫描合并为单次遍历，减少分配与缓存 miss，如 DEMA/TEMA 复用 EMA 状态、BBANDS 合并 middle+sd（见 ADR 0010 D1）。
 - **原地写入 (in-place / write-to-buffer)**：指标提供 `*_with_output(&mut [f64])` 变体，由调用方提供输出缓冲，避免每调用分配（见 ADR 0010 D2）。
+- **指标脚手架 (indicator scaffold)**：把「分配等长 `f64::NAN` 缓冲 + 调用 `*_with_output` + 包成 `Result<Vec<f64>, TaError>`」这类重复胶水代码，统一抽为编译期 `indicator!` 宏生成的公共 `func` 入口（见 ADR-0011）。热路径 `*_with_output` 体保持手写、字节级不变；宏为零成本文本展开（无 `dyn Fn`、无间接调用、无每轮分配），故数值与性能与手写为 1:1。
 - **自动向量化 (autovectorization)**：依赖编译器将标量循环生成为 SIMD 指令，靠 `#[inline]`、消除热循环 bounds-check、数据对齐达成；本项目性能首层手段（见 ADR 0010 D1）。
 - **内存对齐 (alignment)**：保证 `f64` 数组按 32/64 字节对齐以提升 SIMD / 缓存效率（见 ADR 0010 D1）。
 - **基准双轨 (dual-track benchmark)**：Rust FFI 对照原生 C（`bench-c`，可进 CI）+ Python 便捷对照（`tools/bench`，标注 vs TA-Lib Python binding），见 ADR 0004 / ADR 0010 D4。

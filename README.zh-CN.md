@@ -555,7 +555,7 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.3（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
+- ✅ **0.1.5（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）。0.1.4 与 0.1.5 为内部架构重构版本（核心模块化、零成本 `indicator!` 脚手架），不新增任何公开函数或 API（见[变更日志](#变更日志--changelog)）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
 - 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。
@@ -563,6 +563,21 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 ---
 
 ## 变更日志 / Changelog
+
+### 0.1.5
+- **指标脚手架（`indicator!` 宏）—— 架构深化候选①（Phase 1a/1b/1c）**：新增 `src/indicator.rs`，以**零成本 `macro_rules! indicator`** 宏统一约 146 个单输出公开函数里重复的「分配等长 `f64::NAN` 缓冲 → 转发到 `*_with_output` 内核」胶水。在**度量前置双闸门**（黄金向量 1:1 + A/B `cargo bench` median |Δ| ≤ ±5%）下分阶段推广：
+  - **Phase 1a**：`math_trans` 15 个单输入 / 单输出 / 逐元素函数。
+  - **Phase 1b**：`stat` 7 个单输入函数（`stddev`/`var`/`linear_reg`/`linear_reg_angle`/`linear_reg_intercept`/`linear_reg_slope`/`tsf`）经新增的 N 末尾默认臂生成；`beta`/`correl`（多输入）保持手写（阶段二）。
+  - **Phase 1c**：`math_ops` 9 个（`add`/`sub`/`mult`/`div`/`sum`/`min`/`max`/`max_index`/`min_index`）+ `volatility` 3 个（`trange`/`atr`/`natr`，其中 2 个带默认臂）+ `price_transform::avgdev`，共 13 个单输出函数改由宏生成；`avgprice`/`medprice`/`typprice`/`wclprice` **刻意回退手写** —— 宏统一的 `vec![f64::NAN; n]` 初始化对它们有回归（隔离微基准：`avgprice` +34.7%、`add` +22.2%；A/B median |Δ| = 16–17% ≫ 5%），而它们既无前导 NaN、也无默认参数、宏对其零收益。
+- **零成本保证已验证**：宏在编译期展开为字节级相同的代码（无 `dyn Fn`、无间接调用、无每轮分配）；`*_with_output` 热路径体不变。A/B 结果 —— Phase 1a median 最大 |Δ| = **2.97%**、Phase 1b = **0.11%**、Phase 1c = **0.21%**（均 ≤ 5% → 通过）。黄金向量闸门：全部 **161/161** 函数仍在其容限内复现 TA-Lib 0.7.1；全量 `cargo test` 仍全绿（含宏生成的新 `doctest`）。
+- **新增 A/B 基准 harness（方法论）**：新增 `benches/math_trans_bench.rs`、`benches/stat_bench.rs`、`benches/phase1c_bench.rs`（均已在 `Cargo.toml` 注册）—— 零依赖 `Instant` harness，采用**预热 + 交错多轮 + 中位数**抑制单发噪声（单发可达 ±10%）。详见 [`benches/BASELINE.md`](benches/BASELINE.md) 与 [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md)。
+- **发布**：版本号提升至 `0.1.5`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。面向用户的行为、调用形态与 `cargo test` / `cargo bench` 工作流均不变。
+
+### 0.1.4
+- **核心模块化（架构深化）**：将单体 `src/core/mod.rs` 拆分为职责单一的模块 —— `ema.rs`（嵌套 EMA 融合）、`extreme.rs`（单调队列滚动极值 / 索引）、`window.rs`（窗口求和 / 方差）、`kernel.rs`（共享内核 helper）。删除冗余的 `check_eq_len` 长度检查 helper（长度检查现紧贴各内核）。纯重构 —— 输出与 TA-Lib 0.7.1 仍逐位 / 黄金向量 1:1，零性能影响。
+- **`parallel` 特性升级为一等模块**：原有的重叠播种并行分块（原概念验证）现归入 `src/parallel.rs`，由专属 `tests/parallel_equality.rs` 1:1 相等性测试守护，并由 `benches/parallel_poc.rs` 驱动。5 个 A 类窗口函数（`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`）在默认关闭的 `parallel` 特性下获得多核加速 —— 合计由 **85 更快 / 60 持平 / 16 更慢（几何均值 0.786×）** 变为 **88 / 63 / 10（0.734×）**；对其余 156 个函数该特性为 no-op。
+- **性能报告与 161 基准套件刷新**：刷新 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md) 与 `all161_results*.csv` 基准数据；并入已定稿的 0.1.3 优化成果（EMA 家族 FMA 收缩补齐 EMA 缺口 —— 见[验证与基准](#验证与基准--verification--benchmarks)）。
+- **发布**：版本号提升至 `0.1.4`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
 
 ### 0.1.3
 - **模式识别性能推广**：将 `cdl_hammer` 的内联运行和累加器模板推广到**全部 61 个蜡烛函数**（零偏差 transformer `tools/opt_pattern.py`）；把逐函数的 `CandleAvg::new`+`value`+`advance` 替换为内联 `sum_*`/`trail_*`/`cur_*`/`val_*` 累加器（跳过无 `CandleAvg` 的函数，如 `cdl_engulfing`/`cdl_3outside`/`cdl_hikkake`/`cdl_tristar`）。模式识别几何均值 **Rust/C 由 2.98× → 0.677×**（43 快 / 13 持平 / 5 慢，原为 1/3/57）—— 本次发布的最大单项收益。
