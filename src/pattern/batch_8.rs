@@ -8,38 +8,37 @@
 //! vectors: `cdl_sticksandwich`, `cdl_takuri`, `cdl_tasukigap`, `cdl_thrusting`,
 //! `cdl_tristar`, `cdl_unique3river`, `cdl_upsidegap2crows`, `cdl_xsidegap3methods`.
 
-use crate::error::TaError;
 use super::*;
+use crate::error::TaError;
+use crate::indicator::indicator;
 
 // ===========================================================================
 // cdl_sticksandwich — Stick Sandwich（棍子三明治）
 // ===========================================================================
 
-/// Stick Sandwich（棍子三明治）：第 1 根阴线、第 2 根阳线（低点高于前收）、第 3 根阴线收盘≈第 1 根收盘。
-///
-/// 恒为看涨 `100`。`EQUAL` 引用 `i−2`，`lookback = EQUAL + 2 = 7`，`off = 2`。
-///
-/// Stick Sandwich: 1st black, 2nd white (low above prior close), 3rd black closing equal to the
-/// 1st close. Always bullish `100`. `EQUAL` references `i−2`, `lookback = 7`, `off = 2`.
-pub fn cdl_sticksandwich(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_sticksandwich_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Stick Sandwich（棍子三明治）：第 1 根阴线、第 2 根阳线（低点高于前收）、第 3 根阴线收盘≈第 1 根收盘。
+    ///
+    /// 恒为看涨 `100`。`EQUAL` 引用 `i−2`，`lookback = EQUAL + 2 = 7`，`off = 2`。
+    ///
+    /// Stick Sandwich: 1st black, 2nd white (low above prior close), 3rd black closing equal to the
+    /// 1st close. Always bullish `100`. `EQUAL` references `i−2`, `lookback = 7`, `off = 2`.
+    fn cdl_sticksandwich(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_sticksandwich_with_output init zero;
 }
 
 /// `cdl_sticksandwich` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_sticksandwich`]。
 /// Zero-copy variant of [`cdl_sticksandwich`]: writes results into `out` (length must equal input length).
 pub fn cdl_sticksandwich_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_sticksandwich_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_sticksandwich_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_sticksandwich")?;
@@ -68,7 +67,11 @@ pub fn cdl_sticksandwich_with_output(
             && low[i - 1] > close[i - 2] // 2nd low > prior close
             && close[i] <= close[i - 2] + val_avg_eq // 1st & 3rd same close
             && close[i] >= close[i - 2] - val_avg_eq
-        { 100.0 } else { 0.0 };
+        {
+            100.0
+        } else {
+            0.0
+        };
         sum_avg_eq += cur_avg_eq - high_low_range(high[trail_avg_eq], low[trail_avg_eq]);
         trail_avg_eq += 1;
         i += 1;
@@ -77,37 +80,34 @@ pub fn cdl_sticksandwich_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_takuri — Takuri (Dragonfly Doji with very long lower shadow)
 // ===========================================================================
 
-/// Takuri（蜻蜓十字星）：极小的实体 + 开盘/收盘都在当日最高（上影线极短）+ 极长下影线。
-///
-/// 恒为 `100`（相对趋势判断，本身不判多空）。三个设置均引用当前 K 线 `i`，`off = 0`；
-/// `lookback = max(BodyDoji, ShadowVeryShort, ShadowVeryLong) = 10`。
-///
-/// Takuri: doji body, open & close at the high (very short upper shadow), very long lower shadow.
-/// Always `100`. All three settings reference `i`, `off = 0`; `lookback = 10`.
-pub fn cdl_takuri(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_takuri_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Takuri（蜻蜓十字星）：极小的实体 + 开盘/收盘都在当日最高（上影线极短）+ 极长下影线。
+    ///
+    /// 恒为 `100`（相对趋势判断，本身不判多空）。三个设置均引用当前 K 线 `i`，`off = 0`；
+    /// `lookback = max(BodyDoji, ShadowVeryShort, ShadowVeryLong) = 10`。
+    ///
+    /// Takuri: doji body, open & close at the high (very short upper shadow), very long lower shadow.
+    /// Always `100`. All three settings reference `i`, `off = 0`; `lookback = 10`.
+    fn cdl_takuri(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_takuri_with_output init zero;
 }
 
 /// `cdl_takuri` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_takuri`]。
 /// Zero-copy variant of [`cdl_takuri`]: writes results into `out` (length must equal input length).
 pub fn cdl_takuri_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_takuri_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_takuri_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_takuri")?;
@@ -157,10 +157,14 @@ pub fn cdl_takuri_with_output(
         let val_avg_us = sum_avg_us / 10 as f64 * 0.1;
         let cur_avg_ls = real_body(open[i], close[i]);
         let val_avg_ls = cur_avg_ls * 2.0;
-        out[i] = if real_body(open[i], close[i]) <= val_avg_body
+        out[i] = if cur_avg_ls <= val_avg_body
             && upper_shadow(open[i], high[i], close[i]) < val_avg_us
             && lower_shadow(open[i], low[i], close[i]) > val_avg_ls
-        { 100.0 } else { 0.0 };
+        {
+            100.0
+        } else {
+            0.0
+        };
         sum_avg_body += cur_avg_body - high_low_range(high[trail_avg_body], low[trail_avg_body]);
         trail_avg_body += 1;
         sum_avg_us += cur_avg_us - high_low_range(high[trail_avg_us], low[trail_avg_us]);
@@ -173,37 +177,34 @@ pub fn cdl_takuri_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_tasukigap — Tasuki Gap（跳空并列阴阳线）
 // ===========================================================================
 
-/// Tasuki Gap（跳空并列阴阳线）：向上/向下跳空后的并列两实体，第 2 根反向且实体大小相近。
-///
-/// 看涨方向输出 `+100`，看跌方向输出 `−100`。`NEAR` 引用 `i−1`，`lookback = NEAR + 2 = 7`，`off = 1`。
-///
-/// Tasuki Gap: a gapped pair followed by a counter-coloured candle whose real body stays inside
-/// the gap and is near the same size as the prior body. Bullish → `+100`, bearish → `−100`.
-/// `NEAR` references `i−1`, `lookback = 7`, `off = 1`.
-pub fn cdl_tasukigap(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_tasukigap_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Tasuki Gap（跳空并列阴阳线）：向上/向下跳空后的并列两实体，第 2 根反向且实体大小相近。
+    ///
+    /// 看涨方向输出 `+100`，看跌方向输出 `−100`。`NEAR` 引用 `i−1`，`lookback = NEAR + 2 = 7`，`off = 1`。
+    ///
+    /// Tasuki Gap: a gapped pair followed by a counter-coloured candle whose real body stays inside
+    /// the gap and is near the same size as the prior body. Bullish → `+100`, bearish → `−100`.
+    /// `NEAR` references `i−1`, `lookback = 7`, `off = 1`.
+    fn cdl_tasukigap(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_tasukigap_with_output init zero;
 }
 
 /// `cdl_tasukigap` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_tasukigap`]。
 /// Zero-copy variant of [`cdl_tasukigap`]: writes results into `out` (length must equal input length).
 pub fn cdl_tasukigap_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_tasukigap_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_tasukigap_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_tasukigap")?;
@@ -233,17 +234,20 @@ pub fn cdl_tasukigap_with_output(
             && close[i] < open[i - 1] // closes under white body
             && close[i] > f64::max(close[i - 2], open[i - 2]) // inside the gap
             && (real_body(open[i - 1], close[i - 1]) - real_body(open[i], close[i])).abs()
-                < val_avg_near
-        ) || (real_body_gap_down(open[i - 1], close[i - 1], open[i - 2], close[i - 2]) // downside gap
+                < val_avg_near)
+            || (real_body_gap_down(open[i - 1], close[i - 1], open[i - 2], close[i - 2]) // downside gap
             && candle_color(open[i - 1], close[i - 1]) == -1.0 // 1st black
             && candle_color(open[i], close[i]) == 1.0 // 2nd white
             && open[i] < open[i - 1] && open[i] > close[i - 1] // opens within black body
             && close[i] > open[i - 1] // closes above black body
             && close[i] < f64::min(close[i - 2], open[i - 2]) // inside the gap
             && (real_body(open[i - 1], close[i - 1]) - real_body(open[i], close[i])).abs()
-                < val_avg_near
-        )
-        { candle_color(open[i - 1], close[i - 1]) * 100.0 } else { 0.0 };
+                < val_avg_near)
+        {
+            candle_color(open[i - 1], close[i - 1]) * 100.0
+        } else {
+            0.0
+        };
         sum_avg_near += cur_avg_near - high_low_range(high[trail_avg_near], low[trail_avg_near]);
         trail_avg_near += 1;
         i += 1;
@@ -252,38 +256,35 @@ pub fn cdl_tasukigap_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_thrusting — Thrusting Pattern（插入线 / 推力形态）
 // ===========================================================================
 
-/// Thrusting Pattern（推力形态）：长阴线后，阳线跳空低开、收盘深入前阴实体但未过中点。
-///
-/// 恒为看跌 `−100`（与颈上线 in-neck 类似，但收盘不等于阴线收盘）。`EQUAL` 与 `BODY_LONG` 均引用
-/// `i−1`，`lookback = max(Equal, BodyLong) + 1 = 11`，`off = 1`。
-///
-/// Thrusting Pattern: long black candle, then a white candle gapping down that closes into the
-/// prior black body but under its midpoint. Always bearish `−100`. `EQUAL` and `BODY_LONG`
-/// reference `i−1`, `lookback = 11`, `off = 1`.
-pub fn cdl_thrusting(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_thrusting_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Thrusting Pattern（推力形态）：长阴线后，阳线跳空低开、收盘深入前阴实体但未过中点。
+    ///
+    /// 恒为看跌 `−100`（与颈上线 in-neck 类似，但收盘不等于阴线收盘）。`EQUAL` 与 `BODY_LONG` 均引用
+    /// `i−1`，`lookback = max(Equal, BodyLong) + 1 = 11`，`off = 1`。
+    ///
+    /// Thrusting Pattern: long black candle, then a white candle gapping down that closes into the
+    /// prior black body but under its midpoint. Always bearish `−100`. `EQUAL` and `BODY_LONG`
+    /// reference `i−1`, `lookback = 11`, `off = 1`.
+    fn cdl_thrusting(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_thrusting_with_output init zero;
 }
 
 /// `cdl_thrusting` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_thrusting`]。
 /// Zero-copy variant of [`cdl_thrusting`]: writes results into `out` (length must equal input length).
 pub fn cdl_thrusting_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_thrusting_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_thrusting_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_thrusting")?;
@@ -323,8 +324,13 @@ pub fn cdl_thrusting_with_output(
             && candle_color(open[i], close[i]) == 1.0 // 2nd white
             && open[i] < low[i - 1] // open below prior low
             && close[i] > close[i - 1] + val_avg_eq // close into prior body
-            && close[i] <= close[i - 1] + real_body(open[i - 1], close[i - 1]) * 0.5 // under midpoint
-        { -100.0 } else { 0.0 };
+            && close[i] <= close[i - 1] + real_body(open[i - 1], close[i - 1]) * 0.5
+        // under midpoint
+        {
+            -100.0
+        } else {
+            0.0
+        };
         sum_avg_eq += cur_avg_eq - high_low_range(high[trail_avg_eq], low[trail_avg_eq]);
         trail_avg_eq += 1;
         sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
@@ -335,38 +341,35 @@ pub fn cdl_thrusting_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_tristar — Tristar Pattern（三星形态）
 // ===========================================================================
 
-/// Tristar Pattern（三星形态）：连续 3 根十字星，第 2 根为星线（跳空）。
-///
-/// 第 2 根向上跳空且第 3 根不高于第 2 根 → 看跌 `−100`；向下跳空且第 3 根不低于第 2 根 → 看涨 `+100`；
-/// 否则 `0`。`BODY_DOJI` 引用 `i−2`，`lookback = BodyDoji + 2 = 12`，`off = 2`。
-///
-/// Tristar: three consecutive doji, the 2nd being a star (gapped). 2nd gaps up & 3rd not higher
-/// → `−100`; 2nd gaps down & 3rd not lower → `+100`; else `0`. `BODY_DOJI` references `i−2`,
-/// `lookback = 12`, `off = 2`.
-pub fn cdl_tristar(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_tristar_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Tristar Pattern（三星形态）：连续 3 根十字星，第 2 根为星线（跳空）。
+    ///
+    /// 第 2 根向上跳空且第 3 根不高于第 2 根 → 看跌 `−100`；向下跳空且第 3 根不低于第 2 根 → 看涨 `+100`；
+    /// 否则 `0`。`BODY_DOJI` 引用 `i−2`，`lookback = BodyDoji + 2 = 12`，`off = 2`。
+    ///
+    /// Tristar: three consecutive doji, the 2nd being a star (gapped). 2nd gaps up & 3rd not higher
+    /// → `−100`; 2nd gaps down & 3rd not lower → `+100`; else `0`. `BODY_DOJI` references `i−2`,
+    /// `lookback = 12`, `off = 2`.
+    fn cdl_tristar(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_tristar_with_output init zero;
 }
 
 /// `cdl_tristar` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_tristar`]。
 /// Zero-copy variant of [`cdl_tristar`]: writes results into `out` (length must equal input length).
 pub fn cdl_tristar_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_tristar_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_tristar_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_tristar")?;
@@ -380,7 +383,8 @@ pub fn cdl_tristar_with_output(
     while i < n {
         if real_body(open[i - 2], close[i - 2]) <= avg_body.value(i, open, high, low, close) // 1st doji
             && real_body(open[i - 1], close[i - 1]) <= avg_body.value(i, open, high, low, close) // 2nd doji
-            && real_body(open[i], close[i]) <= avg_body.value(i, open, high, low, close) // 3rd doji
+            && real_body(open[i], close[i]) <= avg_body.value(i, open, high, low, close)
+        // 3rd doji
         {
             out[i] = 0.0;
             if real_body_gap_up(open[i - 1], close[i - 1], open[i - 2], close[i - 2]) // 2nd gaps up
@@ -402,38 +406,35 @@ pub fn cdl_tristar_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_unique3river — Unique 3 River（独特三河床）
 // ===========================================================================
 
-/// Unique 3 River（独特三河床）：长阴线、更低低的黑色抱线星、不破前低的白色小实体。
-///
-/// 恒为看涨 `100`。`BODY_LONG` 引用 `i−2`（`off = 2`）；`BODY_SHORT` 引用当前 `i`（`off = 0`）；
-/// `lookback = max(BodyShort, BodyLong) + 2 = 12`。
-///
-/// Unique 3 River: long black, a lower-low black harami star, a small white real body whose open
-/// is not below the prior low. Always bullish `100`. `BODY_LONG` references `i−2` (`off = 2`);
-/// `BODY_SHORT` references `i` (`off = 0`); `lookback = 12`.
-pub fn cdl_unique3river(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_unique3river_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Unique 3 River（独特三河床）：长阴线、更低低的黑色抱线星、不破前低的白色小实体。
+    ///
+    /// 恒为看涨 `100`。`BODY_LONG` 引用 `i−2`（`off = 2`）；`BODY_SHORT` 引用当前 `i`（`off = 0`）；
+    /// `lookback = max(BodyShort, BodyLong) + 2 = 12`。
+    ///
+    /// Unique 3 River: long black, a lower-low black harami star, a small white real body whose open
+    /// is not below the prior low. Always bullish `100`. `BODY_LONG` references `i−2` (`off = 2`);
+    /// `BODY_SHORT` references `i` (`off = 0`); `lookback = 12`.
+    fn cdl_unique3river(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_unique3river_with_output init zero;
 }
 
 /// `cdl_unique3river` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_unique3river`]。
 /// Zero-copy variant of [`cdl_unique3river`]: writes results into `out` (length must equal input length).
 pub fn cdl_unique3river_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_unique3river_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_unique3river_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_unique3river")?;
@@ -473,13 +474,20 @@ pub fn cdl_unique3river_with_output(
             && candle_color(open[i - 1], close[i - 1]) == -1.0 // 2nd black
             && close[i - 1] > close[i - 2] && open[i - 1] <= open[i - 2] // harami
             && low[i - 1] < low[i - 2] // lower low
-            && real_body(open[i], close[i]) < val_avg_body_short // 3rd short
+            && cur_avg_body_short < val_avg_body_short // 3rd short
             && candle_color(open[i], close[i]) == 1.0 // white
-            && open[i] > low[i - 1] // open not lower
-        { 100.0 } else { 0.0 };
-        sum_avg_body_long += cur_avg_body_long - real_body(open[trail_avg_body_long], close[trail_avg_body_long]);
+            && open[i] > low[i - 1]
+        // open not lower
+        {
+            100.0
+        } else {
+            0.0
+        };
+        sum_avg_body_long +=
+            cur_avg_body_long - real_body(open[trail_avg_body_long], close[trail_avg_body_long]);
         trail_avg_body_long += 1;
-        sum_avg_body_short += cur_avg_body_short - real_body(open[trail_avg_body_short], close[trail_avg_body_short]);
+        sum_avg_body_short +=
+            cur_avg_body_short - real_body(open[trail_avg_body_short], close[trail_avg_body_short]);
         trail_avg_body_short += 1;
         i += 1;
     }
@@ -487,38 +495,35 @@ pub fn cdl_unique3river_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_upsidegap2crows — Upside Gap Two Crows（向上跳空两只乌鸦）
 // ===========================================================================
 
-/// Upside Gap Two Crows（向上跳空两只乌鸦）：长阳线、向上跳空的小黑线、吞没前实体且收在首阳之上的黑线。
-///
-/// 恒为看跌 `−100`。`BODY_LONG` 引用 `i−2`（`off = 2`）；`BODY_SHORT` 引用 `i−1`（`off = 1`）；
-/// `lookback = max(BodyShort, BodyLong) + 2 = 12`。
-///
-/// Upside Gap Two Crows: long white, a small black real body gapping up, then a black candle
-/// engulfing the prior body and closing above the white close. Always bearish `−100`.
-/// `BODY_LONG` references `i−2` (`off = 2`); `BODY_SHORT` references `i−1` (`off = 1`); `lookback = 12`.
-pub fn cdl_upsidegap2crows(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_upsidegap2crows_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Upside Gap Two Crows（向上跳空两只乌鸦）：长阳线、向上跳空的小黑线、吞没前实体且收在首阳之上的黑线。
+    ///
+    /// 恒为看跌 `−100`。`BODY_LONG` 引用 `i−2`（`off = 2`）；`BODY_SHORT` 引用 `i−1`（`off = 1`）；
+    /// `lookback = max(BodyShort, BodyLong) + 2 = 12`。
+    ///
+    /// Upside Gap Two Crows: long white, a small black real body gapping up, then a black candle
+    /// engulfing the prior body and closing above the white close. Always bearish `−100`.
+    /// `BODY_LONG` references `i−2` (`off = 2`); `BODY_SHORT` references `i−1` (`off = 1`); `lookback = 12`.
+    fn cdl_upsidegap2crows(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_upsidegap2crows_with_output init zero;
 }
 
 /// `cdl_upsidegap2crows` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_upsidegap2crows`]。
 /// Zero-copy variant of [`cdl_upsidegap2crows`]: writes results into `out` (length must equal input length).
 pub fn cdl_upsidegap2crows_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_upsidegap2crows_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_upsidegap2crows_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_upsidegap2crows")?;
@@ -560,11 +565,18 @@ pub fn cdl_upsidegap2crows_with_output(
             && real_body_gap_up(open[i - 1], close[i - 1], open[i - 2], close[i - 2]) // gapping up
             && candle_color(open[i], close[i]) == -1.0 // 3rd black
             && open[i] > open[i - 1] && close[i] < close[i - 1] // 3rd engulfs prior body
-            && close[i] > close[i - 2] // closes above 1st
-        { -100.0 } else { 0.0 };
-        sum_avg_body_long += cur_avg_body_long - real_body(open[trail_avg_body_long], close[trail_avg_body_long]);
+            && close[i] > close[i - 2]
+        // closes above 1st
+        {
+            -100.0
+        } else {
+            0.0
+        };
+        sum_avg_body_long +=
+            cur_avg_body_long - real_body(open[trail_avg_body_long], close[trail_avg_body_long]);
         trail_avg_body_long += 1;
-        sum_avg_body_short += cur_avg_body_short - real_body(open[trail_avg_body_short], close[trail_avg_body_short]);
+        sum_avg_body_short +=
+            cur_avg_body_short - real_body(open[trail_avg_body_short], close[trail_avg_body_short]);
         trail_avg_body_short += 1;
         i += 1;
     }
@@ -572,38 +584,35 @@ pub fn cdl_upsidegap2crows_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_xsidegap3methods — Upside/Downside Gap Three Methods（上升/下降跳空三法）
 // ===========================================================================
 
-/// Upside/Downside Gap Three Methods（上升/下降跳空三法）：同向两根蜡烛跳空，第 3 根反向、开在
-/// 第 2 根实体内、收在第 1 根实体内。
-///
-/// 首根为阳 → 看涨 `+100`；首根为阴 → 看跌 `−100`。无蜡烛均值设置，`lookback = 2`。
-///
-/// Upside/Downside Gap Three Methods: two same-colour candles gapping, then a counter-colour
-/// candle opening inside the 2nd real body and closing inside the 1st real body. 1st white →
-/// `+100`, 1st black → `−100`. No candle-average settings; `lookback = 2`.
-pub fn cdl_xsidegap3methods(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_xsidegap3methods_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Upside/Downside Gap Three Methods（上升/下降跳空三法）：同向两根蜡烛跳空，第 3 根反向、开在
+    /// 第 2 根实体内、收在第 1 根实体内。
+    ///
+    /// 首根为阳 → 看涨 `+100`；首根为阴 → 看跌 `−100`。无蜡烛均值设置，`lookback = 2`。
+    ///
+    /// Upside/Downside Gap Three Methods: two same-colour candles gapping, then a counter-colour
+    /// candle opening inside the 2nd real body and closing inside the 1st real body. 1st white →
+    /// `+100`, 1st black → `−100`. No candle-average settings; `lookback = 2`.
+    fn cdl_xsidegap3methods(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_xsidegap3methods_with_output init zero;
 }
 
 /// `cdl_xsidegap3methods` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_xsidegap3methods`]。
 /// Zero-copy variant of [`cdl_xsidegap3methods`]: writes results into `out` (length must equal input length).
 pub fn cdl_xsidegap3methods_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_xsidegap3methods_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_xsidegap3methods_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_xsidegap3methods")?;
@@ -621,7 +630,8 @@ pub fn cdl_xsidegap3methods_with_output(
             && ((candle_color(open[i - 2], close[i - 2]) == 1.0
                 && real_body_gap_up(open[i - 1], close[i - 1], open[i - 2], close[i - 2])) // upside gap
                 || (candle_color(open[i - 2], close[i - 2]) == -1.0
-                    && real_body_gap_down(open[i - 1], close[i - 1], open[i - 2], close[i - 2]))) // downside gap
+                    && real_body_gap_down(open[i - 1], close[i - 1], open[i - 2], close[i - 2])))
+        // downside gap
         {
             out[i] = candle_color(open[i - 2], close[i - 2]) * 100.0;
         } else {
@@ -631,4 +641,3 @@ pub fn cdl_xsidegap3methods_with_output(
     }
     Ok(())
 }
-

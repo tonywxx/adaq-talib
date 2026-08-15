@@ -100,6 +100,53 @@ macro_rules! indicator {
             Ok(out)
         }
     };
+
+    // —— 多输入臂 · 0-init（Phase 2 启动，候选①）—— 用于无不稳定期、前导无 NaN 的多输入指标，
+    //    e.g. 蜡烛形态 cdl_*（open/high/low/close，首片定长）。首片 `&[f64]` 即输出长度源；
+    //    其余参数按 `ident : ty` 透传（可为更多 `&[f64]` 切片或末尾标量）；内核内部已做长度/OHLC
+    //    校验时此臂不重复校验，保证与手写字节级一致（见 Q3）。
+    (
+        $(#[$meta:meta])*
+        fn $fname:ident (
+            $first:ident : &[f64]
+            $(, $rest:ident : $restty:ty)* $(,)?
+        ) -> Vec<f64>
+        with $with_output:ident
+        init zero
+        $(;)?
+    ) => {
+        $(#[$meta])*
+        pub fn $fname (
+            $first : &[f64]
+            $(, $rest : $restty)*
+        ) -> Result<Vec<f64>, $crate::error::TaError> {
+            let mut out = vec![0.0_f64; $first.len()];
+            $with_output ( $first $(, $rest)* , &mut out )?;
+            Ok(out)
+        }
+    };
+
+    // —— 多输入臂 · NAN 默认（Phase 2 启动，候选①）—— 不含 `init` 修饰时以 f64::NAN 初始化
+    //    （含前导不稳定期）。供后续 OHLC 数值指标（如 cci/willr/±di 等）接入；本论 cdl_* 用上一条。
+    (
+        $(#[$meta:meta])*
+        fn $fname:ident (
+            $first:ident : &[f64]
+            $(, $rest:ident : $restty:ty)* $(,)?
+        ) -> Vec<f64>
+        with $with_output:ident
+        $(;)?
+    ) => {
+        $(#[$meta])*
+        pub fn $fname (
+            $first : &[f64]
+            $(, $rest : $restty)*
+        ) -> Result<Vec<f64>, $crate::error::TaError> {
+            let mut out = vec![f64::NAN; $first.len()];
+            $with_output ( $first $(, $rest)* , &mut out )?;
+            Ok(out)
+        }
+    };
 }
 
 // `pub(crate)` 重导出，使各指标模块可经 `use crate::indicator::indicator;` 引入本宏。

@@ -117,3 +117,7 @@ harness = false
 [[bench]]
 name = "phase1c_bench"
 harness = false
+
+[[bench]]
+name = "cdl_bench"
+harness = false

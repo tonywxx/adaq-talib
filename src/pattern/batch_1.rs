@@ -13,38 +13,37 @@
 //! `OFF=1` 2-candle (`cdl_harami`), and `OFF=2` 3-candle multi-bar (`cdl_2crows`). All
 //! bit-identical to TA-Lib 0.7.1 golden vectors.
 
-use crate::error::TaError;
 use super::*;
+use crate::error::TaError;
+use crate::indicator::indicator;
 
 // ===========================================================================
 // cdl_doji — Doji（十字星）
 // ===========================================================================
 
-/// Doji（十字星）：开盘价 ≈ 收盘价（实体极小）。
-///
-/// `outInteger` 恒为 `100`（十字星表示犹豫，本身不判多空）。
-/// 对应 C 源 `ta_CDLDOJI.c`：`realBody(i) <= CANDLEAVERAGE(BodyDoji, i)`。
-///
-/// Doji: open ≈ close (very small real body). Output is always `100`.
-pub fn cdl_doji(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_doji_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Doji（十字星）：开盘价 ≈ 收盘价（实体极小）。
+    ///
+    /// `outInteger` 恒为 `100`（十字星表示犹豫，本身不判多空）。
+    /// 对应 C 源 `ta_CDLDOJI.c`：`realBody(i) <= CANDLEAVERAGE(BodyDoji, i)`。
+    ///
+    /// Doji: open ≈ close (very small real body). Output is always `100`.
+    fn cdl_doji(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_doji_with_output init zero;
 }
 
 /// `cdl_doji` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_doji`]。
 /// Zero-copy variant of [`cdl_doji`]: writes results into `out` (length must equal input length).
 pub fn cdl_doji_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_doji_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_doji_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_doji")?;
@@ -67,8 +66,11 @@ pub fn cdl_doji_with_output(
     while i < n {
         let cur_avg = high_low_range(high[i], low[i]);
         let val_avg = sum_avg / 10 as f64 * 0.1;
-        out[i] = if real_body(open[i], close[i]) <= val_avg
-        { 100.0 } else { 0.0 };
+        out[i] = if real_body(open[i], close[i]) <= val_avg {
+            100.0
+        } else {
+            0.0
+        };
         sum_avg += cur_avg - high_low_range(high[trail_avg], low[trail_avg]);
         trail_avg += 1;
         i += 1;
@@ -77,36 +79,33 @@ pub fn cdl_doji_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_marubozu — Marubozu（光头光脚）
 // ===========================================================================
 
-/// Marubozu（光头光脚）：长实体、无/极短影线。
-///
-/// 阳线（close ≥ open）输出 `+100`，阴线输出 `−100`；否则 `0`。
-/// 对应 C 源 `ta_CDLMARUBOZU.c`：`lookback = max(BodyLong, ShadowVeryShort)`。
-///
-/// Marubozu: long real body with no/very-short shadows. Bullish → `+100`, bearish → `−100`.
-pub fn cdl_marubozu(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_marubozu_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Marubozu（光头光脚）：长实体、无/极短影线。
+    ///
+    /// 阳线（close ≥ open）输出 `+100`，阴线输出 `−100`；否则 `0`。
+    /// 对应 C 源 `ta_CDLMARUBOZU.c`：`lookback = max(BodyLong, ShadowVeryShort)`。
+    ///
+    /// Marubozu: long real body with no/very-short shadows. Bullish → `+100`, bearish → `−100`.
+    fn cdl_marubozu(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_marubozu_with_output init zero;
 }
 
 /// `cdl_marubozu` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_marubozu`]。
 /// Zero-copy variant of [`cdl_marubozu`]: writes results into `out` (length must equal input length).
 pub fn cdl_marubozu_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_marubozu_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_marubozu_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_marubozu")?;
@@ -141,13 +140,18 @@ pub fn cdl_marubozu_with_output(
         let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
         let cur_avg_shadow = high_low_range(high[i], low[i]);
         let val_avg_shadow = sum_avg_shadow / 10 as f64 * 0.1;
-        out[i] = if real_body(open[i], close[i]) > val_avg_body
+        out[i] = if cur_avg_body > val_avg_body
             && upper_shadow(open[i], high[i], close[i]) < val_avg_shadow
             && lower_shadow(open[i], low[i], close[i]) < val_avg_shadow
-        { candle_color(open[i], close[i]) * 100.0 } else { 0.0 };
+        {
+            candle_color(open[i], close[i]) * 100.0
+        } else {
+            0.0
+        };
         sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
         trail_avg_body += 1;
-        sum_avg_shadow += cur_avg_shadow - high_low_range(high[trail_avg_shadow], low[trail_avg_shadow]);
+        sum_avg_shadow +=
+            cur_avg_shadow - high_low_range(high[trail_avg_shadow], low[trail_avg_shadow]);
         trail_avg_shadow += 1;
         i += 1;
     }
@@ -155,27 +159,19 @@ pub fn cdl_marubozu_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_hammer — Hammer（锤头）
 // ===========================================================================
 
-/// Hammer（锤头）：小实体、长下影线、无/极短上影线，且实体靠近前一根最低价附近。
-///
-/// 锤头恒为看涨（`+100`）。`Near` 设置使用 `OFF=1`，引用 `i−1`
-/// （见 `ta_CDLHAMMER.c`）。`lookback = max(max(max(BodyShort, ShadowLong), ShadowVeryShort), Near) + 1 = 11`。
-///
-/// Hammer: small body, long lower shadow, no/very-short upper shadow, body near prior low.
-/// Always bullish (`+100`). `Near` uses `OFF=1` (references `i−1`), `lookback = 11`.
-pub fn cdl_hammer(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_hammer_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Hammer（锤头）：小实体、长下影线、无/极短上影线，且实体靠近前一根最低价附近。
+    ///
+    /// 锤头恒为看涨（`+100`）。`Near` 设置使用 `OFF=1`，引用 `i−1`
+    /// （见 `ta_CDLHAMMER.c`）。`lookback = max(max(max(BodyShort, ShadowLong), ShadowVeryShort), Near) + 1 = 11`。
+    ///
+    /// Hammer: small body, long lower shadow, no/very-short upper shadow, body near prior low.
+    /// Always bullish (`+100`). `Near` uses `OFF=1` (references `i−1`), `lookback = 11`.
+    fn cdl_hammer(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_hammer_with_output init zero;
 }
 
 /// `cdl_hammer` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_hammer`]。
@@ -259,36 +255,33 @@ pub fn cdl_hammer_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_shootingstar — Shooting Star（射击之星）
 // ===========================================================================
 
-/// Shooting Star（射击之星）：小实体、长上影线、无/极短下影线，且相对前一根实体向上跳空。
-///
-/// 射击之星恒为看跌（`−100`）。`lookback = max(max(BodyShort, ShadowLong), ShadowVeryShort) = 10`。
-///
-/// Shooting Star: small body, long upper shadow, no/very-short lower shadow, gap up from prior body.
-/// Always bearish (`−100`), `lookback = 10`.
-pub fn cdl_shootingstar(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_shootingstar_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Shooting Star（射击之星）：小实体、长上影线、无/极短下影线，且相对前一根实体向上跳空。
+    ///
+    /// 射击之星恒为看跌（`−100`）。`lookback = max(max(BodyShort, ShadowLong), ShadowVeryShort) = 10`。
+    ///
+    /// Shooting Star: small body, long upper shadow, no/very-short lower shadow, gap up from prior body.
+    /// Always bearish (`−100`), `lookback = 10`.
+    fn cdl_shootingstar(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_shootingstar_with_output init zero;
 }
 
 /// `cdl_shootingstar` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_shootingstar`]。
 /// Zero-copy variant of [`cdl_shootingstar`]: writes results into `out` (length must equal input length).
 pub fn cdl_shootingstar_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_shootingstar_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_shootingstar_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_shootingstar")?;
@@ -347,12 +340,18 @@ pub fn cdl_shootingstar_with_output(
             && upper_shadow(open[i], high[i], close[i]) > val_avg_shadow_long
             && lower_shadow(open[i], low[i], close[i]) < val_avg_shadow_vshort
             && real_body_gap_up(open[i], close[i], open[i - 1], close[i - 1])
-        { -100.0 } else { 0.0 };
+        {
+            -100.0
+        } else {
+            0.0
+        };
         sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
         trail_avg_body += 1;
-        sum_avg_shadow_long += cur_avg_shadow_long - real_body(open[trail_avg_shadow_long], close[trail_avg_shadow_long]);
+        sum_avg_shadow_long += cur_avg_shadow_long
+            - real_body(open[trail_avg_shadow_long], close[trail_avg_shadow_long]);
         trail_avg_shadow_long += 1;
-        sum_avg_shadow_vshort += cur_avg_shadow_vshort - high_low_range(high[trail_avg_shadow_vshort], low[trail_avg_shadow_vshort]);
+        sum_avg_shadow_vshort += cur_avg_shadow_vshort
+            - high_low_range(high[trail_avg_shadow_vshort], low[trail_avg_shadow_vshort]);
         trail_avg_shadow_vshort += 1;
         i += 1;
     }
@@ -360,42 +359,39 @@ pub fn cdl_shootingstar_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_engulfing — Engulfing Pattern（吞没形态）
 // ===========================================================================
 
-/// Engulfing Pattern（吞没形态）：第 2 根实体吞没第 1 根实体。
-///
-/// 与已安装的 TA-Lib 0.7.1 dylib 一致（见 ADR 0005），采用**两级**输出：
-/// - 完全吞没（`open[i] < close[i-1]`，bull；`open[i] > close[i-1]`，bear）→ `±100`；
-/// - 边界弱吞没（`open[i] == close[i-1]`，即第 2 根开盘恰等于前收）→ `±80`。
-///
-/// 此为 dylib 修订版行为（上游 C 源 `ta_CDLENGULFING.c` 仅返回 `±100`）；黄金向量由 dylib
-/// 生成，本实现严格对齐 dylib。纯 2-candle 比较，无蜡烛设置，`lookback = 2`。
-///
-/// Engulfing with the installed TA-Lib 0.7.1 dylib's **two-tier** output (ADR 0005):
-/// full engulf → `±100`; boundary weak engulf (`open[i] == close[i-1]`) → `±80`.
-/// Pure 2-candle comparison, no candle settings, `lookback = 2`.
-pub fn cdl_engulfing(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_engulfing_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Engulfing Pattern（吞没形态）：第 2 根实体吞没第 1 根实体。
+    ///
+    /// 与已安装的 TA-Lib 0.7.1 dylib 一致（见 ADR 0005），采用**两级**输出：
+    /// - 完全吞没（`open[i] < close[i-1]`，bull；`open[i] > close[i-1]`，bear）→ `±100`；
+    /// - 边界弱吞没（`open[i] == close[i-1]`，即第 2 根开盘恰等于前收）→ `±80`。
+    ///
+    /// 此为 dylib 修订版行为（上游 C 源 `ta_CDLENGULFING.c` 仅返回 `±100`）；黄金向量由 dylib
+    /// 生成，本实现严格对齐 dylib。纯 2-candle 比较，无蜡烛设置，`lookback = 2`。
+    ///
+    /// Engulfing with the installed TA-Lib 0.7.1 dylib's **two-tier** output (ADR 0005):
+    /// full engulf → `±100`; boundary weak engulf (`open[i] == close[i-1]`) → `±80`.
+    /// Pure 2-candle comparison, no candle settings, `lookback = 2`.
+    fn cdl_engulfing(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_engulfing_with_output init zero;
 }
 
 /// `cdl_engulfing` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_engulfing`]。
 /// Zero-copy variant of [`cdl_engulfing`]: writes results into `out` (length must equal input length).
 pub fn cdl_engulfing_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_engulfing_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_engulfing_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_engulfing")?;
@@ -442,37 +438,34 @@ pub fn cdl_engulfing_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_harami — Harami Pattern（孕线形态）
 // ===========================================================================
 
-/// Harami Pattern（孕线形态）：第 1 根长实体，第 2 根短实体完全被第 1 根实体包裹。
-///
-/// 第 1 根为阳线则看跌（`−100`），为阴线则看涨（`+100`）。`BodyLong` 使用 `OFF=1`
-/// （引用 `i−1`），`lookback = max(BodyLong, BodyShort) + 1 = 11`。对应 `ta_CDLHARAMI.c`。
-///
-/// Harami: 1st a long real body, 2nd a short body totally engulfed by the 1st.
-/// `BodyLong` uses `OFF=1` (references `i−1`), `lookback = 11`.
-pub fn cdl_harami(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_harami_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Harami Pattern（孕线形态）：第 1 根长实体，第 2 根短实体完全被第 1 根实体包裹。
+    ///
+    /// 第 1 根为阳线则看跌（`−100`），为阴线则看涨（`+100`）。`BodyLong` 使用 `OFF=1`
+    /// （引用 `i−1`），`lookback = max(BodyLong, BodyShort) + 1 = 11`。对应 `ta_CDLHARAMI.c`。
+    ///
+    /// Harami: 1st a long real body, 2nd a short body totally engulfed by the 1st.
+    /// `BodyLong` uses `OFF=1` (references `i−1`), `lookback = 11`.
+    fn cdl_harami(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_harami_with_output init zero;
 }
 
 /// `cdl_harami` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_harami`]。
 /// Zero-copy variant of [`cdl_harami`]: writes results into `out` (length must equal input length).
 pub fn cdl_harami_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_harami_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_harami_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_harami")?;
@@ -481,78 +474,60 @@ pub fn cdl_harami_with_output(
     if n <= lookback {
         return Ok(());
     }
-    let mut sum_avg_body_long = {
-        let mut s = (lookback - 1 - 10);
-        let mut acc = 0.0_f64;
-        while s < (lookback - 1) {
-            acc += real_body(open[s], close[s]);
-            s += 1;
-        }
-        acc
-    };
-    let mut trail_avg_body_long = (lookback - 1 - 10);
-    let mut sum_avg_body_short = {
-        let mut s = (lookback - 0 - 10);
-        let mut acc = 0.0_f64;
-        while s < (lookback - 0) {
-            acc += real_body(open[s], close[s]);
-            s += 1;
-        }
-        acc
-    };
-    let mut trail_avg_body_short = (lookback - 0 - 10);
+    // 两个蜡烛均值滚动窗口（BODY_LONG off=1 引用 i−1；BODY_SHORT off=0 引用 i），
+    // 复用共享的 CandleAvg 内核（与手写滑动窗口逐项 1:1；但 `advance` 内部每根只算一次
+    // `real_body`，消除原内联版在条件与推进处各算一次的冗余）。
+    let mut avg_body_long = CandleAvg::new(BODY_LONG, open, high, low, close, lookback, 1);
+    let mut avg_body_short = CandleAvg::new(BODY_SHORT, open, high, low, close, lookback, 0);
     let mut i = lookback;
     while i < n {
-        let cur_avg_body_long = real_body(open[(i - 1)], close[(i - 1)]);
-        let val_avg_body_long = sum_avg_body_long / 10 as f64 * 1.0;
-        let cur_avg_body_short = real_body(open[i], close[i]);
-        let val_avg_body_short = sum_avg_body_short / 10 as f64 * 1.0;
+        let val_avg_body_long = avg_body_long.value(i, open, high, low, close);
+        let val_avg_body_short = avg_body_short.value(i, open, high, low, close);
         out[i] = if real_body(open[i - 1], close[i - 1]) > val_avg_body_long
             && real_body(open[i], close[i]) <= val_avg_body_short
             && open[i].max(close[i]) < open[i - 1].max(close[i - 1])
             && open[i].min(close[i]) > open[i - 1].min(close[i - 1])
-        { -candle_color(open[i - 1], close[i - 1]) * 100.0 } else { 0.0 };
-        sum_avg_body_long += cur_avg_body_long - real_body(open[trail_avg_body_long], close[trail_avg_body_long]);
-        trail_avg_body_long += 1;
-        sum_avg_body_short += cur_avg_body_short - real_body(open[trail_avg_body_short], close[trail_avg_body_short]);
-        trail_avg_body_short += 1;
+        {
+            -candle_color(open[i - 1], close[i - 1]) * 100.0
+        } else {
+            0.0
+        };
+        avg_body_long.advance(i, open, high, low, close);
+        avg_body_short.advance(i, open, high, low, close);
         i += 1;
     }
 
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_highwave — High-Wave（高空浪）
 // ===========================================================================
 
-/// High-Wave（高空浪）：短实体、极长上下影线。
-///
-/// 阳线输出 `+100`，阴线输出 `−100`（不判多空）。`ShadowVeryLong` 为 `avgPeriod=0`
-/// （直接用当前 K 线范围）。`lookback = max(BodyShort, ShadowVeryLong) = 10`。对应 `ta_CDLHIGHWAVE.c`。
-///
-/// High-Wave: short body, very long upper & lower shadows. White → `+100`, black → `−100`.
-/// `ShadowVeryLong` has `avgPeriod=0`; `lookback = 10`.
-pub fn cdl_highwave(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_highwave_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// High-Wave（高空浪）：短实体、极长上下影线。
+    ///
+    /// 阳线输出 `+100`，阴线输出 `−100`（不判多空）。`ShadowVeryLong` 为 `avgPeriod=0`
+    /// （直接用当前 K 线范围）。`lookback = max(BodyShort, ShadowVeryLong) = 10`。对应 `ta_CDLHIGHWAVE.c`。
+    ///
+    /// High-Wave: short body, very long upper & lower shadows. White → `+100`, black → `−100`.
+    /// `ShadowVeryLong` has `avgPeriod=0`; `lookback = 10`.
+    fn cdl_highwave(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_highwave_with_output init zero;
 }
 
 /// `cdl_highwave` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_highwave`]。
 /// Zero-copy variant of [`cdl_highwave`]: writes results into `out` (length must equal input length).
 pub fn cdl_highwave_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_highwave_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_highwave_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_highwave")?;
@@ -590,10 +565,15 @@ pub fn cdl_highwave_with_output(
         out[i] = if real_body(open[i], close[i]) < val_avg_body
             && upper_shadow(open[i], high[i], close[i]) > val_avg_shadow
             && lower_shadow(open[i], low[i], close[i]) > val_avg_shadow
-        { candle_color(open[i], close[i]) * 100.0 } else { 0.0 };
+        {
+            candle_color(open[i], close[i]) * 100.0
+        } else {
+            0.0
+        };
         sum_avg_body += cur_avg_body - real_body(open[trail_avg_body], close[trail_avg_body]);
         trail_avg_body += 1;
-        sum_avg_shadow += cur_avg_shadow - real_body(open[trail_avg_shadow], close[trail_avg_shadow]);
+        sum_avg_shadow +=
+            cur_avg_shadow - real_body(open[trail_avg_shadow], close[trail_avg_shadow]);
         trail_avg_shadow += 1;
         i += 1;
     }
@@ -601,38 +581,35 @@ pub fn cdl_highwave_with_output(
     Ok(())
 }
 
-
 // ===========================================================================
 // cdl_2crows — Two Crows（两只乌鸦）
 // ===========================================================================
 
-/// Two Crows（两只乌鸦）：3-candle 顶部反转。第 1 根长阳线，第 2 根向上跳空阴线，
-/// 第 3 根阴线开盘在第 2 根实体内、收盘在第 1 根实体内。
-///
-/// 两只乌鸦恒为看跌（`−100`）。`BodyLong` 使用 `OFF=2`（引用 `i−2`），
-/// `lookback = BodyLong + 2 = 12`。对应 `ta_CDL2CROWS.c`。
-///
-/// Two Crows: 3-candle top reversal. Always bearish (`−100`). `BodyLong` uses `OFF=2`
-/// (references `i−2`), `lookback = 12`.
-pub fn cdl_2crows(
-    open: &[f64],
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![0.0_f64; open.len()];
-    cdl_2crows_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Two Crows（两只乌鸦）：3-candle 顶部反转。第 1 根长阳线，第 2 根向上跳空阴线，
+    /// 第 3 根阴线开盘在第 2 根实体内、收盘在第 1 根实体内。
+    ///
+    /// 两只乌鸦恒为看跌（`−100`）。`BodyLong` 使用 `OFF=2`（引用 `i−2`），
+    /// `lookback = BodyLong + 2 = 12`。对应 `ta_CDL2CROWS.c`。
+    ///
+    /// Two Crows: 3-candle top reversal. Always bearish (`−100`). `BodyLong` uses `OFF=2`
+    /// (references `i−2`), `lookback = 12`.
+    fn cdl_2crows(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with cdl_2crows_with_output init zero;
 }
 
 /// `cdl_2crows` 的零拷贝变体：将结果写入 `out`（长度须等于输入长度）。见 [`cdl_2crows`]。
 /// Zero-copy variant of [`cdl_2crows`]: writes results into `out` (length must equal input length).
 pub fn cdl_2crows_with_output(
-    open: &[f64], high: &[f64], low: &[f64], close: &[f64],
+    open: &[f64],
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
     out: &mut [f64],
 ) -> Result<(), TaError> {
     if out.len() != open.len() {
-        return Err(TaError::BadParam("cdl_2crows_with_output: out length must equal input length".into()));
+        return Err(TaError::BadParam(
+            "cdl_2crows_with_output: out length must equal input length".into(),
+        ));
     }
 
     check_ohlc(open, high, low, close, "cdl_2crows")?;
@@ -664,12 +641,16 @@ pub fn cdl_2crows_with_output(
             && open[i] > close[i - 1]
             && close[i] > open[i - 2]
             && close[i] < close[i - 2]
-        { -100.0 } else { 0.0 };
-        sum_avg_body_long += cur_avg_body_long - real_body(open[trail_avg_body_long], close[trail_avg_body_long]);
+        {
+            -100.0
+        } else {
+            0.0
+        };
+        sum_avg_body_long +=
+            cur_avg_body_long - real_body(open[trail_avg_body_long], close[trail_avg_body_long]);
         trail_avg_body_long += 1;
         i += 1;
     }
 
     Ok(())
 }
-
