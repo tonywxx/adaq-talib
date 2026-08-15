@@ -303,13 +303,28 @@ impl CandleAvg {
 // 批处理模块 / Per-batch modules (each implemented in its own file)
 // ===========================================================================
 
+// 蜡烛形态内核为对照/基准实现，部分滚动累加器（如 `sum_avg_shadow*`）当前被计算但
+// 未参与最终判定；这些 `unused_assignments` / `unused_variables` 是预期内脚手架，
+// 故在每个 batch 模块上显式允许，以免在 `-D warnings` 严格环境下阻碍编译。
+// Candle-pattern kernels keep some running accumulators (e.g. `sum_avg_shadow*`) that are
+// computed but not yet consumed by the final decision; those `unused_assignments` /
+// `unused_variables` are intentional scaffolding, so we allow them per batch module to keep
+// a `-D warnings` strict build compiling.
+#[allow(unused_assignments, unused_variables)]
 pub mod batch_1;
+#[allow(unused_assignments, unused_variables)]
 pub mod batch_2;
+#[allow(unused_assignments, unused_variables)]
 pub mod batch_3;
+#[allow(unused_assignments, unused_variables)]
 pub mod batch_4;
+#[allow(unused_assignments, unused_variables)]
 pub mod batch_5;
+#[allow(unused_assignments, unused_variables)]
 pub mod batch_6;
+#[allow(unused_assignments, unused_variables)]
 pub mod batch_7;
+#[allow(unused_assignments, unused_variables)]
 pub mod batch_8;
 
 // 统一再导出，便于以 `adaq_talib::pattern::cdlxxx` 调用。

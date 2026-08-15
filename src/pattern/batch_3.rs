@@ -51,7 +51,7 @@ pub fn cdl_belthold_with_output(
         return Ok(());
     }
     let mut sum_avg_body = {
-        let mut s = (lookback - 0 - 10);
+        let mut s = lookback - 0 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 0) {
             acc += real_body(open[s], close[s]);
@@ -59,9 +59,9 @@ pub fn cdl_belthold_with_output(
         }
         acc
     };
-    let mut trail_avg_body = (lookback - 0 - 10);
+    let mut trail_avg_body = lookback - 0 - 10;
     let mut sum_avg_vs = {
-        let mut s = (lookback - 0 - 10);
+        let mut s = lookback - 0 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 0) {
             acc += high_low_range(high[s], low[s]);
@@ -69,7 +69,7 @@ pub fn cdl_belthold_with_output(
         }
         acc
     };
-    let mut trail_avg_vs = (lookback - 0 - 10);
+    let mut trail_avg_vs = lookback - 0 - 10;
     let mut i = lookback;
     while i < n {
         let cur_avg_body = real_body(open[i], close[i]);
@@ -133,7 +133,7 @@ pub fn cdl_breakaway_with_output(
         return Ok(());
     }
     let mut sum_avg_body = {
-        let mut s = (lookback - 4 - 10);
+        let mut s = lookback - 4 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 4) {
             acc += real_body(open[s], close[s]);
@@ -141,10 +141,10 @@ pub fn cdl_breakaway_with_output(
         }
         acc
     };
-    let mut trail_avg_body = (lookback - 4 - 10);
+    let mut trail_avg_body = lookback - 4 - 10;
     let mut i = lookback;
     while i < n {
-        let cur_avg_body = real_body(open[(i - 4)], close[(i - 4)]);
+        let cur_avg_body = real_body(open[i - 4], close[i - 4]);
         let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
         out[i] = if real_body(open[i - 4], close[i - 4]) > val_avg_body
             && candle_color(open[i - 4], close[i - 4]) == candle_color(open[i - 3], close[i - 3])
@@ -217,7 +217,7 @@ pub fn cdl_closingmarubozu_with_output(
         return Ok(());
     }
     let mut sum_avg_body = {
-        let mut s = (lookback - 0 - 10);
+        let mut s = lookback - 0 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 0) {
             acc += real_body(open[s], close[s]);
@@ -225,9 +225,9 @@ pub fn cdl_closingmarubozu_with_output(
         }
         acc
     };
-    let mut trail_avg_body = (lookback - 0 - 10);
+    let mut trail_avg_body = lookback - 0 - 10;
     let mut sum_avg_vs = {
-        let mut s = (lookback - 0 - 10);
+        let mut s = lookback - 0 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 0) {
             acc += high_low_range(high[s], low[s]);
@@ -235,7 +235,7 @@ pub fn cdl_closingmarubozu_with_output(
         }
         acc
     };
-    let mut trail_avg_vs = (lookback - 0 - 10);
+    let mut trail_avg_vs = lookback - 0 - 10;
     let mut i = lookback;
     while i < n {
         let cur_avg_body = real_body(open[i], close[i]);
@@ -300,7 +300,7 @@ pub fn cdl_concealbabyswall_with_output(
         return Ok(());
     }
     let mut sum_avg_vs_3 = {
-        let mut s = (lookback - 3 - 10);
+        let mut s = lookback - 3 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 3) {
             acc += high_low_range(high[s], low[s]);
@@ -308,9 +308,9 @@ pub fn cdl_concealbabyswall_with_output(
         }
         acc
     };
-    let mut trail_avg_vs_3 = (lookback - 3 - 10);
+    let mut trail_avg_vs_3 = lookback - 3 - 10;
     let mut sum_avg_vs_2 = {
-        let mut s = (lookback - 2 - 10);
+        let mut s = lookback - 2 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 2) {
             acc += high_low_range(high[s], low[s]);
@@ -318,9 +318,9 @@ pub fn cdl_concealbabyswall_with_output(
         }
         acc
     };
-    let mut trail_avg_vs_2 = (lookback - 2 - 10);
+    let mut trail_avg_vs_2 = lookback - 2 - 10;
     let mut sum_avg_vs_1 = {
-        let mut s = (lookback - 1 - 10);
+        let mut s = lookback - 1 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 1) {
             acc += high_low_range(high[s], low[s]);
@@ -328,14 +328,14 @@ pub fn cdl_concealbabyswall_with_output(
         }
         acc
     };
-    let mut trail_avg_vs_1 = (lookback - 1 - 10);
+    let mut trail_avg_vs_1 = lookback - 1 - 10;
     let mut i = lookback;
     while i < n {
-        let cur_avg_vs_3 = high_low_range(high[(i - 3)], low[(i - 3)]);
+        let cur_avg_vs_3 = high_low_range(high[i - 3], low[i - 3]);
         let val_avg_vs_3 = sum_avg_vs_3 / 10 as f64 * 0.1;
-        let cur_avg_vs_2 = high_low_range(high[(i - 2)], low[(i - 2)]);
+        let cur_avg_vs_2 = high_low_range(high[i - 2], low[i - 2]);
         let val_avg_vs_2 = sum_avg_vs_2 / 10 as f64 * 0.1;
-        let cur_avg_vs_1 = high_low_range(high[(i - 1)], low[(i - 1)]);
+        let cur_avg_vs_1 = high_low_range(high[i - 1], low[i - 1]);
         let val_avg_vs_1 = sum_avg_vs_1 / 10 as f64 * 0.1;
         out[i] = if candle_color(open[i - 3], close[i - 3]) == -1.0
             && candle_color(open[i - 2], close[i - 2]) == -1.0
@@ -405,7 +405,7 @@ pub fn cdl_counterattack_with_output(
         return Ok(());
     }
     let mut sum_avg_equal = {
-        let mut s = (lookback - 1 - 5);
+        let mut s = lookback - 1 - 5;
         let mut acc = 0.0_f64;
         while s < (lookback - 1) {
             acc += high_low_range(high[s], low[s]);
@@ -413,9 +413,9 @@ pub fn cdl_counterattack_with_output(
         }
         acc
     };
-    let mut trail_avg_equal = (lookback - 1 - 5);
+    let mut trail_avg_equal = lookback - 1 - 5;
     let mut sum_avg_body_1 = {
-        let mut s = (lookback - 1 - 10);
+        let mut s = lookback - 1 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 1) {
             acc += real_body(open[s], close[s]);
@@ -423,9 +423,9 @@ pub fn cdl_counterattack_with_output(
         }
         acc
     };
-    let mut trail_avg_body_1 = (lookback - 1 - 10);
+    let mut trail_avg_body_1 = lookback - 1 - 10;
     let mut sum_avg_body_0 = {
-        let mut s = (lookback - 0 - 10);
+        let mut s = lookback - 0 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 0) {
             acc += real_body(open[s], close[s]);
@@ -433,12 +433,12 @@ pub fn cdl_counterattack_with_output(
         }
         acc
     };
-    let mut trail_avg_body_0 = (lookback - 0 - 10);
+    let mut trail_avg_body_0 = lookback - 0 - 10;
     let mut i = lookback;
     while i < n {
-        let cur_avg_equal = high_low_range(high[(i - 1)], low[(i - 1)]);
+        let cur_avg_equal = high_low_range(high[i - 1], low[i - 1]);
         let val_avg_equal = sum_avg_equal / 5 as f64 * 0.05;
-        let cur_avg_body_1 = real_body(open[(i - 1)], close[(i - 1)]);
+        let cur_avg_body_1 = real_body(open[i - 1], close[i - 1]);
         let val_avg_body_1 = sum_avg_body_1 / 10 as f64 * 1.0;
         let cur_avg_body_0 = real_body(open[i], close[i]);
         let val_avg_body_0 = sum_avg_body_0 / 10 as f64 * 1.0;
@@ -506,7 +506,7 @@ pub fn cdl_darkcloudcover_with_output(
         return Ok(());
     }
     let mut sum_avg_body = {
-        let mut s = (lookback - 1 - 10);
+        let mut s = lookback - 1 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 1) {
             acc += real_body(open[s], close[s]);
@@ -514,10 +514,10 @@ pub fn cdl_darkcloudcover_with_output(
         }
         acc
     };
-    let mut trail_avg_body = (lookback - 1 - 10);
+    let mut trail_avg_body = lookback - 1 - 10;
     let mut i = lookback;
     while i < n {
-        let cur_avg_body = real_body(open[(i - 1)], close[(i - 1)]);
+        let cur_avg_body = real_body(open[i - 1], close[i - 1]);
         let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
         out[i] = if candle_color(open[i - 1], close[i - 1]) == 1.0
             && real_body(open[i - 1], close[i - 1]) > val_avg_body
@@ -577,7 +577,7 @@ pub fn cdl_dojistar_with_output(
         return Ok(());
     }
     let mut sum_avg_body = {
-        let mut s = (lookback - 1 - 10);
+        let mut s = lookback - 1 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 1) {
             acc += real_body(open[s], close[s]);
@@ -585,9 +585,9 @@ pub fn cdl_dojistar_with_output(
         }
         acc
     };
-    let mut trail_avg_body = (lookback - 1 - 10);
+    let mut trail_avg_body = lookback - 1 - 10;
     let mut sum_avg_doji = {
-        let mut s = (lookback - 0 - 10);
+        let mut s = lookback - 0 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 0) {
             acc += high_low_range(high[s], low[s]);
@@ -595,10 +595,10 @@ pub fn cdl_dojistar_with_output(
         }
         acc
     };
-    let mut trail_avg_doji = (lookback - 0 - 10);
+    let mut trail_avg_doji = lookback - 0 - 10;
     let mut i = lookback;
     while i < n {
-        let cur_avg_body = real_body(open[(i - 1)], close[(i - 1)]);
+        let cur_avg_body = real_body(open[i - 1], close[i - 1]);
         let val_avg_body = sum_avg_body / 10 as f64 * 1.0;
         let cur_avg_doji = high_low_range(high[i], low[i]);
         let val_avg_doji = sum_avg_doji / 10 as f64 * 0.1;
@@ -661,7 +661,7 @@ pub fn cdl_dragonflydoji_with_output(
         return Ok(());
     }
     let mut sum_avg_doji = {
-        let mut s = (lookback - 0 - 10);
+        let mut s = lookback - 0 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 0) {
             acc += high_low_range(high[s], low[s]);
@@ -669,9 +669,9 @@ pub fn cdl_dragonflydoji_with_output(
         }
         acc
     };
-    let mut trail_avg_doji = (lookback - 0 - 10);
+    let mut trail_avg_doji = lookback - 0 - 10;
     let mut sum_avg_vs = {
-        let mut s = (lookback - 0 - 10);
+        let mut s = lookback - 0 - 10;
         let mut acc = 0.0_f64;
         while s < (lookback - 0) {
             acc += high_low_range(high[s], low[s]);
@@ -679,7 +679,7 @@ pub fn cdl_dragonflydoji_with_output(
         }
         acc
     };
-    let mut trail_avg_vs = (lookback - 0 - 10);
+    let mut trail_avg_vs = lookback - 0 - 10;
     let mut i = lookback;
     while i < n {
         let cur_avg_doji = high_low_range(high[i], low[i]);

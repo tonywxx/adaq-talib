@@ -6,13 +6,13 @@
 //! The ns/elem ratio between the two runs is the parallel speedup (multi-core vs serial).
 use adaq_talib::math_ops::{minmax_index_serial, minmax_serial};
 use adaq_talib::momentum::{stoch_f_serial, willr_serial};
-use adaq_talib::overlap::{midpoint, midpoint_serial};
+use adaq_talib::overlap::midpoint_serial;
 #[cfg(feature = "parallel")]
 use adaq_talib::math_ops::{minmax_index_parallel, minmax_parallel};
 #[cfg(feature = "parallel")]
 use adaq_talib::momentum::{stoch_f_parallel, willr_parallel};
 #[cfg(feature = "parallel")]
-use adaq_talib::overlap::midpoint_parallel;
+use adaq_talib::overlap::{midpoint_parallel, midpoint};
 use std::hint::black_box;
 use std::time::Instant;
 

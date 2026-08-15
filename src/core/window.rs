@@ -103,6 +103,12 @@ pub fn wma_with_output(values: &[f64], period: usize, out: &mut [f64]) {
     }
 }
 
+// 公开参考实现；当前 crate 内由 `overlap::wma` 提供带 `Result` 的封装，本函数主要供
+// 文档链接与未来直接调用，故显式允许 dead_code（与下方 `wma_naive` 一致）。
+// Public reference impl; the crate-internal `overlap::wma` wraps this in a `Result`, so this
+// function is currently only a doc-link target / future direct API — allow dead_code
+// (consistent with `wma_naive` below).
+#[allow(dead_code)]
 pub fn wma(values: &[f64], period: usize) -> Vec<f64> {
     let mut out = vec![f64::NAN; values.len()];
     wma_with_output(values, period, &mut out);

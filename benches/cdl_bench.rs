@@ -30,7 +30,7 @@ fn make_inputs() -> (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>) {
     (open, high, low, close)
 }
 
-fn bench_one(name: &str, f: CdlFn, o: &[f64], h: &[f64], l: &[f64], c: &[f64]) -> f64 {
+fn bench_one(_name: &str, f: CdlFn, o: &[f64], h: &[f64], l: &[f64], c: &[f64]) -> f64 {
     let mut out = vec![0.0f64; N];
     f(o, h, l, c, &mut out).unwrap();
     let t0 = Instant::now();

@@ -15,7 +15,7 @@ use crate::core::defaults::{
     STOCH_SLOW_K, STOCHRSI_PERIOD, STOCHRSI_RSI_PERIOD, TRIX_PERIOD, ULTOSC_PERIOD1,
     ULTOSC_PERIOD2, ULTOSC_PERIOD3,
 };
-use crate::core::{check_eq_len, ema, rolling_mean, rolling_mean_skip, rolling_sum};
+use crate::core::{check_eq_len, ema, rolling_mean, rolling_mean_skip};
 use crate::error::{check_period, TaError};
 use crate::indicator::indicator;
 

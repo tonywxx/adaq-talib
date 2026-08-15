@@ -2,6 +2,13 @@
 //! 5 functions across input/output shapes (sma=R1, bbands=struct, macd=struct, cdl_doji=price, add=2-real).
 //! Run: cargo bench --bench poc_bench --features bench-c
 
+// 基准代码：部分常量/辅助（`N`/`ITERS`/`make_inputs`/`Instant`）仅在 `bench-c` feature 下被
+// 引用；默认 feature 构建时即成为死代码，统一允许以免 `-D warnings` 严格构建失败。
+// Bench code: some constants/helpers (`N`/`ITERS`/`make_inputs`/`Instant`) are only referenced
+// under the `bench-c` feature; under the default build they are dead code, allowed here so a
+// `-D warnings` strict build still compiles.
+#![allow(dead_code, unused_imports)]
+
 #[cfg(feature = "bench-c")]
 mod talib_ffi {
     use std::ffi::c_void;
