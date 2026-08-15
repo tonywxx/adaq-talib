@@ -555,7 +555,7 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.5（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）。0.1.4 与 0.1.5 为内部架构重构版本（核心模块化、零成本 `indicator!` 脚手架），不新增任何公开函数或 API（见[变更日志](#变更日志--changelog)）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
+- ✅ **0.1.6（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）。0.1.4、0.1.5 与 0.1.6 为内部架构重构版本（核心模块化、零成本 `indicator!` 脚手架、蜡烛形态可读性 / 样板精简），不新增任何公开函数或 API（见[变更日志](#变更日志--changelog)）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
 - 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。
@@ -563,6 +563,14 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 ---
 
 ## 变更日志 / Changelog
+
+### 0.1.6
+- **蜡烛形态内核 —— `real_body` 冗余重算去重（perf(pattern)）**：20 个蜡烛形态内核现复用各条件里已算好的 `cur_avg_*` 滑动窗口值，而非重新计算 `real_body(open[i], close[i])`。纯重排 —— 无算术改动 —— TA-Lib 0.7.1 黄金向量保持逐位一致（全部 144 个蜡烛集成测试通过）。对照原基线的控制校正 A/B（3 轮中位数，借未改动对照组校正环境漂移）：12 个明确提速（如 `cdl_closingmarubozu` −57%、`cdl_marubozu` −36%、`cdl_stalledpattern` −27%、`cdl_counterattack` −24%）、3 个持平（`cdl_belthold` / `cdl_longleggeddoji` / `cdl_eveningstar`）、5 个表观「回归」（`cdl_3starsinsouth` / `cdl_3whitesoldiers` / `cdl_abandonedbaby` / `cdl_eveningdojistar` / `cdl_morningstar`）经判定为环境噪声 —— 去掉一次重算不可能拖慢函数、且黄金向量完全相同，故全部保留。另含 `cdl_harami` CandleAvg 合并（已验证提速）与 `cdl_homingpigeon` / `longline` / `shortline` 影线 + 实体去重。
+- **指标脚手架推广（`indicator!` 宏）—— 一致性**：将 `midprice`、`sar`、`sarext`、`avgprice`、`medprice`、`typprice`、`wclprice`、`ad`、`adosc`、`obv` 迁移至零成本 `indicator!` 宏（0.1.5 引入），移除冗余的错误处理 / 输出初始化样板；各函数保留其详尽的中英双语文档注释。模式识别模块一并迁移。输出仍为黄金向量 1:1。
+- **蜡烛形态模块 —— 可读性重构**：移除各 batch 文件中算术表达式多余括号，合并均值计算的变量初始化，并为 `pattern/mod.rs` 中未使用赋值 / 变量显式加 `#[allow(...)]`，使严格编译无警告。
+- **CI**：`.github/workflows/ci.yml` 与 `release.yml` 中 `actions/checkout` 升级至 **v5**。
+- **基准套件**：新增 `benches/cdl_bench.rs` 并扩展 `benches/phase1c_bench.rs` / `benches/poc_bench.rs`；重新生成 `all161_results.csv`。
+- **发布**：版本号提升至 `0.1.6`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。面向用户的行为、调用形态与 `cargo test` / `cargo bench` 工作流均不变。
 
 ### 0.1.5
 - **指标脚手架（`indicator!` 宏）—— 架构深化候选①（Phase 1a/1b/1c）**：新增 `src/indicator.rs`，以**零成本 `macro_rules! indicator`** 宏统一约 146 个单输出公开函数里重复的「分配等长 `f64::NAN` 缓冲 → 转发到 `*_with_output` 内核」胶水。在**度量前置双闸门**（黄金向量 1:1 + A/B `cargo bench` median |Δ| ≤ ±5%）下分阶段推广：

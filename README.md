@@ -637,7 +637,7 @@ Milestone-based release ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 ships the complete TA-Lib 0.7.1 public surface — all 161 functions across 10 categories — with no
 deletion of published capabilities.**
 
-- ✅ **0.1.5 (current): 161 / 161 functions, faster than C on average** — Overlap Studies (18),
+- ✅ **0.1.6 (current): 161 / 161 functions, faster than C on average** — Overlap Studies (18),
   Momentum (31), Volatility (3), Volume (3), Price Transform (5), Statistic (9), Cycle / Hilbert
   Transform (7), Math Operators (11), Math Transform (15), and Pattern Recognition (61 candlestick
   patterns). Every function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` →
@@ -645,8 +645,9 @@ deletion of published capabilities.**
   all-161 benchmark + validation suite ([`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md))
   confirms full coverage and that adaq-talib is now **~1.27× faster than C on average** (geomean
   Rust/C = 0.786×; 85 faster / 60 at parity / 16 slower) after the 0.1.3 optimization pass; under the
-  optional `parallel` feature this becomes 88 / 63 / 10 (0.734×). 0.1.4 and 0.1.5 were internal
-  architecture-refactor releases — core modularization and the zero-cost `indicator!` scaffold —
+  optional `parallel` feature this becomes 88 / 63 / 10 (0.734×).   0.1.4, 0.1.5 and 0.1.6 were internal
+  architecture-refactor releases — core modularization, the zero-cost `indicator!` scaffold, and
+  candle-pattern readability / boilerplate consolidation —
   adding no new public functions or API changes (see [Changelog](#changelog)).
 - 🔜 **Future work (post-1.0)**: per [ADR 0009](docs/adr/0009-candle-settings-default-only.md) only
   the **default** candle settings are implemented and no configuration API is exposed; optional
@@ -658,6 +659,35 @@ Once those land, adaq-talib reaches full coverage equivalent to TA-Lib 0.7.1.
 ---
 
 ## Changelog
+
+### 0.1.6
+- **Candle-pattern kernels — `real_body` recompute dedup (perf(pattern))**: 20 candlestick kernels now
+  reuse the already-computed `cur_avg_*` sliding-window value inside each condition instead of
+  recomputing `real_body(open[i], close[i])`. Pure reordering — no arithmetic change — so the TA-Lib
+  0.7.1 golden vectors stay bit-identical (all 144 candle integration tests pass). Control-corrected
+  A/B vs the original baseline (median of 3 runs, env-drift corrected via untouched controls): 12
+  clean wins (e.g. `cdl_closingmarubozu` −57%, `cdl_marubozu` −36%, `cdl_stalledpattern` −27%,
+  `cdl_counterattack` −24%), 3 flat (`cdl_belthold` / `cdl_longleggeddoji` / `cdl_eveningstar`), and 5
+  apparent "regressions" (`cdl_3starsinsouth` / `cdl_3whitesoldiers` / `cdl_abandonedbaby` /
+  `cdl_eveningdojistar` / `cdl_morningstar`) identified as environment noise — removing a recompute
+  cannot slow a function and the golden vectors are identical, so all were kept. Also folds in
+  `cdl_harami` CandleAvg consolidation (validated win) and `cdl_homingpigeon` / `longline` /
+  `shortline` shadow+body dedups.
+- **Indicator scaffold rollout (`indicator!` macro) — consistency**: migrated `midprice`, `sar`,
+  `sarext`, `avgprice`, `medprice`, `typprice`, `wclprice`, `ad`, `adosc`, and `obv` to the zero-cost
+  `indicator!` macro (introduced in 0.1.5), removing redundant error-handling / output-init
+  boilerplate; each function keeps its detailed bilingual doc-comment. The pattern module was migrated
+  as well. Output remains golden-vector 1:1.
+- **Candle-pattern modules — readability refactor**: removed unnecessary parentheses in arithmetic
+  across the batch files, consolidated average-calculation variable initialization, and added explicit
+  `#[allow(...)]` for unused assignments / variables in `pattern/mod.rs` to keep strict builds
+  warning-free.
+- **CI**: upgraded `actions/checkout` to **v5** in `.github/workflows/ci.yml` and `release.yml`.
+- **Benchmark suite**: added `benches/cdl_bench.rs` and extended `benches/phase1c_bench.rs` /
+  `benches/poc_bench.rs`; regenerated `all161_results.csv`.
+- **Release**: version bumped to `0.1.6`. No new public API surface, no deprecations, no dependency
+  changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). User-facing behavior, calling
+  conventions, and the `cargo test` / `cargo bench` workflows are unchanged.
 
 ### 0.1.5
 - **Indicator scaffold (`indicator!` macro) — architecture-deepening candidate① (Phase 1a/1b/1c)**: added `src/indicator.rs` with a **zero-cost `macro_rules! indicator`** that unifies the repetitive "allocate an equal-length `f64::NAN` buffer → forward to the `*_with_output` kernel" glue shared by ~146 single-output public functions. Rolled out under a **measure-first double gate** (golden-vector 1:1 + A/B `cargo bench` median |Δ| ≤ ±5%):

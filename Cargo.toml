@@ -1,30 +1,30 @@
 [package]
-name = "adaq-talib"
-version = "0.1.5"
-edition = "2024"
-rust-version = "1.85"
+authors = ["tonywxx"]
+categories = ["finance", "algorithms", "science"]
 description = "Pure-Rust, zero-FFI, no-dependency reimplementation of TA-Lib 0.7.1 technical-analysis indicators."
+documentation = "https://docs.rs/adaq-talib"
+edition = "2024"
+homepage = "https://github.com/tonywxx/adaq-talib"
+keywords = [
+  "technical-analysis",
+  "ta-lib",
+  "indicators",
+  "quantitative",
+  "finance",
+]
 license = "Apache-2.0"
+name = "adaq-talib"
 readme = "README.md"
 repository = "https://github.com/tonywxx/adaq-talib"
-homepage = "https://github.com/tonywxx/adaq-talib"
-documentation = "https://docs.rs/adaq-talib"
-keywords = [
-    "technical-analysis",
-    "ta-lib",
-    "indicators",
-    "quantitative",
-    "finance",
-]
-categories = ["finance", "algorithms", "science"]
-authors = ["tonywxx"]
+rust-version = "1.85"
+version = "0.1.6"
 
 # Files excluded from the published crate (dev/agent artifacts, not library source).
 exclude = [
-    ".workbuddy",
-    ".codegraph",
-    "tools/gen_fixtures/__pycache__",
-    "/tony",
+  ".workbuddy",
+  ".codegraph",
+  "tools/gen_fixtures/__pycache__",
+  "/tony",
 ]
 
 [dependencies]
@@ -43,81 +43,81 @@ bench-c = []
 parallel = []
 
 [[bench]]
+harness = false
 name = "sma_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "dema_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "tema_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "t3_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "wma_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "midprice_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "bbands_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "linreg_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "correl_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "willr_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "stoch_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "minmax_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "index_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "all161_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "extreme_ab"
-harness = false
 
 [[bench]]
+harness = false
 name = "parallel_poc"
-harness = false
 
 [[bench]]
+harness = false
 name = "math_trans_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "stat_bench"
-harness = false
 
 [[bench]]
+harness = false
 name = "phase1c_bench"
-harness = false
 
 [[bench]]
-name = "cdl_bench"
 harness = false
+name = "cdl_bench"
