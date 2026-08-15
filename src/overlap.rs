@@ -30,6 +30,7 @@
 use crate::core::defaults::{ACCBANDS_PERIOD, DEFAULT_TIME_PERIOD};
 use crate::core::{rolling_max, rolling_mean, rolling_mean_skip, rolling_min};
 use crate::error::{check_period, TaError};
+use crate::indicator::indicator;
 
 // ───────────────────────────── SMA ─────────────────────────────
 
@@ -598,44 +599,41 @@ pub fn midpoint_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 
 // ────────────────────────── MIDPRICE ───────────────────────────
 
-/// 中点价（MidPoint Price over period）。
-///
-/// MidPoint Price over period. Replicates TA-Lib `TA_MIDPRICE`.
-///
-/// # 参数 / Parameters
-/// - `high`：最高价序列 `&[f64]`。/ High-price series `&[f64]`.
-/// - `low`：最低价序列 `&[f64]`。/ Low-price series `&[f64]`.
-/// - `time_period`：窗口长度 `period >= 1`，对应 `optInTimePeriod`（默认 30）。
-///
-/// # 返回值 / Returns
-/// 与输入等长，前导 `period-1` 为 [`f64::NAN`]。每个位置为
-/// `(max(high 窗口) + min(low 窗口)) / 2`。`high` 与 `low` 长度须一致。
-///
-/// Same length as inputs; leading `period - 1` are [`f64::NAN`]. Each position is
-/// `(max(high window) + min(low window)) / 2`. `high` and `low` must have equal length.
-///
-/// # 公式 / Formula
-/// ```text
-/// MIDPRICE[i] = (max(high[i-period+1..=i]) + min(low[i-period+1..=i])) / 2,  i >= period-1
-/// ```
-/// 来源 / Source: TA-Lib `ta_midprice.c`.
-///
-/// # 错误 / Errors
-/// - [`TaError::BadParam`]：`time_period == 0` 或 `high.len() != low.len()`。
-///
-/// # 示例 / Example
-/// ```rust
-/// use adaq_talib::overlap::midprice;
-/// let high = [5.0, 6.0, 7.0];
-/// let low  = [1.0, 2.0, 3.0];
-/// let out = midprice(&high, &low, 3).unwrap();
-/// assert!((out[2] - (7.0 + 1.0) / 2.0).abs() < 1e-9);
-/// ```
-pub fn midprice(high: &[f64], low: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; high.len()];
-    midprice_with_output(high, low, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 中点价（MidPoint Price over period）。
+    ///
+    /// MidPoint Price over period. Replicates TA-Lib `TA_MIDPRICE`.
+    ///
+    /// # 参数 / Parameters
+    /// - `high`：最高价序列 `&[f64]`。/ High-price series `&[f64]`.
+    /// - `low`：最低价序列 `&[f64]`。/ Low-price series `&[f64]`.
+    /// - `time_period`：窗口长度 `period >= 1`，对应 `optInTimePeriod`（默认 30）。
+    ///
+    /// # 返回值 / Returns
+    /// 与输入等长，前导 `period-1` 为 [`f64::NAN`]。每个位置为
+    /// `(max(high 窗口) + min(low 窗口)) / 2`。`high` 与 `low` 长度须一致。
+    ///
+    /// Same length as inputs; leading `period - 1` are [`f64::NAN`]. Each position is
+    /// `(max(high window) + min(low window)) / 2`. `high` and `low` must have equal length.
+    ///
+    /// # 公式 / Formula
+    /// ```text
+    /// MIDPRICE[i] = (max(high[i-period+1..=i]) + min(low[i-period+1..=i])) / 2,  i >= period-1
+    /// ```
+    /// 来源 / Source: TA-Lib `ta_midprice.c`.
+    ///
+    /// # 错误 / Errors
+    /// - [`TaError::BadParam`]：`time_period == 0` 或 `high.len() != low.len()`。
+    ///
+    /// # 示例 / Example
+    /// ```rust
+    /// use adaq_talib::overlap::midprice;
+    /// let high = [5.0, 6.0, 7.0];
+    /// let low  = [1.0, 2.0, 3.0];
+    /// let out = midprice(&high, &low, 3).unwrap();
+    /// assert!((out[2] - (7.0 + 1.0) / 2.0).abs() < 1e-9);
+    /// ```
+    fn midprice(high: &[f64], low: &[f64], time_period: usize) -> Vec<f64> with midprice_with_output;
 }
 
 /// 中点价，零拷贝写入 `out`（与 `high`/`low` 等长）。见 [`midprice`]。
@@ -1347,32 +1345,23 @@ pub fn kama_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 
 // ────────────────────────── SAR / SAREXT ──────────────────────────
 
-/// 抛物线转向（Parabolic SAR，TA-Lib `TA_SAR`）。
-///
-/// Parabolic SAR (TA-Lib `TA_SAR`). Standard Wilder SAR: the initial direction is derived
-/// from the directional movement between the first two bars (tie → long), the first SAR is
-/// placed at index 1 (lookback = 1), and `acceleration` / `maximum` bound the step factor.
-///
-/// # 参数 / Parameters
-/// - `high` / `low`：最高/最低价序列（等长）。/ High/Low series (equal length).
-/// - `acceleration`：加速因子（TA-Lib 默认 0.02）。/ Acceleration factor (default 0.02).
-/// - `maximum`：加速因子上限（TA-Lib 默认 0.2）。/ Max acceleration (default 0.2).
-///
-/// # 返回值 / Returns
-/// 与输入等长；`out[0]` 为 [`f64::NAN`]，其余为各 bar 的 SAR。
-/// Equal length; `out[0]` is [`f64::NAN`], the rest are per-bar SAR values.
-pub fn sar(
-    high: &[f64],
-    low: &[f64],
-    acceleration: f64,
-    maximum: f64,
-) -> Result<Vec<f64>, TaError> {
-    if high.len() != low.len() {
-        return Err(TaError::BadParam("sar: high and low must have equal length".into()));
-    }
-    let mut out = vec![f64::NAN; high.len()];
-    sar_with_output(high, low, acceleration, maximum, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 抛物线转向（Parabolic SAR，TA-Lib `TA_SAR`）。
+    ///
+    /// Parabolic SAR (TA-Lib `TA_SAR`). Standard Wilder SAR: the initial direction is derived
+    /// from the directional movement between the first two bars (tie → long), the first SAR is
+    /// placed at index 1 (lookback = 1), and `acceleration` / `maximum` bound the step factor.
+    ///
+    /// # 参数 / Parameters
+    /// - `high` / `low`：最高/最低价序列（等长）。/ High/Low series (equal length).
+    /// - `acceleration`：加速因子（TA-Lib 默认 0.02）。/ Acceleration factor (default 0.02).
+    /// - `maximum`：加速因子上限（TA-Lib 默认 0.2）。/ Max acceleration (default 0.2).
+    ///
+    /// # 返回值 / Returns
+    /// 与输入等长；`out[0]` 为 [`f64::NAN`]，其余为各 bar 的 SAR。
+    /// Equal length; `out[0]` is [`f64::NAN`], the rest are per-bar SAR values.
+    fn sar(high: &[f64], low: &[f64], acceleration: f64, maximum: f64) -> Vec<f64>
+        with sar_with_output;
 }
 
 /// 抛物线转向，零拷贝写入 `out`（与 `high`/`low` 等长）。见 [`sar`]。
@@ -1510,49 +1499,30 @@ pub fn sar_default(high: &[f64], low: &[f64]) -> Result<Vec<f64>, TaError> {
     sar(high, low, SAR_ACCELERATION, SAR_MAX)
 }
 
-/// 扩展抛物线转向（Parabolic SAR Extended，TA-Lib `TA_SAREXT`）。
-///
-/// Parabolic SAR Extended (TA-Lib `TA_SAREXT`). Like [`sar`] but with separate long/short
-/// acceleration factors and an optional `offset_on_reverse`. **Short-side SAR values are
-/// returned as negatives** (so a reversal is distinguishable), matching TA-Lib. Lookback = 1.
-///
-/// # 参数 / Parameters
-/// - `start_value`：强制初始方向/位置；`0` 用默认（DM 判定），`>0` 强制多头于该值，`<0` 强制空头于 `|值|`。
-/// - `offset_on_reverse`：反转时的偏移比例（TA-Lib 默认 0）。/ Offset on reversal (default 0).
-/// - `accel_init_long` / `accel_long` / `accel_max_long`：多头初始/步进/上限加速（默认 0.02/0.02/0.2）。
-/// - `accel_init_short` / `accel_short` / `accel_max_short`：空头对应参数（默认 0.02/0.02/0.2）。
-pub fn sarext(
-    high: &[f64],
-    low: &[f64],
-    start_value: f64,
-    offset_on_reverse: f64,
-    accel_init_long: f64,
-    accel_long: f64,
-    accel_max_long: f64,
-    accel_init_short: f64,
-    accel_short: f64,
-    accel_max_short: f64,
-) -> Result<Vec<f64>, TaError> {
-    if high.len() != low.len() {
-        return Err(TaError::BadParam(
-            "sarext: high and low must have equal length".into(),
-        ));
-    }
-    let mut out = vec![f64::NAN; high.len()];
-    sarext_with_output(
-        high,
-        low,
-        start_value,
-        offset_on_reverse,
-        accel_init_long,
-        accel_long,
-        accel_max_long,
-        accel_init_short,
-        accel_short,
-        accel_max_short,
-        &mut out,
-    )?;
-    Ok(out)
+indicator! {
+    /// 扩展抛物线转向（Parabolic SAR Extended，TA-Lib `TA_SAREXT`）。
+    ///
+    /// Parabolic SAR Extended (TA-Lib `TA_SAREXT`). Like [`sar`] but with separate long/short
+    /// acceleration factors and an optional `offset_on_reverse`. **Short-side SAR values are
+    /// returned as negatives** (so a reversal is distinguishable), matching TA-Lib. Lookback = 1.
+    ///
+    /// # 参数 / Parameters
+    /// - `start_value`：强制初始方向/位置；`0` 用默认（DM 判定），`>0` 强制多头于该值，`<0` 强制空头于 `|值|`。
+    /// - `offset_on_reverse`：反转时的偏移比例（TA-Lib 默认 0）。/ Offset on reversal (default 0).
+    /// - `accel_init_long` / `accel_long` / `accel_max_long`：多头初始/步进/上限加速（默认 0.02/0.02/0.2）。
+    /// - `accel_init_short` / `accel_short` / `accel_max_short`：空头对应参数（默认 0.02/0.02/0.2）。
+    fn sarext(
+        high: &[f64],
+        low: &[f64],
+        start_value: f64,
+        offset_on_reverse: f64,
+        accel_init_long: f64,
+        accel_long: f64,
+        accel_max_long: f64,
+        accel_init_short: f64,
+        accel_short: f64,
+        accel_max_short: f64,
+    ) -> Vec<f64> with sarext_with_output;
 }
 
 /// 扩展抛物线转向，零拷贝写入 `out`（与 `high`/`low` 等长）。见 [`sarext`]。

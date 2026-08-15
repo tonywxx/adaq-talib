@@ -17,6 +17,7 @@ use crate::core::defaults::{
 };
 use crate::core::{check_eq_len, ema, rolling_mean, rolling_mean_skip, rolling_sum};
 use crate::error::{check_period, TaError};
+use crate::indicator::indicator;
 
 /// MACD 多输出结果（与 TA-Lib `TA_MACD` 三数组一一对应）。
 ///
@@ -786,21 +787,12 @@ pub fn cmo_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
     cmo(values, CMO_PERIOD)
 }
 
-/// 商品通道指数（Commodity Channel Index，TA-Lib `TA_CCI`）。
-///
-/// `CCI = (TP - SMA(TP)) / (0.015 * MeanDev(TP))`，`TP = (H+L+C)/3`，
-/// 均值偏差为窗口内 `|TP - SMA(TP)|` 的均值。前导 `period-1` 个为 [`f64::NAN`]。
-pub fn cci(
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-    time_period: usize,
-) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "cci")?;
-    let mut out = vec![f64::NAN; close.len()];
-    cci_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 商品通道指数（Commodity Channel Index，TA-Lib `TA_CCI`）。
+    ///
+    /// `CCI = (TP - SMA(TP)) / (0.015 * MeanDev(TP))`，`TP = (H+L+C)/3`，
+    /// 均值偏差为窗口内 `|TP - SMA(TP)|` 的均值。前导 `period-1` 个为 [`f64::NAN`]。
+    fn cci(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with cci_with_output;
 }
 
 /// 商品通道指数，零拷贝写入 `out`（与 `close` 等长，前导 `period-1` 为 NaN）。见 [`cci`]。
@@ -845,22 +837,12 @@ pub fn cci_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>,
 // MFI / WILLR / BOP
 // ---------------------------------------------------------------------------
 
-/// 资金流量指数（Money Flow Index，TA-Lib `TA_MFI`），含成交量。
-///
-/// `MFI = 100 - 100 / (1 + posFlow/negFlow)`，典型价 `TP=(H+L+C)/3`，
-/// 正/负资金流为窗口内 `TP*volume` 按涨跌方向求和。前导 `period` 个为 [`f64::NAN`]。
-pub fn mfi(
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-    volume: &[f64],
-    time_period: usize,
-) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close, volume], "mfi")?;
-    let mut out = vec![f64::NAN; close.len()];
-    mfi_with_output(high, low, close, volume, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 资金流量指数（Money Flow Index，TA-Lib `TA_MFI`），含成交量。
+    ///
+    /// `MFI = 100 - 100 / (1 + posFlow/negFlow)`，典型价 `TP=(H+L+C)/3`，
+    /// 正/负资金流为窗口内 `TP*volume` 按涨跌方向求和。前导 `period` 个为 [`f64::NAN`]。
+    fn mfi(high: &[f64], low: &[f64], close: &[f64], volume: &[f64], time_period: usize) -> Vec<f64> with mfi_with_output;
 }
 
 /// 资金流量指数，零拷贝写入 `out`（与 `close` 等长，前导 `period` 为 NaN）。见 [`mfi`]。
@@ -946,16 +928,11 @@ pub fn mfi_default(
     mfi(high, low, close, volume, MFI_PERIOD)
 }
 
-/// Williams' %R（TA-Lib `TA_WILLR`）。
-/// `WILLR = -100 * (HH - close) / (HH - LL)`，HH/LL 为窗口内最高/最低。
-/// 前导 `period-1` 个为 [`f64::NAN`]。
-pub fn willr(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "willr")?;
-    let n = close.len();
-    let mut out = vec![f64::NAN; n];
-    willr_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// Williams' %R（TA-Lib `TA_WILLR`）。
+    /// `WILLR = -100 * (HH - close) / (HH - LL)`，HH/LL 为窗口内最高/最低。
+    /// 前导 `period-1` 个为 [`f64::NAN`]。
+    fn willr(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with willr_with_output;
 }
 
 /// Williams' %R，零拷贝写入 `out`（与 `close` 等长）。见 [`willr`]。
@@ -1111,13 +1088,10 @@ pub fn willr_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64
     willr(high, low, close, ATR_PERIOD)
 }
 
-/// 均势（Balance Of Power，TA-Lib `TA_BOP`）。`BOP = (close - open) / (high - low)`。
-/// 无滞后（lookback 0）；若 `high == low` 返回 0.0。
-pub fn bop(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[open, high, low, close], "bop")?;
-    let mut out = vec![0.0_f64; close.len()];
-    bop_with_output(open, high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 均势（Balance Of Power，TA-Lib `TA_BOP`）。`BOP = (close - open) / (high - low)`。
+    /// 无滞后（lookback 0）；若 `high == low` 返回 0.0。
+    fn bop(open: &[f64], high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with bop_with_output init zero;
 }
 
 /// 均势，零拷贝写入 `out`（与 `close` 等长，无前导 NaN）。见 [`bop`]。
@@ -1153,27 +1127,21 @@ pub fn bop_with_output(
 // ULTOSC
 // ---------------------------------------------------------------------------
 
-/// 终极震荡器（Ultimate Oscillator，TA-Lib `TA_ULTOSC`）。
-///
-/// `ULTOSC = 100 * (4*avg1 + 2*avg2 + avg3) / 7`，
-/// `avgX = sum(BP, periodX) / sum(TR, periodX)`，`BP = close - min(low, prevClose)`，
-/// `TR = max(high,prevClose) - min(low,prevClose)`。前导 `p3` 个为 [`f64::NAN`]
-/// （TA-Lib 取最长周期 `period3` 为 lookback，首个有效值位于索引 `period3`）。
-pub fn ultosc(
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-    period1: usize,
-    period2: usize,
-    period3: usize,
-) -> Result<Vec<f64>, TaError> {
-    check_period(period1)?;
-    check_period(period2)?;
-    check_period(period3)?;
-    check_eq_len(&[high, low, close], "ultosc")?;
-    let mut out = vec![f64::NAN; close.len()];
-    ultosc_with_output(high, low, close, period1, period2, period3, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 终极震荡器（Ultimate Oscillator，TA-Lib `TA_ULTOSC`）。
+    ///
+    /// `ULTOSC = 100 * (4*avg1 + 2*avg2 + avg3) / 7`，
+    /// `avgX = sum(BP, periodX) / sum(TR, periodX)`，`BP = close - min(low, prevClose)`，
+    /// `TR = max(high,prevClose) - min(low,prevClose)`。前导 `p3` 个为 [`f64::NAN`]
+    /// （TA-Lib 取最长周期 `period3` 为 lookback，首个有效值位于索引 `period3`）。
+    fn ultosc(
+        high: &[f64],
+        low: &[f64],
+        close: &[f64],
+        period1: usize,
+        period2: usize,
+        period3: usize,
+    ) -> Vec<f64> with ultosc_with_output;
 }
 
 /// 终极震荡器，零拷贝写入 `out`（与 `close` 等长，前导 `period3` 为 NaN）。见 [`ultosc`]。
@@ -1647,20 +1615,16 @@ fn dx_from_candles(
 
 
 
-/// 正方向性运动（TA-Lib `TA_PLUS_DM`，Wilder 平滑）。前导 `period-1` 个为 [`f64::NAN`]。
-///
-/// 与 TA-Lib 一致，方向性运动函数接收完整蜡烛数据（`high`/`low`/`close`）；
-/// `close` 仅用于内部真实波幅（TR）计算，不影响本函数的输出值。
-///
-/// Like TA-Lib, the directional-movement functions take the full candle data
-/// (`high`/`low`/`close`); `close` is only used internally for True Range and does not
-/// affect this function's output values.
-pub fn plus_dm(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "plus_dm")?;
-    let mut out = vec![f64::NAN; high.len()];
-    plus_dm_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 正方向性运动（TA-Lib `TA_PLUS_DM`，Wilder 平滑）。前导 `period-1` 个为 [`f64::NAN`]。
+    ///
+    /// 与 TA-Lib 一致，方向性运动函数接收完整蜡烛数据（`high`/`low`/`close`）；
+    /// `close` 仅用于内部真实波幅（TR）计算，不影响本函数的输出值。
+    ///
+    /// Like TA-Lib, the directional-movement functions take the full candle data
+    /// (`high`/`low`/`close`); `close` is only used internally for True Range and does not
+    /// affect this function's output values.
+    fn plus_dm(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with plus_dm_with_output;
 }
 
 /// 正方向性运动，零拷贝写入 `out`（与 `high` 等长，前导 `period-1` 为 NaN）。见 [`plus_dm`]。
@@ -1691,16 +1655,12 @@ pub fn plus_dm_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f
     plus_dm(high, low, close, ATR_PERIOD)
 }
 
-/// 负方向性运动（TA-Lib `TA_MINUS_DM`，Wilder 平滑）。前导 `period-1` 个为 [`f64::NAN`]。
-///
-/// 参见 `plus_dm` 关于 `close` 参数的说明。
-/// See `plus_dm` for the note about the `close` parameter.
-pub fn minus_dm(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "minus_dm")?;
-    let mut out = vec![f64::NAN; high.len()];
-    minus_dm_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 负方向性运动（TA-Lib `TA_MINUS_DM`，Wilder 平滑）。前导 `period-1` 个为 [`f64::NAN`]。
+    ///
+    /// 参见 `plus_dm` 关于 `close` 参数的说明。
+    /// See `plus_dm` for the note about the `close` parameter.
+    fn minus_dm(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with minus_dm_with_output;
 }
 
 /// 负方向性运动，零拷贝写入 `out`（与 `high` 等长，前导 `period-1` 为 NaN）。见 [`minus_dm`]。
@@ -1731,13 +1691,9 @@ pub fn minus_dm_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<
     minus_dm(high, low, close, ATR_PERIOD)
 }
 
-/// 正方向性指标（TA-Lib `TA_PLUS_DI`）。前导 `period-1` 个为 [`f64::NAN`]。
-pub fn plus_di(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "plus_di")?;
-    let mut out = vec![f64::NAN; high.len()];
-    plus_di_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 正方向性指标（TA-Lib `TA_PLUS_DI`）。前导 `period-1` 个为 [`f64::NAN`]。
+    fn plus_di(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with plus_di_with_output;
 }
 
 /// 正方向性指标，零拷贝写入 `out`（与 `high` 等长，前导 `period-1` 为 NaN）。见 [`plus_di`]。
@@ -1769,13 +1725,9 @@ pub fn plus_di_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f
     plus_di(high, low, close, ATR_PERIOD)
 }
 
-/// 负方向性指标（TA-Lib `TA_MINUS_DI`）。前导 `period-1` 个为 [`f64::NAN`]。
-pub fn minus_di(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "minus_di")?;
-    let mut out = vec![f64::NAN; high.len()];
-    minus_di_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 负方向性指标（TA-Lib `TA_MINUS_DI`）。前导 `period-1` 个为 [`f64::NAN`]。
+    fn minus_di(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with minus_di_with_output;
 }
 
 /// 负方向性指标，零拷贝写入 `out`（与 `high` 等长，前导 `period-1` 为 NaN）。见 [`minus_di`]。
@@ -1807,13 +1759,9 @@ pub fn minus_di_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<
     minus_di(high, low, close, ATR_PERIOD)
 }
 
-/// 平均方向性运动指数（TA-Lib `TA_ADX`）。前导 `2*period-1` 个为 [`f64::NAN`]。
-pub fn adx(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "adx")?;
-    let mut out = vec![f64::NAN; high.len()];
-    adx_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 平均方向性运动指数（TA-Lib `TA_ADX`）。前导 `2*period-1` 个为 [`f64::NAN`]。
+    fn adx(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with adx_with_output;
 }
 
 /// 平均方向性运动指数，零拷贝写入 `out`（与 `high` 等长，前导 `2*period-1` 为 NaN）。见 [`adx`]。
@@ -1843,13 +1791,9 @@ pub fn adx_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>,
     adx(high, low, close, ATR_PERIOD)
 }
 
-/// 平均方向性运动指数评级（TA-Lib `TA_ADXR`）。前导 `3*period-2` 个为 [`f64::NAN`]。
-pub fn adxr(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low, close], "adxr")?;
-    let mut out = vec![f64::NAN; high.len()];
-    adxr_with_output(high, low, close, time_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 平均方向性运动指数评级（TA-Lib `TA_ADXR`）。前导 `3*period-2` 个为 [`f64::NAN`]。
+    fn adxr(high: &[f64], low: &[f64], close: &[f64], time_period: usize) -> Vec<f64> with adxr_with_output;
 }
 
 /// 平均方向性运动指数评级，零拷贝写入 `out`（与 `high` 等长，前导 `3*period-2` 为 NaN）。见 [`adxr`]。
@@ -2452,35 +2396,50 @@ pub fn trix_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 
 // ───────────────────────────── DX ─────────────────────────────
 
-/// 方向性运动指数（DX，TA-Lib `TA_DX`）。
+indicator! {
+    /// 方向性运动指数（DX，TA-Lib `TA_DX`）。
+    ///
+    /// Directional Movement Index. Reuses the Wilder-smoothed ±DI from the shared
+    /// `directional` helper and returns `DX = 100·|−DI − +DI| / (+DI + −DI)` per bar.
+    /// When the true range (and thus both DI) is zero, or the DI sum is zero, the
+    /// previous output is carried forward (matching TA-Lib, which fills the first
+    /// such case with 0.0). Lookback is `period` (default 14); the first `period`
+    /// positions are [`f64::NAN`].
+    ///
+    /// # 参数 / Parameters
+    /// - `high` / `low` / `close`：蜡烛数据 `&[f64]`。/ Candle data `&[f64]`.
+    /// - `period`：平滑周期（TA-Lib 默认 14）。/ Smoothing period (default 14).
+    ///
+    /// # 返回值 / Returns
+    /// 与输入等长的向量，前导 `period` 个为 [`f64::NAN`]。
+    /// Equal-length vector; the first `period` positions are [`f64::NAN`].
+    fn dx(high: &[f64], low: &[f64], close: &[f64], period: usize) -> Vec<f64> with dx_with_output;
+}
+
+/// 方向性运动指数，零拷贝写入 `out`（与 `high` 等长，前导 `period` 个为 [`f64::NAN`]）。见 [`dx`]。
 ///
-/// Directional Movement Index. Reuses the Wilder-smoothed ±DI from the shared
-/// `directional` helper and returns `DX = 100·|−DI − +DI| / (+DI + −DI)` per bar.
-/// When the true range (and thus both DI) is zero, or the DI sum is zero, the
-/// previous output is carried forward (matching TA-Lib, which fills the first
-/// such case with 0.0). Lookback is `period` (default 14); the first `period`
-/// positions are [`f64::NAN`].
-///
-/// # 参数 / Parameters
-/// - `high` / `low` / `close`：蜡烛数据 `&[f64]`。/ Candle data `&[f64]`.
-/// - `period`：平滑周期（TA-Lib 默认 14）。/ Smoothing period (default 14).
-///
-/// # 返回值 / Returns
-/// 与输入等长的向量，前导 `period` 个为 [`f64::NAN`]。
-/// Equal-length vector; the first `period` positions are [`f64::NAN`].
-pub fn dx(high: &[f64], low: &[f64], close: &[f64], period: usize) -> Result<Vec<f64>, TaError> {
+/// Directional Movement Index, written zero-copy into `out`. See [`dx`]. Numerically
+/// identical to [`dx`].
+pub fn dx_with_output(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
     check_period(period)?;
     check_eq_len(&[high, low, close], "dx")?;
-    let n = high.len();
-    let mut out = vec![f64::NAN; n];
-    if n < period + 1 {
-        return Ok(out);
+    if out.len() != high.len() {
+        return Err(TaError::BadParam(
+            "dx_with_output: out length must equal high length".into(),
+        ));
     }
-    // 单遍融合：Wilder ±DM/TR → +DI/-DI → DX（`denom==0` 前向填充），与分段实现逐项一致。
-    // Single forward pass; bit-for-bit equal to the staged implementation (ADR 0005).
-    let dx = dx_from_candles(high, low, close, period, true);
-    out.copy_from_slice(&dx);
-    Ok(out)
+    // `dx_from_candles` 已返回与 `high` 等长的向量（前导 `period` 个填 NAN，短序列整体 NAN），
+    // 直接 `copy_from_slice` 即与重构前手写 `dx` 逐项一致（ADR 0005）。
+    // `dx_from_candles` already returns a `high`-length vector (leading `period` NaN-filled,
+    // all-NaN for short series); `copy_from_slice` is byte-identical to the pre-refactor `dx`.
+    out.copy_from_slice(&dx_from_candles(high, low, close, period, true));
+    Ok(())
 }
 
 /// DX，使用 TA-Lib 默认周期 14。/ DX with TA-Lib default period (14).
@@ -2490,31 +2449,52 @@ pub fn dx_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, 
 
 // ───────────────────────────── IMI ─────────────────────────────
 
-/// 日内动量指数（IMI，TA-Lib `TA_IMI`）。
+indicator! {
+    /// 日内动量指数（IMI，TA-Lib `TA_IMI`）。
+    ///
+    /// Intraday Momentum Index. For each bar it sums, over a rolling window of
+    /// `period` bars, the up-moves `max(close − open, 0)` and down-moves
+    /// `max(open − close, 0)`, then returns `100·Σup / (Σup + Σdown)`. If the window
+    /// is completely flat (every `close == open`), it returns the neutral center
+    /// 50.0 (matching TA-Lib's `#112` fix so a successful call never emits NaN).
+    /// Lookback is `period − 1` (default 14); the first `period − 1` positions are
+    /// [`f64::NAN`].
+    ///
+    /// # 参数 / Parameters
+    /// - `open` / `close`：开盘价 / 收盘价 `&[f64]`（IMI 仅需这两者）。/ Open/close only.
+    /// - `period`：窗口周期（TA-Lib 默认 14）。/ Window period (default 14).
+    ///
+    /// # 返回值 / Returns
+    /// 与输入等长的向量，前导 `period − 1` 个为 [`f64::NAN`]。
+    /// Equal-length vector; the first `period − 1` positions are [`f64::NAN`].
+    fn imi(open: &[f64], close: &[f64], period: usize) -> Vec<f64> with imi_with_output;
+}
+
+/// 日内动量指数，零拷贝写入 `out`（与 `open` 等长，前导 `period − 1` 个为 [`f64::NAN`]）。见 [`imi`]。
 ///
-/// Intraday Momentum Index. For each bar it sums, over a rolling window of
-/// `period` bars, the up-moves `max(close − open, 0)` and down-moves
-/// `max(open − close, 0)`, then returns `100·Σup / (Σup + Σdown)`. If the window
-/// is completely flat (every `close == open`), it returns the neutral center
-/// 50.0 (matching TA-Lib's `#112` fix so a successful call never emits NaN).
-/// Lookback is `period − 1` (default 14); the first `period − 1` positions are
-/// [`f64::NAN`].
-///
-/// # 参数 / Parameters
-/// - `open` / `close`：开盘价 / 收盘价 `&[f64]`（IMI 仅需这两者）。/ Open/close only.
-/// - `period`：窗口周期（TA-Lib 默认 14）。/ Window period (default 14).
-///
-/// # 返回值 / Returns
-/// 与输入等长的向量，前导 `period − 1` 个为 [`f64::NAN`]。
-/// Equal-length vector; the first `period − 1` positions are [`f64::NAN`].
-pub fn imi(open: &[f64], close: &[f64], period: usize) -> Result<Vec<f64>, TaError> {
+/// Intraday Momentum Index, written zero-copy into `out`. See [`imi`]. Numerically
+/// identical to [`imi`].
+pub fn imi_with_output(
+    open: &[f64],
+    close: &[f64],
+    period: usize,
+    out: &mut [f64],
+) -> Result<(), TaError> {
     check_period(period)?;
     check_eq_len(&[open, close], "imi")?;
     let n = open.len();
     let lookback = period - 1;
-    let mut out = vec![f64::NAN; n];
+    if out.len() != n {
+        return Err(TaError::BadParam(
+            "imi_with_output: out length must equal open length".into(),
+        ));
+    }
+    // 短序列（`n <= period-1`）整体 NAN 返回；保留原 `imi` 的早退保护，避免
+    // 下方初始化循环越界（见 ADR 0005 / 0007）。
+    // Short series (`n <= period-1`) returns all-NaN; keep the pre-refactor early-return
+    // guard so the init loop below never indexes out of bounds.
     if n <= lookback {
-        return Ok(out);
+        return Ok(());
     }
     // 每根 K 的涨/跌贡献（非负）。/ Per-bar up/down contribution (non-negative).
     let mut up = vec![0.0_f64; n];
@@ -2552,7 +2532,7 @@ pub fn imi(open: &[f64], close: &[f64], period: usize) -> Result<Vec<f64>, TaErr
         let total = sum_up + sum_down;
         out[i] = if total == 0.0 { 50.0 } else { 100.0 * sum_up / total };
     }
-    Ok(out)
+    Ok(())
 }
 
 /// IMI，使用 TA-Lib 默认周期 14。/ IMI with TA-Lib default period (14).

@@ -93,6 +93,55 @@
 
 宏的 arm / 参数只增不减地随真实需求扩展；Phase 2 的多输入/结构体 arm 不在 Phase 1 预置。
 
+### D7 多输入 0-init 臂（候选① 首轮落地，2026-08-14）
+
+架构评审（2026-08-14 中文报告 → 候选① → grilling 决策树）将接缝深化至「多输入」：
+`indicator!` 新增两条**多输入臂**（置于既有单输入臂之后，首片 `&[f64]` 即输出长度源，
+其余参数按 `ident : ty` 透传——可为更多切片或末尾标量）：
+
+- **0-init 臂**：`... with $wo init zero;` → `vec![0.0_f64; $first.len()]`；用于无不稳定期、前导无
+  NaN 的多输入指标（蜡烛形态 `cdl_*`）。
+- **NAN 默认臂**：不含 `init` 修饰 → `vec![f64::NAN; $first.len()]`；用于含前导不稳定期
+  （leading-NaN）的多输入数值指标。已在续轮落地：`momentum`（NAN 臂 `cci`/`mfi`/`willr`/`adx`/
+  `dx`/`imi` + 0-init 臂 `bop`）、`volume`（NAN 臂 `adosc` + 0-init 臂 `ad`/`obv`）、
+  `overlap`（NAN 臂 `midprice`/`sar`/`sarext`）。所有内核 `*_with_output` 均自校验
+  （`check_period` / `check_eq_len` / 长度），故宏略去 wrapper 的预分配校验，与手写字节级相同。
+
+**首轮消费者 = 全部 61 个 `cdl_*`（蜡烛形态）**：由手写「分配 0-init 缓冲 + 转发 `_with_output`」
+改为 `indicator!` 调用，内核字节级不变；`pattern/mod.rs` 的蜡烛设置 / `CandleAvg` 原语未触碰
+（局部性保持）。宏展开体即原手写 body，故与手写逐项 1:1。
+
+**细化 ADR-0011 D5**：D5 曾因 NAN 初始化比 0 初始化慢，将 `avgprice`/`medprice`/`typprice`/`wclprice`
+4 个 price_transform 函数刻意回退手写。本论 `0-init` 臂精确绕开该回归——这 4 函数已在**后续轮**
+（2026-08-14）以 `init zero` 重新并入接缝，且因内核（`*_with_output`）已自检长度，宏不重复
+`check_eq_len`、与手写逐字节一致、性能零损失。
+
+**验收（measure-first 双闸门，用户硬约束：准确性不对或性能降低则不改）**：
+- 黄金向量闸门：`cargo test` 全量（含 `pattern_batch1..8` 共 61 个 `cdl_*`）**0 失败**，宏生成 `func`
+  与手写数值逐项 1:1。
+- A/B 性能闸门：`phase1c_bench.rs` 新增 `cdl_doji`/`cdl_engulfing`（多输入 0-init）+ `avgprice`/`medprice`/
+  `typprice`/`wclprice`（回收 D5 回退函数）条目，基线用 `vec![0.0_f64]`（与重构前手写 body 一致，
+  避免量到 init 差异）；首轮 median 最大 |Δ| = **3.62%**，加 price_transform 后 median 最大 |Δ| =
+  **1.32%**，均 ≤ 5% → PASS。
+
+**Phase 2 状态更新**：多输入 0-init 臂已落地（`cdl_*` 61 个 + price_transform 4 个）；多输入 NAN 默认臂
+已在续轮落地（`momentum` NAN 臂 `cci`/`mfi`/`willr`/`adx`/`dx`/`imi` + 0-init 臂 `bop`；
+`volume` NAN 臂 `adosc` + 0-init 臂 `ad`/`obv`；`overlap` NAN 臂 `midprice`/`sar`/`sarext`，
+计 10 个 NAN 臂 + 3 个 0-init 臂消费者）；结构体多输出 arm 仍待做（仅在确有模块需要时才扩展，
+不写投机接口）。
+
+**续轮验收（measure-first 双闸门，用户硬约束：准确性不对或性能降低则不改）**：
+- 多输入 NAN 默认臂消费者（`momentum` 6 + `volume` `adosc` + `overlap` 3 = 10 个）+ 0-init 臂消费者
+  （`bop` / `ad` / `obv` 3 个）由手写「校验 + 分配缓冲 + 转发 `_with_output`」改为 `indicator!` 调用，
+  内核字节级不变；`momentum` 的 `dx` / `imi` 原为内联逻辑 wrapper，本论抽取了薄 `*_with_output`
+  内核（保留原早退守卫），其余复用既有内核。
+- 黄金向量闸门：`cargo test` 全量（含 `momentum_test` 31 项、`volume_test` 3 项、`overlap_test` 6 项、
+  `overlap_new_test` 9 项）**0 失败**，宏生成 `func` 与手写数值逐项 1:1。
+- A/B 性能闸门：`phase1c_bench.rs` 扩展 `momentum`（cci/mfi/willr/adx/bop）、`volume`（ad/adosc/obv）、
+  `overlap`（midprice/sar/sarext）条目，基线即宏展开体（NAN 臂 `vec![f64::NAN]`，0-init 臂
+  `vec![0.0_f64]`，与重构前手写 body 一致）；各批 median 最大 |Δ|：momentum **0.50%**、volume
+  **0.84%**、overlap **0.47%**（全 bench 含历史条目整体 max 0.60%，均受 CPU 噪声），均 ≤ 5% → PASS。
+
 ## 验证（Phase 1a 试点结果）
 
 - **黄金向量闸门**：`cargo test --test math_trans_test` **15/15 通过**（全部 161 函数级 `cargo test`

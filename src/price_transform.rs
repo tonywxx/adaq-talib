@@ -10,30 +10,22 @@
 //! returned at equal length.
 
 use crate::core::{check_eq_len, rolling_mean};
-use crate::error::{check_period, TaError};
+use crate::error::{TaError, check_period};
 use crate::indicator::indicator;
 
-/// 平均价（Average Price，TA-Lib `TA_AVGPRICE`）。
-///
-/// `AVGPRICE = (high + low + close + open) / 4`。无滞后（lookback 0）。
-///
-/// # 示例 / Example
-/// ```
-/// use adaq_talib::price_transform::avgprice;
-/// let o = [1.0]; let h = [2.0]; let l = [0.5]; let c = [1.5];
-/// let out = avgprice(&h, &l, &c, &o).unwrap();
-/// assert!((out[0] - (2.0 + 0.5 + 1.5 + 1.0) / 4.0).abs() < 1e-9);
-/// ```
-pub fn avgprice(
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-    open: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[high, low, close, open], "avgprice")?;
-    let mut out = vec![0.0_f64; high.len()];
-    avgprice_with_output(high, low, close, open, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 平均价（Average Price，TA-Lib `TA_AVGPRICE`）。
+    ///
+    /// `AVGPRICE = (high + low + close + open) / 4`。无滞后（lookback 0）。
+    ///
+    /// # 示例 / Example
+    /// ```
+    /// use adaq_talib::price_transform::avgprice;
+    /// let o = [1.0]; let h = [2.0]; let l = [0.5]; let c = [1.5];
+    /// let out = avgprice(&h, &l, &c, &o).unwrap();
+    /// assert!((out[0] - (2.0 + 0.5 + 1.5 + 1.0) / 4.0).abs() < 1e-9);
+    /// ```
+    fn avgprice(high: &[f64], low: &[f64], close: &[f64], open: &[f64]) -> Vec<f64> with avgprice_with_output init zero;
 }
 
 /// 平均价，零拷贝写入 `out`（与 `high` 等长）。见 [`avgprice`]。
@@ -58,23 +50,16 @@ pub fn avgprice_with_output(
     Ok(())
 }
 
-/// 中位价（Median Price，TA-Lib `TA_MEDPRICE`）。
-///
-/// `MEDPRICE = (high + low) / 2`。无滞后（lookback 0）。
-pub fn medprice(high: &[f64], low: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[high, low], "medprice")?;
-    let mut out = vec![0.0_f64; high.len()];
-    medprice_with_output(high, low, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 中位价（Median Price，TA-Lib `TA_MEDPRICE`）。
+    ///
+    /// `MEDPRICE = (high + low) / 2`。无滞后（lookback 0）。
+    fn medprice(high: &[f64], low: &[f64]) -> Vec<f64> with medprice_with_output init zero;
 }
 
 /// 中位价，零拷贝写入 `out`（与 `high` 等长）。见 [`medprice`]。
 /// Median Price, written zero-copy into `out`. See [`medprice`].
-pub fn medprice_with_output(
-    high: &[f64],
-    low: &[f64],
-    out: &mut [f64],
-) -> Result<(), TaError> {
+pub fn medprice_with_output(high: &[f64], low: &[f64], out: &mut [f64]) -> Result<(), TaError> {
     check_eq_len(&[high, low], "medprice")?;
     if out.len() != high.len() {
         return Err(TaError::BadParam(
@@ -88,14 +73,11 @@ pub fn medprice_with_output(
     Ok(())
 }
 
-/// 典型价（Typical Price，TA-Lib `TA_TYPPRICE`）。
-///
-/// `TYPPRICE = (high + low + close) / 3`。无滞后（lookback 0）。
-pub fn typprice(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[high, low, close], "typprice")?;
-    let mut out = vec![0.0_f64; high.len()];
-    typprice_with_output(high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 典型价（Typical Price，TA-Lib `TA_TYPPRICE`）。
+    ///
+    /// `TYPPRICE = (high + low + close) / 3`。无滞后（lookback 0）。
+    fn typprice(high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with typprice_with_output init zero;
 }
 
 /// 典型价，零拷贝写入 `out`（与 `high` 等长）。见 [`typprice`]。
@@ -119,14 +101,11 @@ pub fn typprice_with_output(
     Ok(())
 }
 
-/// 加权收盘价（Weighted Close Price，TA-Lib `TA_WCLPRICE`）。
-///
-/// `WCLPRICE = (high + low + 2*close) / 4`。无滞后（lookback 0）。
-pub fn wclprice(high: &[f64], low: &[f64], close: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[high, low, close], "wclprice")?;
-    let mut out = vec![0.0_f64; high.len()];
-    wclprice_with_output(high, low, close, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 加权收盘价（Weighted Close Price，TA-Lib `TA_WCLPRICE`）。
+    ///
+    /// `WCLPRICE = (high + low + 2*close) / 4`。无滞后（lookback 0）。
+    fn wclprice(high: &[f64], low: &[f64], close: &[f64]) -> Vec<f64> with wclprice_with_output init zero;
 }
 
 /// 加权收盘价，零拷贝写入 `out`（与 `high` 等长）。见 [`wclprice`]。

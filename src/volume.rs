@@ -12,37 +12,30 @@
 use crate::core::defaults::{ADOSC_FAST, ADOSC_SLOW};
 use crate::core::check_eq_len;
 use crate::error::{check_period, TaError};
+use crate::indicator::indicator;
 
-/// 累积/派发线（Accumulation/Distribution Line，TA-Lib `TA_AD`）。
-///
-/// `CLV = (2*close - high - low) / (high - low)`（收盘价位置因子，Close Location Value）；
-/// 若 `high == low` 则 `CLV = 0`。`AD` 为累计量：`AD[i] = AD[i-1] + volume[i]*CLV[i]`，
-/// `AD[0] = volume[0]*CLV[0]`。无滞后（lookback 0）。
-///
-/// # 返回值 / Returns
-/// 与输入等长的累计向量；无前导 NaN。
-///
-/// # 示例 / Example
-/// ```
-/// use adaq_talib::volume::ad;
-/// let high = [10.0, 11.0, 12.0];
-/// let low  = [9.0, 9.5, 11.0];
-/// let close = [9.5, 10.5, 11.5];
-/// let vol = [100.0, 200.0, 300.0];
-/// let out = ad(&high, &low, &close, &vol).unwrap();
-/// // CLV[0] = (19-10-9)/1 = 0 -> AD[0] = 0
-/// assert!(out[0].abs() < 1e-9);
-/// ```
-pub fn ad(
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-    volume: &[f64],
-) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[high, low, close, volume], "ad")?;
-    let mut out = vec![0.0_f64; close.len()];
-    ad_with_output(high, low, close, volume, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 累积/派发线（Accumulation/Distribution Line，TA-Lib `TA_AD`）。
+    ///
+    /// `CLV = (2*close - high - low) / (high - low)`（收盘价位置因子，Close Location Value）；
+    /// 若 `high == low` 则 `CLV = 0`。`AD` 为累计量：`AD[i] = AD[i-1] + volume[i]*CLV[i]`，
+    /// `AD[0] = volume[0]*CLV[0]`。无滞后（lookback 0）。
+    ///
+    /// # 返回值 / Returns
+    /// 与输入等长的累计向量；无前导 NaN。
+    ///
+    /// # 示例 / Example
+    /// ```
+    /// use adaq_talib::volume::ad;
+    /// let high = [10.0, 11.0, 12.0];
+    /// let low  = [9.0, 9.5, 11.0];
+    /// let close = [9.5, 10.5, 11.5];
+    /// let vol = [100.0, 200.0, 300.0];
+    /// let out = ad(&high, &low, &close, &vol).unwrap();
+    /// // CLV[0] = (19-10-9)/1 = 0 -> AD[0] = 0
+    /// assert!(out[0].abs() < 1e-9);
+    /// ```
+    fn ad(high: &[f64], low: &[f64], close: &[f64], volume: &[f64]) -> Vec<f64> with ad_with_output init zero;
 }
 
 /// 累积/派发线，零拷贝写入 `out`（与 `close` 等长）。见 [`ad`]。
@@ -76,33 +69,26 @@ pub fn ad_with_output(
 
 // ──────────────────────────── ADOSC ────────────────────────────
 
-/// 累积/派发震荡器（Chaikin A/D Oscillator，TA-Lib `TA_ADOSC`）。
-///
-/// 先计算累计 A/D 线（见 [`ad`]），再对其分别做 EMA(fast) 与 EMA(slow)，
-/// `ADOSC = EMA(fast) - EMA(slow)`。与经典 `EMA` 不同，TA-Lib（及 Metastock）的 ADOSC
-/// 以**首个 A/D 值**同时作为快、慢 EMA 的种子（非 SMA），其后按经典 EMA（k = 2/(period+1)）
-/// 递推。首个有效输出落在索引 `slow-1`（lookback = slow-1）。
-///
-/// Computes the cumulative A/D line (see [`ad`]) and applies an EMA(fast) and EMA(slow) to it,
-/// `ADOSC = EMA(fast) - EMA(slow)`. Unlike a standalone `EMA`, TA-Lib (and Metastock) seeds
-/// both EMAs with the **first A/D value** (not an SMA), then recurses with the classic EMA
-/// factor `k = 2/(period+1)`. The first valid output is at index `slow - 1` (lookback = slow-1).
-pub fn adosc(
-    high: &[f64],
-    low: &[f64],
-    close: &[f64],
-    volume: &[f64],
-    fast_period: usize,
-    slow_period: usize,
-) -> Result<Vec<f64>, TaError> {
-    check_period(fast_period)?;
-    check_period(slow_period)?;
-    if fast_period >= slow_period {
-        return Err(TaError::BadParam("fast_period must be < slow_period".into()));
-    }
-    let mut out = vec![f64::NAN; close.len()];
-    adosc_with_output(high, low, close, volume, fast_period, slow_period, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 累积/派发震荡器（Chaikin A/D Oscillator，TA-Lib `TA_ADOSC`）。
+    ///
+    /// 先计算累计 A/D 线（见 [`ad`]），再对其分别做 EMA(fast) 与 EMA(slow)，
+    /// `ADOSC = EMA(fast) - EMA(slow)`。与经典 `EMA` 不同，TA-Lib（及 Metastock）的 ADOSC
+    /// 以**首个 A/D 值**同时作为快、慢 EMA 的种子（非 SMA），其后按经典 EMA（k = 2/(period+1)）
+    /// 递推。首个有效输出落在索引 `slow-1`（lookback = slow-1）。
+    ///
+    /// Computes the cumulative A/D line (see [`ad`]) and applies an EMA(fast) and EMA(slow) to it,
+    /// `ADOSC = EMA(fast) - EMA(slow)`. Unlike a standalone `EMA`, TA-Lib (and Metastock) seeds
+    /// both EMAs with the **first A/D value** (not an SMA), then recurses with the classic EMA
+    /// factor `k = 2/(period+1)`. The first valid output is at index `slow - 1` (lookback = slow-1).
+    fn adosc(
+        high: &[f64],
+        low: &[f64],
+        close: &[f64],
+        volume: &[f64],
+        fast_period: usize,
+        slow_period: usize,
+    ) -> Vec<f64> with adosc_with_output;
 }
 
 /// 累积/派发震荡器，零拷贝写入 `out`（与 `close` 等长）。见 [`adosc`]。
@@ -164,18 +150,15 @@ pub fn adosc_default(
 
 // ──────────────────────────── OBV ────────────────────────────
 
-/// 能量潮（On Balance Volume，TA-Lib `TA_OBV`）。
-///
-/// `OBV[0] = volume[0]`；对 `i > 0`：若 `close[i] > close[i-1]` 则 `OBV[i] = OBV[i-1] + volume[i]`，
-/// 若 `close[i] < close[i-1]` 则 `OBV[i] = OBV[i-1] - volume[i]`，否则持平。无滞后（lookback 0）。
-///
-/// # 返回值 / Returns
-/// 与输入等长的累计向量；无前导 NaN。
-pub fn obv(close: &[f64], volume: &[f64]) -> Result<Vec<f64>, TaError> {
-    check_eq_len(&[close, volume], "obv")?;
-    let mut out = vec![0.0_f64; close.len()];
-    obv_with_output(close, volume, &mut out)?;
-    Ok(out)
+indicator! {
+    /// 能量潮（On Balance Volume，TA-Lib `TA_OBV`）。
+    ///
+    /// `OBV[0] = volume[0]`；对 `i > 0`：若 `close[i] > close[i-1]` 则 `OBV[i] = OBV[i-1] + volume[i]`，
+    /// 若 `close[i] < close[i-1]` 则 `OBV[i] = OBV[i-1] - volume[i]`，否则持平。无滞后（lookback 0）。
+    ///
+    /// # 返回值 / Returns
+    /// 与输入等长的累计向量；无前导 NaN。
+    fn obv(close: &[f64], volume: &[f64]) -> Vec<f64> with obv_with_output init zero;
 }
 
 /// 能量潮，零拷贝写入 `out`（与 `close` 等长）。见 [`obv`]。
