@@ -27,13 +27,14 @@
 //! MESA 自适应移动平均与希尔伯特趋势线（MAMA / HT_TRENDLINE）归入 [`crate::cycle`] 模块。
 //! MAMA / HT_TRENDLINE (Hilbert-transform indicators) live in [`crate::cycle`].
 
-use crate::core::defaults::{ACCBANDS_PERIOD, DEFAULT_TIME_PERIOD};
+use crate::core::defaults::{ACCBANDS_PERIOD, DEFAULT_TIME_PERIOD, MAVP_MAX_PERIOD, MAVP_MIN_PERIOD, T3_VFACTOR};
 use crate::core::{rolling_max, rolling_mean, rolling_mean_skip, rolling_min};
 use crate::error::{check_period, TaError};
 use crate::indicator::indicator;
 
 // ───────────────────────────── SMA ─────────────────────────────
 
+indicator! {
 /// 简单移动平均（Simple Moving Average, SMA）。
 ///
 /// Simple Moving Average (SMA). Replicates TA-Lib `TA_SMA`.
@@ -69,11 +70,11 @@ use crate::indicator::indicator;
 /// assert!((out[2] - 2.0).abs() < 1e-9);
 /// assert!((out[4] - 4.0).abs() < 1e-9);
 /// ```
-pub fn sma(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    sma_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn sma(values: &[f64], time_period: usize) -> Vec<f64> with sma_with_output
+    default sma_default(values: &[f64]) => (DEFAULT_TIME_PERIOD)
+/// 简单移动平均，使用 TA-Lib 默认周期（30）。
+/// Simple Moving Average with TA-Lib's default period (30).
+    ;
 }
 
 /// 简单移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`sma`]。
@@ -94,25 +95,11 @@ pub fn sma_with_output(
     Ok(())
 }
 
-/// 简单移动平均，使用 TA-Lib 默认周期（30，对应 `optInTimePeriod`）。
-///
-/// Simple Moving Average with TA-Lib's default period (30, maps to `optInTimePeriod`).
-///
-/// 等价于以 [`DEFAULT_TIME_PERIOD`](crate::core::defaults::DEFAULT_TIME_PERIOD) 调用 [`sma`]。
-/// Equivalent to calling [`sma`] with [`DEFAULT_TIME_PERIOD`](crate::core::defaults::DEFAULT_TIME_PERIOD).
-///
-/// # 示例 / Example
-/// ```rust
-/// use adaq_talib::overlap::sma_default;
-/// let out = sma_default(&[1.0, 2.0, 3.0]).unwrap();
-/// assert!(out[0].is_nan());
-/// ```
-pub fn sma_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    sma(values, DEFAULT_TIME_PERIOD)
-}
+
 
 // ───────────────────────────── EMA ─────────────────────────────
 
+indicator! {
 /// 指数移动平均（Exponential Moving Average, EMA）。
 ///
 /// Exponential Moving Average (EMA). Replicates TA-Lib `TA_EMA` (default `TA_MA_CLASSIC`).
@@ -147,11 +134,11 @@ pub fn sma_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// assert!(out[0].is_nan() && out[1].is_nan());
 /// assert!((out[2] - 7.0 / 3.0).abs() < 1e-9); // SMA 种子 / SMA seed
 /// ```
-pub fn ema(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    ema_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn ema(values: &[f64], time_period: usize) -> Vec<f64> with ema_with_output
+    default ema_default(values: &[f64]) => (DEFAULT_TIME_PERIOD)
+/// 指数移动平均，使用 TA-Lib 默认周期（30）。
+/// Exponential Moving Average with TA-Lib's default period (30).
+    ;
 }
 
 /// 指数移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`ema`]。
@@ -171,21 +158,11 @@ pub fn ema_with_output(
     Ok(())
 }
 
-/// 指数移动平均，使用 TA-Lib 默认周期（30）。
-/// Exponential Moving Average with TA-Lib's default period (30).
-///
-/// # 示例 / Example
-/// ```rust
-/// use adaq_talib::overlap::ema_default;
-/// let out = ema_default(&[1.0, 2.0, 3.0]).unwrap();
-/// assert!(out[0].is_nan());
-/// ```
-pub fn ema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    ema(values, DEFAULT_TIME_PERIOD)
-}
+
 
 // ───────────────────────────── WMA ─────────────────────────────
 
+indicator! {
 /// 加权移动平均（Weighted Moving Average, WMA）。
 ///
 /// Weighted Moving Average (WMA). Replicates TA-Lib `TA_WMA`.
@@ -218,11 +195,11 @@ pub fn ema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// let out = wma(&[1.0, 2.0, 4.0], 3).unwrap();
 /// assert!((out[2] - 17.0 / 6.0).abs() < 1e-9);
 /// ```
-pub fn wma(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    wma_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn wma(values: &[f64], time_period: usize) -> Vec<f64> with wma_with_output
+    default wma_default(values: &[f64]) => (DEFAULT_TIME_PERIOD)
+/// 加权移动平均，使用 TA-Lib 默认周期（30）。
+/// Weighted Moving Average with TA-Lib's default period (30).
+    ;
 }
 
 /// 加权移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`wma`]。
@@ -242,11 +219,7 @@ pub fn wma_with_output(
     Ok(())
 }
 
-/// 加权移动平均，使用 TA-Lib 默认周期（30）。
-/// Weighted Moving Average with TA-Lib's default period (30).
-pub fn wma_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    wma(values, DEFAULT_TIME_PERIOD)
-}
+
 
 // ──────────────────────────── DEMA ─────────────────────────────
 
@@ -307,6 +280,7 @@ pub fn dema_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> 
     Ok(())
 }
 
+indicator! {
 /// 双指数移动平均（Double Exponential Moving Average, DEMA）。
 ///
 /// Double Exponential Moving Average (DEMA). Replicates TA-Lib `TA_DEMA`.
@@ -344,18 +318,14 @@ pub fn dema_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> 
 /// // 首个有效值在索引 2*(period-1) = 4 / first valid at index 2*(period-1) = 4
 /// assert!(!out[4].is_nan());
 /// ```
-pub fn dema(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    dema_with_output(values, time_period, &mut out)?;
-    Ok(out)
-}
-
+    fn dema(values: &[f64], time_period: usize) -> Vec<f64> with dema_with_output
+    default dema_default(values: &[f64]) => (DEFAULT_TIME_PERIOD)
 /// 双指数移动平均，使用 TA-Lib 默认周期（30）。
 /// Double Exponential Moving Average with TA-Lib's default period (30).
-pub fn dema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    dema(values, DEFAULT_TIME_PERIOD)
+    ;
 }
+
+
 
 // ──────────────────────────── TEMA ─────────────────────────────
 
@@ -416,6 +386,7 @@ pub fn tema_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> 
     Ok(())
 }
 
+indicator! {
 /// 三指数移动平均（Triple Exponential Moving Average, TEMA）。
 ///
 /// Triple Exponential Moving Average (TEMA). Replicates TA-Lib `TA_TEMA`.
@@ -453,21 +424,18 @@ pub fn tema_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> 
 /// assert!(out[5].is_nan());
 /// assert!(!out[6].is_nan());
 /// ```
-pub fn tema(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    tema_with_output(values, time_period, &mut out)?;
-    Ok(out)
-}
-
+    fn tema(values: &[f64], time_period: usize) -> Vec<f64> with tema_with_output
+    default tema_default(values: &[f64]) => (DEFAULT_TIME_PERIOD)
 /// 三指数移动平均，使用 TA-Lib 默认周期（30）。
 /// Triple Exponential Moving Average with TA-Lib's default period (30).
-pub fn tema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    tema(values, DEFAULT_TIME_PERIOD)
+    ;
 }
+
+
 
 // ────────────────────────── MIDPOINT ───────────────────────────
 
+indicator! {
 /// 中点（MidPoint over period）。
 ///
 /// MidPoint over period. Replicates TA-Lib `TA_MIDPOINT`.
@@ -498,11 +466,11 @@ pub fn tema_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// let out = midpoint(&[1.0, 5.0, 3.0], 3).unwrap();
 /// assert!((out[2] - (5.0 + 1.0) / 2.0).abs() < 1e-9); // (max+min)/2
 /// ```
-pub fn midpoint(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    midpoint_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn midpoint(values: &[f64], time_period: usize) -> Vec<f64> with midpoint_with_output
+    default midpoint_default(values: &[f64]) => (DEFAULT_TIME_PERIOD)
+/// 中点，使用 TA-Lib 默认周期（30）。
+/// MidPoint with TA-Lib's default period (30).
+    ;
 }
 
 /// 中点，零拷贝写入 `out`（与 `values` 等长）。见 [`midpoint`]。
@@ -591,11 +559,7 @@ fn midpoint_parallel_with_output(
     Ok(())
 }
 
-/// 中点，使用 TA-Lib 默认周期（30）。
-/// MidPoint with TA-Lib's default period (30).
-pub fn midpoint_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    midpoint(values, DEFAULT_TIME_PERIOD)
-}
+
 
 // ────────────────────────── MIDPRICE ───────────────────────────
 
@@ -939,6 +903,7 @@ pub fn accbands_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<AccB
 
 // ───────────────────────────── TRIMA ─────────────────────────────
 
+indicator! {
 /// 三角移动平均（Triangular Moving Average, TRIMA，TA-Lib `TA_TRIMA`）。
 ///
 /// Triangular Moving Average (TRIMA). TA-Lib 的 "SMA of a SMA" 实现：
@@ -956,11 +921,11 @@ pub fn accbands_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<AccB
 /// // TRIMA(4): 权重 (1,2,2,1)/6 -> ((1+2*2+2*3+4)/6) = 15/6 = 2.5
 /// assert!((out[3] - 2.5).abs() < 1e-9);
 /// ```
-pub fn trima(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    trima_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn trima(values: &[f64], time_period: usize) -> Vec<f64> with trima_with_output
+    default trima_default(values: &[f64]) => (DEFAULT_TIME_PERIOD)
+/// 三角移动平均，使用 TA-Lib 默认周期（30）。
+/// Triangular MA with TA-Lib's default period (30).
+    ;
 }
 
 /// 三角移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`trima`]。
@@ -995,11 +960,7 @@ pub fn trima_with_output(
     Ok(())
 }
 
-/// 三角移动平均，使用 TA-Lib 默认周期（30）。
-/// Triangular MA with TA-Lib's default period (30).
-pub fn trima_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    trima(values, DEFAULT_TIME_PERIOD)
-}
+
 
 // ───────────────────────────── T3 ─────────────────────────────
 
@@ -1053,6 +1014,7 @@ pub fn t3_with_output(
     Ok(())
 }
 
+indicator! {
 /// 三指数移动平均（T3，Tillson，TA-Lib `TA_T3`）。
 ///
 /// Triple Exponential Moving Average (T3, Tillson). Six nested EMAs combined with the
@@ -1068,22 +1030,18 @@ pub fn t3_with_output(
 /// c1 = -v^3;  c2 = 3v^2 + 3v^3;  c3 = -6v^2 - 3v - 3v^3;  c4 = 3v^2 + 3v + 1 + v^3
 /// T3 = c1*e6 + c2*e5 + c3*e4 + c4*e3
 /// ```
-pub fn t3(values: &[f64], time_period: usize, v_factor: f64) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    t3_with_output(values, time_period, v_factor, &mut out)?;
-    Ok(out)
-}
-
+    fn t3(values: &[f64], time_period: usize, v_factor: f64) -> Vec<f64> with t3_with_output
+    default t3_default(values: &[f64]) => (5, T3_VFACTOR)
 /// T3，使用 TA-Lib 默认参数（周期 5、v 因子 0.7）。
 /// T3 with TA-Lib defaults (period 5, v-factor 0.7).
-pub fn t3_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    use crate::core::defaults::T3_VFACTOR;
-    t3(values, 5, T3_VFACTOR)
+    ;
 }
+
+
 
 // ───────────────────────────── MA ─────────────────────────────
 
+indicator! {
 /// 通用移动平均（General Moving Average，TA-Lib `TA_MA`）。
 ///
 /// General Moving Average (TA-Lib `TA_MA`). Dispatches to the selected [`MaType`].
@@ -1094,11 +1052,11 @@ pub fn t3_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// 与 `values` 等长的向量，前导不稳定期为所选类型的 lookback（DEMA=2(p-1)、TEMA=3(p-1)、
 /// T3=6(p-1)、KAMA=p、MAMA=32，其余 p-1）。
 /// Equal-length vector; leading unstable period is the selected type's lookback.
-pub fn ma(values: &[f64], time_period: usize, ma_type: MaType) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    ma_with_output(values, time_period, ma_type, &mut out)?;
-    Ok(out)
+    fn ma(values: &[f64], time_period: usize, ma_type: MaType) -> Vec<f64> with ma_with_output
+    default ma_default(values: &[f64]) => (DEFAULT_TIME_PERIOD, MaType::Sma)
+/// 通用移动平均，使用 TA-Lib 默认参数（周期 30、SMA）。
+/// General MA with TA-Lib defaults (period 30, SMA).
+    ;
 }
 
 /// 通用移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`ma`]。
@@ -1129,14 +1087,11 @@ pub fn ma_with_output(
     Ok(())
 }
 
-/// 通用移动平均，使用 TA-Lib 默认参数（周期 30、SMA）。
-/// General MA with TA-Lib defaults (period 30, SMA).
-pub fn ma_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    ma(values, DEFAULT_TIME_PERIOD, MaType::Sma)
-}
+
 
 // ───────────────────────────── MAVP ─────────────────────────────
 
+indicator! {
 /// 变周期移动平均（Variable-period MA，TA-Lib `TA_MAVP`）。
 ///
 /// Variable-period Moving Average (TA-Lib `TA_MAVP`). Each output bar `i` uses the moving
@@ -1149,18 +1104,17 @@ pub fn ma_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// - `periods`：每个 bar 的周期数组 `&[f64]`。/ Per-bar period array.
 /// - `min_period` / `max_period`：周期裁剪范围（TA-Lib 默认 2 / 30）。/ Clamp range (default 2/30).
 /// - `ma_type`：移动平均类型（见 [`MaType`]）。
-pub fn mavp(
+    fn mavp(
     values: &[f64],
     periods: &[f64],
     min_period: usize,
     max_period: usize,
     ma_type: MaType,
-) -> Result<Vec<f64>, TaError> {
-    check_period(min_period)?;
-    check_period(max_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    mavp_with_output(values, periods, min_period, max_period, ma_type, &mut out)?;
-    Ok(out)
+) -> Vec<f64> with mavp_with_output
+    default mavp_default(values: &[f64], periods: &[f64]) => (MAVP_MIN_PERIOD, MAVP_MAX_PERIOD, MaType::Sma)
+/// 变周期移动平均，使用 TA-Lib 默认参数（min 2 / max 30、SMA）。
+/// Variable-period MA with TA-Lib defaults (min 2 / max 30, SMA).
+    ;
 }
 
 /// 变周期移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`mavp`]。
@@ -1220,21 +1174,11 @@ pub fn mavp_with_output(
     Ok(())
 }
 
-/// 变周期移动平均，使用 TA-Lib 默认参数（min 2 / max 30、SMA）。
-/// Variable-period MA with TA-Lib defaults (min 2 / max 30, SMA).
-pub fn mavp_default(values: &[f64], periods: &[f64]) -> Result<Vec<f64>, TaError> {
-    use crate::core::defaults::{MAVP_MAX_PERIOD, MAVP_MIN_PERIOD};
-    mavp(
-        values,
-        periods,
-        MAVP_MIN_PERIOD,
-        MAVP_MAX_PERIOD,
-        MaType::Sma,
-    )
-}
+
 
 // ───────────────────────────── KAMA ─────────────────────────────
 
+indicator! {
 /// Kaufman 自适应移动平均（Kaufman Adaptive MA，TA-Lib `TA_KAMA`）。
 ///
 /// Kaufman Adaptive Moving Average (KAMA). The smoothing constant adapts to the
@@ -1254,11 +1198,11 @@ pub fn mavp_default(values: &[f64], periods: &[f64]) -> Result<Vec<f64>, TaError
 /// assert!(out[0].is_nan());
 /// assert!(!out[30].is_nan());
 /// ```
-pub fn kama(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    kama_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn kama(values: &[f64], time_period: usize) -> Vec<f64> with kama_with_output
+    default kama_default(values: &[f64]) => (DEFAULT_TIME_PERIOD)
+/// Kaufman 自适应移动平均，使用 TA-Lib 默认周期（30）。
+/// Kaufman Adaptive MA with TA-Lib's default period (30).
+    ;
 }
 
 /// Kaufman 自适应移动平均，零拷贝写入 `out`（与 `values` 等长）。见 [`kama`]。
@@ -1337,11 +1281,7 @@ pub fn kama_with_output(
     Ok(())
 }
 
-/// Kaufman 自适应移动平均，使用 TA-Lib 默认周期（30）。
-/// Kaufman Adaptive MA with TA-Lib's default period (30).
-pub fn kama_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    kama(values, DEFAULT_TIME_PERIOD)
-}
+
 
 // ────────────────────────── SAR / SAREXT ──────────────────────────
 

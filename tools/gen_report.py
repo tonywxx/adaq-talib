@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+#
+# DEPRECATED — DO NOT RUN.
+# The performance report (docs/validation-and-performance-report.md) is now HAND-MAINTAINED and far
+# richer than what this script emits. Running this would OVERWRITE that report with a stripped
+# version (and embed a stale 2026-08-10 date + a wrong cdl_engulfing diagnosis). Edit the .md directly.
+# Kept only as a historical reference for the CSV schema (all161_results.csv / all161_results_before.csv).
 """Regenerate docs/validation-and-performance-report.md from the benchmark CSVs.
 
 Convention (matches README + existing report):
@@ -86,7 +92,7 @@ pat_parity_bad = [r for r in pat_post if fnum(r['parity']) > 1e-6]
 out = []
 out.append("# adaq-talib — 1:1 Validation & Performance Report (vs TA-Lib 0.7.1)")
 out.append("")
-out.append("*Generated: 2026-08-10 (21:20 baseline → 22:40 post-Pattern-rollout) · Environment: Apple Silicon (aarch64), Rust (release bench), TA-Lib C 0.7.1, N = 100,000 elements per indicator · Methodology: ADR 0003 / ADR 0004 / ADR 0005*")
+out.append("*Generated: (DEPRECATED generator — report is now hand-maintained; see docs/validation-and-performance-report.md) · Environment: Apple Silicon (aarch64), Rust (release bench), TA-Lib C 0.7.1, N = 100,000 elements per indicator · Methodology: ADR 0003 / ADR 0004 / ADR 0005*")
 out.append("")
 out.append("## 摘要 / Executive Summary")
 out.append("")
@@ -185,9 +191,9 @@ out.append(f"| Regressions vs baseline | — | **0** (all deltas positive, ≤ �
 out.append("")
 out.append("#### 3.1.1 Remaining sub-1× functions (genuine, not pseudo-slow)")
 out.append("")
-out.append("9 functions still trail C slightly. `cdl_engulfing` (0.433×) is an independent algorithm not touched")
-out.append("by this rollout. The other 8 are transformed but remain marginally slower — these are *at parity* with")
-out.append("C plus a small adaq overhead, not `CandleAvg` pseudo-slowness (which the rollout eliminated):")
+out.append("9 functions still trail C slightly. `cdl_engulfing` (0.433×) is a C-side benchmark artifact, not a")
+out.append("genuine Rust gap (C's ~1 ns/elem timing is anomalously low for its 2-candle cache loop). The other 8")
+out.append("are genuine single-thread codegen floors, not `CandleAvg` pseudo-slowness:")
 out.append("")
 out.append("| Function | Rust/C | Note |")
 out.append("|---|---:|---|")

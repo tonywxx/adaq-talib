@@ -2,55 +2,55 @@
 //!
 //! 用法 / Usage:
 //! ```text
-//! cargo run -- sma
-//! cargo run -- ema
-//! cargo run -- wma
-//! cargo run -- dema
-//! cargo run -- tema
-//! cargo run -- midpoint
-//! cargo run -- midprice
-//! cargo run -- rsi
-//! cargo run -- macd
-//! cargo run -- cmo
-//! cargo run -- trix
-//! cargo run -- mom
-//! cargo run -- cci
-//! cargo run -- willr
-//! cargo run -- bop
-//! cargo run -- ultosc
-//! cargo run -- adx
-//! cargo run -- aroon
-//! cargo run -- stoch
-//! cargo run -- mfi
-//! cargo run -- trange
-//! cargo run -- atr
-//! cargo run -- natr
-//! cargo run -- ad
-//! cargo run -- adosc
-//! cargo run -- obv
-//! cargo run -- avgprice
-//! cargo run -- medprice
-//! cargo run -- typprice
-//! cargo run -- wclprice
-//! cargo run -- stddev
-//! cargo run -- var
-//! cargo run -- linearreg
-//! cargo run -- linearreg_angle
-//! cargo run -- linearreg_intercept
-//! cargo run -- linearreg_slope
-//! cargo run -- tsf
-//! cargo run -- beta
-//! cargo run -- correl
-//! cargo run -- bbands
-//! cargo run -- trima
-//! cargo run -- t3
-//! cargo run -- ma
-//! cargo run -- mavp
-//! cargo run -- kama
-//! cargo run -- sar
-//! cargo run -- sarext
-//! cargo run -- mama
-//! cargo run -- ht_trendline
+//! cargo run --example demo -- sma
+//! cargo run --example demo -- ema
+//! cargo run --example demo -- wma
+//! cargo run --example demo -- dema
+//! cargo run --example demo -- tema
+//! cargo run --example demo -- midpoint
+//! cargo run --example demo -- midprice
+//! cargo run --example demo -- rsi
+//! cargo run --example demo -- macd
+//! cargo run --example demo -- cmo
+//! cargo run --example demo -- trix
+//! cargo run --example demo -- mom
+//! cargo run --example demo -- cci
+//! cargo run --example demo -- willr
+//! cargo run --example demo -- bop
+//! cargo run --example demo -- ultosc
+//! cargo run --example demo -- adx
+//! cargo run --example demo -- aroon
+//! cargo run --example demo -- stoch
+//! cargo run --example demo -- mfi
+//! cargo run --example demo -- trange
+//! cargo run --example demo -- atr
+//! cargo run --example demo -- natr
+//! cargo run --example demo -- ad
+//! cargo run --example demo -- adosc
+//! cargo run --example demo -- obv
+//! cargo run --example demo -- avgprice
+//! cargo run --example demo -- medprice
+//! cargo run --example demo -- typprice
+//! cargo run --example demo -- wclprice
+//! cargo run --example demo -- stddev
+//! cargo run --example demo -- var
+//! cargo run --example demo -- linearreg
+//! cargo run --example demo -- linearreg_angle
+//! cargo run --example demo -- linearreg_intercept
+//! cargo run --example demo -- linearreg_slope
+//! cargo run --example demo -- tsf
+//! cargo run --example demo -- beta
+//! cargo run --example demo -- correl
+//! cargo run --example demo -- bbands
+//! cargo run --example demo -- trima
+//! cargo run --example demo -- t3
+//! cargo run --example demo -- ma
+//! cargo run --example demo -- mavp
+//! cargo run --example demo -- kama
+//! cargo run --example demo -- sar
+//! cargo run --example demo -- sarext
+//! cargo run --example demo -- mama
+//! cargo run --example demo -- ht_trendline
 //! ```
 //! 当前仅演示已实现的指标；后续指标按里程碑补齐后在此注册（见 ADR 0002）。
 //! Currently demonstrates implemented indicators only; more are registered here as the
@@ -173,7 +173,7 @@ fn main() {
                  stddev, var, linearreg, linearreg_angle, linearreg_intercept, linearreg_slope, \
                  tsf, beta, correl"
             );
-            eprintln!("用法 / usage: cargo run -- <indicator>");
+            eprintln!("用法 / usage: cargo run --example demo -- <indicator>");
             std::process::exit(2);
         }
     }

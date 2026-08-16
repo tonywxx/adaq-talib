@@ -147,6 +147,38 @@ macro_rules! indicator {
             Ok(out)
         }
     };
+
+    // —— 多输入臂 · NAN 默认 + 默认函数（候选①扩展）—— 用于带默认周期的多输入指标，
+    //    如 aroon_osc（high/low + time_period，默认 AROON_PERIOD）。首片 `&[f64]` 即输出长度源；
+    //    其余参数按 `ident : ty` 透传；默认函数由宏生成。内核内部已做长度/OHLC 校验时此臂不重复校验。
+    (
+        $(#[$meta:meta])*
+        fn $fname:ident (
+            $first:ident : &[f64]
+            $(, $rest:ident : $restty:ty)* $(,)?
+        ) -> Vec<f64>
+        with $with_output:ident
+        default $dname:ident ( $($darg:ident : $dargty:ty),* $(,)? )
+            => ( $($def:expr),+ $(,)? )
+        $(#[$dmeta:meta])*
+        $(;)?
+    ) => {
+        $(#[$meta])*
+        pub fn $fname (
+            $first : &[f64]
+            $(, $rest : $restty)*
+        ) -> Result<Vec<f64>, $crate::error::TaError> {
+            let mut out = vec![f64::NAN; $first.len()];
+            $with_output ( $first $(, $rest)* , &mut out )?;
+            Ok(out)
+        }
+        $(#[$dmeta])*
+        pub fn $dname ( $($darg : $dargty),* )
+            -> Result<Vec<f64>, $crate::error::TaError>
+        {
+            $fname ( $($darg),* , $($def),* )
+        }
+    };
 }
 
 // `pub(crate)` 重导出，使各指标模块可经 `use crate::indicator::indicator;` 引入本宏。

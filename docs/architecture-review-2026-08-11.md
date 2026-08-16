@@ -1,7 +1,7 @@
 # adaq-talib 架构评审与改进建议报告
 
 - **日期**：2026-08-11
-- **范围**：`src/` 全部模块、`Cargo.toml`、CLI（`src/main.rs`）、测试与基准布局
+- **范围**：`src/` 全部模块、`Cargo.toml`、CLI（`examples/demo.rs`，原 `src/main.rs`）、测试与基准布局
 - **方法**：以"深模块"（Deep Module）视角审视——关注**接口**相对于**实现**的杠杆（Depth）、**缝**（Seam）的位置、**适配器**（Adapter）的复用，以及**局部性**（Locality）。结论先行：当前架构整体健康、已具备良好的深度；以下是在边际上进一步提升深度与局部性的具体建议，按优先级排序。
 
 ---
@@ -15,7 +15,7 @@ adaq-talib 是一个**纯 Rust、零依赖、零 FFI** 的 TA-Lib 0.7.1 指标�
 | 公开指标模块 | `overlap` / `momentum` / `stat` / `volatility` / `volume` / `price_transform` / `cycle` / `math_ops` / `math_trans` / `pattern` | 库的对外接口（约 80+ 公开函数） |
 | 内部原语模块 | `core`（含 `defaults`、`MonoQueue`、滚动聚合、EMA 族、极值队列） | `pub(crate)` 共享数学内核 |
 | 错误模型 | `error::TaError` | 对应 `TA_RetCode` 的语义映射 |
-| CLI | `main.rs` | demo 二进制，约 50 个指标演示 |
+| CLI | `examples/demo.rs` | demo 示例（非默认二进制），约 50 个指标演示 |
 | 验证 | `tests/` 集成测试 + `benches/`（17 个基准） | 黄金向量对照 + 性能 |
 
 规模：`src/` 约 8900 行；`core/mod.rs` 单文件 ~930 行承载绝大多数共享数值内核。
@@ -100,6 +100,8 @@ adaq-talib 是一个**纯 Rust、零依赖、零 FFI** 的 TA-Lib 0.7.1 指标�
 - **收益**：加指标只改一处；usage 永远与派发一致。
 - **风险/权衡**：`demo_*` 辅助函数签名不一（单输入 / OHLC / OHLCV / MACD 等），表驱动需一层 `enum Runner` 或 trait 归一；中等工作量。因是 demo 二进制，**优先级中**。
 
+**本次处置（2026-08-15）**：用户选择"深化候选 4 = 移除 `src/main.rs` 并迁至 `examples/demo.rs`"。该动作把 demo 从默认 `cargo build` 与发布二进制中剥离，库构建不再耦合此 CLI；"双重登记"问题随 demo 不再是库契约而降级（非阻塞）。表驱动注册（单一数据源 REGISTRY）仍是可选后续优化，但优先级进一步下降——demo 仅由 `cargo run --example demo -- <name>` 触发，不影响库交付。用法文档（README / README.zh-CN / api-conventions）已同步为 `examples/demo.rs` 与 `cargo run --example demo -- <name>`。
+
 ### P6 — `pattern` 模块：确认是否为代码生成产物
 
 - **现状**：61 个形态分布在 `batch_1.rs`..`batch_8.rs`（每文件 600–1000 行），依赖 `mod.rs` 的 `CandleAvg` 与蜡烛原语。结构良好、深模块。
@@ -123,11 +125,25 @@ adaq-talib 是一个**纯 Rust、零依赖、零 FFI** 的 TA-Lib 0.7.1 指标�
 | 1 | P1 删 `momentum.rs` 的 `check_eq_len` 副本 | 极低 | 局部性 | 否 | ✅ 已执行 |
 | 2 | P3 切分 `core/mod.rs` 为 `window`/`ema`/`extreme`/`kernel` | 低 | 局部性 | 否 | ✅ 已执行 |
 | 3 | P2 修正 `defaults.rs` 过时注释（非删占位） | 低 | 可读性 | 否 | ✅ 已执行 |
-| 4 | P5 `main.rs` 表驱动注册 | 中 | 局部性 | 否（demo 二进制） | 待办 |
+| 4 | P5 迁出 `main.rs` → `examples/demo.rs`（表驱动注册留待可选） | 中 | 局部性 | 否（demo 非库契约） | ✅ 已执行（2026-08-15） |
 | 5 | P6 落实 pattern 生成器入仓 | 低 | 可维护性 | 否 | 待办 |
 | 6 | P4 选项结构体入口（达全量里程碑后统一收口） | 中 | 接口收敛 | 是（新增，非破坏） | 待办 |
 
 P1–P3 已在一个 PR 内完成（纯内部重构，全部 `pub(crate)`），并以 `cargo build` / `cargo test` / `cargo build --features parallel` / `cargo build --features bench-c` 验证：**零偏差不变、警告数与基线一致（504）、全部测试通过（默认 + parallel 特性）**。
+
+### 深化候选 ①-⑤ 执行状态（/improve-codebase-architecture 2026-08-15 会话）
+
+> 本会话用 /improve-codebase-architecture 对库做深化扫描，产出 5 个候选。逐项核对真实代码与 `all161_results_final.csv` 后处置如下。
+
+| 候选 | 内容 | 判定 | 状态 |
+|---|---|---|---|
+| ① | `indicator!` 宏铺开（momentum/overlap 手写胶水迁宏） | 零风险、去重 | ✅ 已执行（2026-08-15 深夜；黄金向量 + 代表 A/B 双闸通过） |
+| ② | core 原语补全 `_with_output`/`_into` | 安全中等 | ⏸ 待办（deferred） |
+| ③ | pattern 前导和 `macro_rules!` 去重 + 文档对齐 | 前提不成立 | ❌ **已关闭（2026-08-15）**：9 个慢 pattern 中 7 个已内联却仍 <1×，余下差距为硬约束（safe/无 SIMD/单线程）下 Rust-vs-C codegen 地板，macro 不针对成因（slow-9 内仅 `cdl_harami` 真用 `CandleAvg`）；`cdl_engulfing` 0.43× 经核对为 C 侧测量异常（C 0.93 ns/elem 异常偏低，Rust 2.18 正常）。KPI 重定义为「消除伪慢 + 可并行子集 >2×」 |
+| ④ | `main.rs` → `examples/demo.rs` | 局部性 | ✅ 已执行（2026-08-15；库构建不再耦合 demo CLI） |
+| ⑤ | `parallel.rs` 两分块原语去重 | 默认关闭、无交付影响 | ⏸ 跳过（skip，低优先级） |
+
+> ③ 关闭依据：跑 `cargo bench --bench cdl_bench`（Rust-only，N=100k）对照 `all161_results_final.csv` 的 c_ns，确认 8 个已内联 pattern 的 <1× 是 C 在轻计算分支循环上 1.3–1.8× 更快的真实 codegen 差距；蜡烛原语（`real_body`/`upper_shadow`/`lower_shadow`/`high_low_range`/`candle_color`）均已 `#[inline]` 单行宏，无安全可消除的冗余。收回差距需 `unsafe get_unchecked` 或 SIMD/并行轨，均超出当前硬约束。
 
 ---
 

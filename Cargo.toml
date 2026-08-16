@@ -17,7 +17,7 @@ name = "adaq-talib"
 readme = "README.md"
 repository = "https://github.com/tonywxx/adaq-talib"
 rust-version = "1.85"
-version = "0.1.6"
+version = "0.1.7"
 
 # Files excluded from the published crate (dev/agent artifacts, not library source).
 exclude = [

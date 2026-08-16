@@ -29,6 +29,6 @@
 - 黄金输出向量：二进制 `f64` 数组（紧凑、精确），配套 JSON 元数据（指标名、参数、C 库版本、长度）。
 - 存放于 `tests/fixtures/`。
 
-## 7. main.rs 交互式示例入口
-- `src/main.rs` 作为可运行演示入口：基于命令行参数选择指标类别/函数并运行示例（非 REPL），覆盖每一类技术指标。
-- 内置小型样本数据，运行 `cargo run -- <indicator>` 即可演示。
+## 7. examples/demo.rs 交互式示例入口
+- `examples/demo.rs` 作为可运行演示入口：基于命令行参数选择指标类别/函数并运行示例（非 REPL），覆盖每一类技术指标。
+- 内置小型样本数据，运行 `cargo run --example demo -- <indicator>` 即可演示。

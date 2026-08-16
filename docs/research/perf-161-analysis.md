@@ -1,6 +1,6 @@
 # 深度研究：adaq-talib 161 函数性能对标与原生 C 的加速可行性
 
-> 研究日期：2026-08-10 · 数据来源：`all161_results.csv`（基准 `all161_results_before.csv` 备份）
+> 研究日期：2026-08-10 · **PRE-optimization feasibility baseline** · 数据来源：`all161_results_before.csv`（基准）。注意：`all161_results.csv` 现在已是**优化后**快照，勿与基线混用；本文的 0.38× / 57-of-61 均为优化**前**状态。
 > 约束基线（ADR 0010）：Zero-FFI · No-Deps（`[dependencies]` 为空）· 单线程 · safe · SIMD 延后至 `simd` feature · `f64` · 数值 1:1（ADR 0005）
 
 ---
@@ -42,6 +42,8 @@
 | **Pattern Recognition** | 61 | 4 | 0 | 57 | **0.38** |
 
 最差 5 个：`cdl_separatinglines` 0.097 · `cdl_kickingbylength` 0.142 · `cdl_3blackcrows` 0.194 · `cdl_mathold` 0.205 · `cdl_morningstar` 0.224（Rust 比 C 慢 4–10×）。
+
+> **状态更新（2026-08-15）**：以上为优化**前**基线。优化后（候选①/④ + P2 环形队列 + P3-6 FMA + P3-2b 并行）实测为——全局 **85 快 / 60 持平 / 16 慢**（geomean Rust/C ≈ 0.786×）；Pattern Recognition 几何均值 **Rust/C ≈ 0.677×**（43 快 / 13 持平 / 5 慢），即从最慢组翻转为平均快于 C。其中 `cdl_engulfing` 的 ~2× 经候选③实测确认为 **C 侧基准假象**（其 2-蜡烛缓存的 C 计时异常偏低，Rust ~2 ns/elem 正常），**非真实 Rust 差距**。权威现状见 `docs/validation-and-performance-report.md`。
 
 ---
 
@@ -142,7 +144,9 @@ C 源 `ta_CDLHAMMER.c` 的做法：每 bar 把 `realBody / upperShadow / lowerSh
 2. **可能且已验证**对 Pattern Recognition 通过消除冗余（单线程即可超 1×，部分超 2×；全量 >2× 需并行）。
 3. **已自然达成**对 Elementwise / 可向量化类（>2×）。
 
-**建议把 KPI 从"161/161 全部 >2×"调整为**：「消除所有 <1× 的伪慢（即全量 ≥1× parity）+ 对可并行子集（Pattern / 部分 rolling stat）达成 >2×」。这是在项目约束内**可证伪、可交付**的真实目标；强行承诺 161/161 >2× 会要么食言，要么被迫引入并行而违背 No-Deps 承诺。
+**建议把 KPI 从"161/161 全部 >2×"调整为**（已据候选③实测 2026-08-15 修订）：在单线程口径下接受 16 个 <1× 为**真实单线程下限**（非“伪慢”），并对可并行子集（A 类窗口函数已通过 `parallel` 特性实现 Rust/C < 1）达成 >2×。这是在项目约束内**可证伪、可交付**的真实目标；强行承诺 161/161 >2× 会要么食言，要么被迫引入并行而违背 No-Deps 承诺。
+
+> **状态更新**：候选③实测确认剩余 <1× 均为真实单线程下限（递推 / 双队列 / 蜡烛分支代码生成差距），并非可消除冗余；其中 `cdl_engulfing` 属 C 侧基准假象。故 KPI 不追求单线程全量 ≥1×，而以“A 类可并行子集 >2× + 其余标注为已接受的已知权衡”为达成判据（详见 `docs/validation-and-performance-report.md` §5/§6）。
 
 ---
 

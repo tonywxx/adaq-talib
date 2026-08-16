@@ -30,12 +30,19 @@
 
 - 宏定义于 `src/indicator.rs`，`pub(crate) use indicator;` 对库内可见，**不** `#[macro_export]`
   （避免泄漏为公开宏、规避 SemVer 表面面与跨 crate 宏路径负担）。
-- 两条 arm：
-  - **无默认 arm（Phase 1a）**：展开为
+- 五条 arm（首片 `&[f64]` 即输出长度源；其余参数按 `ident : ty` 透传，可为更多切片或末尾标量；
+  默认参数须置于最后，由 `default $dname(...) => ( $($def),+ )` 转发）：
+  - **单输入无默认 arm（Phase 1a）**：展开为
     `pub fn $fname($len: &[f64] $(, $arg: $argty)*) -> Result<Vec<f64>, TaError> {`
     `let mut out = vec![f64::NAN; $len.len()]; $with_output($len $(, $arg)*, &mut out)?; Ok(out) }`
-  - **默认 arm（Phase 1b）**：在无默认 arm 基础上额外生成 `$dname` 转发到
-    `$fname(..., $def)`。
+  - **单输入默认 arm（Phase 1b）**：额外生成 `$dname` 转发 `$fname(..., $def)`，默认支持 N 末尾默认。
+  - **多输入 0-init arm（Phase 2 续）**：`init zero` 修饰 → `vec![0.0_f64; $first.len()]`；用于无不稳定期
+    的多输入指标（蜡烛 `cdl_*`、`avgprice` 等）。
+  - **多输入 NAN arm（Phase 2 续）**：不含 `init` → `vec![f64::NAN; $first.len()]`；用于含前导 NaN 的
+    多输入数值指标（`cci`/`aroon_osc`/`mavp` 等）。
+  - **多输入 NAN 默认 arm（候选① 本轮新增）**：在 NAN arm 基础上额外生成 `$dname` 转发
+    `$fname(..., $def)`；用于 `aroon_osc_default` / `mavp_default` 等「多输入 + 默认值」组合，
+    填补此前多输入形态只能手写默认转发的缺口（详见本轮验收）。
 - 宏顶部 doc-comment 固化接缝约定与路线图（Phase 1a math_trans → 1b stat → 1c 其余单输出 →
   Phase 2 多输入 + 结构体 arm）。
 
@@ -96,16 +103,20 @@
 ### D7 多输入 0-init 臂（候选① 首轮落地，2026-08-14）
 
 架构评审（2026-08-14 中文报告 → 候选① → grilling 决策树）将接缝深化至「多输入」：
-`indicator!` 新增两条**多输入臂**（置于既有单输入臂之后，首片 `&[f64]` 即输出长度源，
-其余参数按 `ident : ty` 透传——可为更多切片或末尾标量）：
+`indicator!` 新增**四条**多输入臂（置于既有单输入臂之后，首片 `&[f64]` 即输出长度源，
+其余参数按 `ident : ty` 透传——可为更多切片或末尾标量；其中 **NAN 默认臂为候选① 本轮新增**）：
 
 - **0-init 臂**：`... with $wo init zero;` → `vec![0.0_f64; $first.len()]`；用于无不稳定期、前导无
   NaN 的多输入指标（蜡烛形态 `cdl_*`）。
-- **NAN 默认臂**：不含 `init` 修饰 → `vec![f64::NAN; $first.len()]`；用于含前导不稳定期
+- **NAN 臂**：不含 `init` 修饰 → `vec![f64::NAN; $first.len()]`；用于含前导不稳定期
   （leading-NaN）的多输入数值指标。已在续轮落地：`momentum`（NAN 臂 `cci`/`mfi`/`willr`/`adx`/
   `dx`/`imi` + 0-init 臂 `bop`）、`volume`（NAN 臂 `adosc` + 0-init 臂 `ad`/`obv`）、
   `overlap`（NAN 臂 `midprice`/`sar`/`sarext`）。所有内核 `*_with_output` 均自校验
   （`check_period` / `check_eq_len` / 长度），故宏略去 wrapper 的预分配校验，与手写字节级相同。
+- **多输入 NAN 默认臂（候选① 本轮新增）**：在 NAN 臂文法上追加
+  `default $dname( $($darg:ty),* ) => ( $($def:expr),+ )`，额外生成 `$dname` 转发
+  `$fname(..., $def)`。填补此前「多输入 + 默认值」只能手写默认转发的缺口，使 `aroon_osc_default` /
+  `mavp_default` 等一并并入接缝（与单/多输入默认臂同构，零成本）。
 
 **首轮消费者 = 全部 61 个 `cdl_*`（蜡烛形态）**：由手写「分配 0-init 缓冲 + 转发 `_with_output`」
 改为 `indicator!` 调用，内核字节级不变；`pattern/mod.rs` 的蜡烛设置 / `CandleAvg` 原语未触碰
@@ -141,6 +152,37 @@
   `overlap`（midprice/sar/sarext）条目，基线即宏展开体（NAN 臂 `vec![f64::NAN]`，0-init 臂
   `vec![0.0_f64]`，与重构前手写 body 一致）；各批 median 最大 |Δ|：momentum **0.50%**、volume
   **0.84%**、overlap **0.47%**（全 bench 含历史条目整体 max 0.60%，均受 CPU 噪声），均 ≤ 5% → PASS。
+
+**候选① 本轮验收（`overlap` / `momentum` 单输入胶水收口 + `aroon_osc`/`mavp` 默认臂，2026-08-15，
+measure-first 双闸门）**：
+- **范围**：
+  - `overlap` 11 个单输出函数由手写胶水改为 `indicator!` 调用：`sma` / `ema` / `wma` / `dema` / `tema` /
+    `midpoint` / `trima` / `kama`（各 + `_default`）、`ma`（2 末尾标量默认 `DEFAULT_TIME_PERIOD,
+    MaType::Sma`）、`t3`（无默认，`5, T3_VFACTOR`）、`mavp`（多输入 NAN 默认臂，`MAVP_MIN_PERIOD,
+    MAVP_MAX_PERIOD, MaType::Sma`）。手写的 `*_default` 转发 fn 已删除（`midprice`/`sar`/`sarext` 此前
+    已宏化；`bbands`/`accbands` 为结构体输出，保留）。
+  - `momentum` 10 处胶水改由 `indicator!` 调用：`mom` / `roc` / `rocp` / `rocr` / `rocr100`（各 +
+    `_default`，`MOM_PERIOD`）、`rsi`（保留 `#[allow(clippy::needless_return)]`，`RSI_PERIOD`）、
+    `cmo`（`CMO_PERIOD`）、`apo` / `ppo`（`APO_FAST, APO_SLOW`）、`aroon_osc`（多输入 NAN 默认臂，
+    借本轮新增的第 5 条臂并入 `aroon_osc_default`）。`macd`/`macd_fix`/`macd_ext`（结构体 Macd）、
+    `cci`/`mfi`/`willr`/`ultosc`/`plus_dm` 等（已宏化多输入）、`aroon`（结构体 Aroon）、
+    `stoch`/`stoch_f`/`trix`/`stoch_rsi`/`imi`（超出范围）均保持不动。
+- **关键事实（决定可否删校验）**：`overlap` / `momentum` 的 `*_with_output` 内核**已自校验**
+  `check_period` + 长度 / `check_eq_len` / 短输入早退（如 `sma_with_output` L86、`rsi_with_output`
+  L324、`mavp_with_output` L1176、`aroon_osc_with_output` L1959）。故手写胶水里那层 `check_period` /
+  `check_eq_len` 是**冗余守卫**——宏略去它不丢失任何行为（有效输入恒等效，非法输入内核报同一错误）。
+  这是 Q4「无需新增 check_period / check_eq_len 宏臂」决策的实测依据。
+- **宏改动**：`src/indicator.rs` 新增**第 5 条臂（多输入 NAN 默认臂）**，使 `aroon_osc_default` /
+  `mavp_default` 一并由宏生成，闭合多输入形态的最后缺口（D1 / D7 已同步更新）。
+- **黄金向量闸门**：`cargo test` 全量（含 `momentum_test` 31 / `overlap_test` 6 / `overlap_new_test` 9 /
+  其余模块）**0 失败**；`cargo build` 零警告；宏生成 `func` 与手写数值逐项 1:1（容限 1e-8 相对 +
+  1e-10 绝对）。
+- **A/B 性能闸门**：`phase1c_bench.rs` 扩展 `sma` / `rsi`(+`rsi_default`) / `aroon_osc`(+`aroon_osc_default`)
+  / `mavp`(+`mavp_default`) 7 个条目；基线用**重构前含冗余守卫的手写 body**（忠实 pre-refactor 基线，
+  以度量「去冗余校验」是否引入回归）。本轮子集 median |Δ|：sma **−0.36%**、rsi **−0.46%**、
+  rsi_default **+0.77%**、aroon_osc **−0.37%**、aroon_osc_default **−0.36%**、mavp **+0.87%**、
+  mavp_default **−0.19%**（整体 max 在本轮子集内 = **+0.87%**，全 bench 含历史条目 max = **4.17%**
+  来自 `typprice`，均 ≤ 5%）→ PASS。负 Δ 印证被删的 wrapper 守卫对有效输入纯属噪声。
 
 ## 验证（Phase 1a 试点结果）
 

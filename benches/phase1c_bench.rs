@@ -34,14 +34,16 @@ use adaq_talib::math_ops::{
     add, add_with_output, max, max_with_output, min_index, min_index_with_output,
 };
 use adaq_talib::momentum::{
-    adx, adx_with_output, bop, bop_with_output, cci, cci_with_output, mfi, mfi_with_output,
-    willr, willr_with_output,
+    adx, adx_with_output, aroon_osc, aroon_osc_default, aroon_osc_with_output, bop, bop_with_output,
+    cci, cci_with_output, mfi, mfi_with_output, rsi, rsi_default, rsi_with_output, willr,
+    willr_with_output,
 };
 use adaq_talib::volume::{
     ad, ad_with_output, adosc, adosc_with_output, obv, obv_with_output,
 };
 use adaq_talib::overlap::{
-    midprice, midprice_with_output, sar, sar_with_output, sarext, sarext_with_output,
+    mavp, mavp_default, mavp_with_output, midprice, midprice_with_output, sma, sma_with_output,
+    sar, sar_with_output, sarext, sarext_with_output, MaType,
 };
 use adaq_talib::pattern::{
     cdl_doji, cdl_doji_with_output, cdl_engulfing, cdl_engulfing_with_output,
@@ -244,6 +246,69 @@ fn sarext_ref(
     Ok(out)
 }
 
+// —— overlap / momentum 单输入 + 多输入基线（候选① 本轮：sma / rsi / aroon_osc / mavp）——
+// 与重构前手写 body 一致：保留被宏移除的冗余 wrapper 校验（内核已自检，故为纯噪声）。
+// 公平 A/B：宏生成（去冗余校验）vs 重构前（含冗余校验），断言 macro ≤ old（|Δ| ≤ ±5%）。
+// overlap/momentum single-input & multi-input baselines (this round): faithful pre-refactor body
+// WITH the now-removed redundant wrapper validation (kernel self-validates, so pure noise).
+const RSI_PERIOD: usize = 14;
+const AROON_PERIOD: usize = 14;
+const MAVP_MIN_PERIOD: usize = 2;
+const MAVP_MAX_PERIOD: usize = 30;
+
+fn sma_ref(v: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
+    if time_period == 0 {
+        return Err(TaError::BadParam("time period must be >= 1".into()));
+    }
+    let mut out = vec![f64::NAN; v.len()];
+    sma_with_output(v, time_period, &mut out)?;
+    Ok(out)
+}
+fn rsi_ref(v: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
+    if time_period == 0 {
+        return Err(TaError::BadParam("time period must be >= 1".into()));
+    }
+    let mut out = vec![f64::NAN; v.len()];
+    rsi_with_output(v, time_period, &mut out)?;
+    Ok(out)
+}
+fn rsi_default_ref(v: &[f64]) -> Result<Vec<f64>, TaError> {
+    rsi_ref(v, RSI_PERIOD)
+}
+fn aroon_osc_ref(h: &[f64], l: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
+    if time_period == 0 {
+        return Err(TaError::BadParam("time period must be >= 1".into()));
+    }
+    if h.len() != l.len() {
+        return Err(TaError::BadParam(
+            "aroon_osc: all input arrays must have equal length".into(),
+        ));
+    }
+    let mut out = vec![f64::NAN; h.len()];
+    aroon_osc_with_output(h, l, time_period, &mut out)?;
+    Ok(out)
+}
+fn aroon_osc_default_ref(h: &[f64], l: &[f64]) -> Result<Vec<f64>, TaError> {
+    aroon_osc_ref(h, l, AROON_PERIOD)
+}
+fn mavp_ref(
+    v: &[f64],
+    periods: &[f64],
+    min_period: usize,
+    max_period: usize,
+    ma_type: MaType,
+) -> Result<Vec<f64>, TaError> {
+    if min_period == 0 || max_period == 0 {
+        return Err(TaError::BadParam("time period must be >= 1".into()));
+    }
+    let mut out = vec![f64::NAN; v.len()];
+    mavp_with_output(v, periods, min_period, max_period, ma_type, &mut out)?;
+    Ok(out)
+}
+fn mavp_default_ref(v: &[f64], periods: &[f64]) -> Result<Vec<f64>, TaError> {
+    mavp_ref(v, periods, MAVP_MIN_PERIOD, MAVP_MAX_PERIOD, MaType::Sma)
+}
+
 fn main() {
     let x = sample(N);
     println!("Phase 1c bench: {ITERS} iters x {N} elems (post candidate-① Phase 1c refactor)\n");
@@ -276,6 +341,20 @@ fn main() {
         (
             "sarext",
             Box::new(|x| sarext(x, x, 0.0, 0.0, 0.02, 0.02, 0.2, 0.02, 0.02, 0.2)),
+        ),
+        // —— 候选① 本轮：overlap / momentum 单输入 + 多输入 ——
+        ("sma", Box::new(|x| sma(x, 14))),
+        ("rsi", Box::new(|x| rsi(x, 14))),
+        ("rsi_default", Box::new(|x| rsi_default(x))),
+        ("aroon_osc", Box::new(|x| aroon_osc(x, x, 14))),
+        ("aroon_osc_default", Box::new(|x| aroon_osc_default(x, x))),
+        (
+            "mavp",
+            Box::new(|x| mavp(x, x, MAVP_MIN_PERIOD, MAVP_MAX_PERIOD, MaType::Sma)),
+        ),
+        (
+            "mavp_default",
+            Box::new(|x| mavp_default(x, x)),
         ),
     ];
     println!("—— 宏生成 `func` 基线（ns/call） ——");
@@ -409,6 +488,42 @@ fn main() {
             "sarext",
             Box::new(|x| sarext(x, x, 0.0, 0.0, 0.02, 0.02, 0.2, 0.02, 0.02, 0.2)),
             Box::new(|x| sarext_ref(x, x, 0.0, 0.0, 0.02, 0.02, 0.2, 0.02, 0.02, 0.2)),
+        ),
+        // —— 候选① 本轮：overlap / momentum 单输入 + 多输入 ——
+        (
+            "sma",
+            Box::new(|x| sma(x, 14)),
+            Box::new(|x| sma_ref(x, 14)),
+        ),
+        (
+            "rsi",
+            Box::new(|x| rsi(x, 14)),
+            Box::new(|x| rsi_ref(x, 14)),
+        ),
+        (
+            "rsi_default",
+            Box::new(|x| rsi_default(x)),
+            Box::new(|x| rsi_default_ref(x)),
+        ),
+        (
+            "aroon_osc",
+            Box::new(|x| aroon_osc(x, x, 14)),
+            Box::new(|x| aroon_osc_ref(x, x, 14)),
+        ),
+        (
+            "aroon_osc_default",
+            Box::new(|x| aroon_osc_default(x, x)),
+            Box::new(|x| aroon_osc_default_ref(x, x)),
+        ),
+        (
+            "mavp",
+            Box::new(|x| mavp(x, x, MAVP_MIN_PERIOD, MAVP_MAX_PERIOD, MaType::Sma)),
+            Box::new(|x| mavp_ref(x, x, MAVP_MIN_PERIOD, MAVP_MAX_PERIOD, MaType::Sma)),
+        ),
+        (
+            "mavp_default",
+            Box::new(|x| mavp_default(x, x)),
+            Box::new(|x| mavp_default_ref(x, x)),
         ),
     ];
 

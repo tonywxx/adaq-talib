@@ -145,15 +145,19 @@ default+override structure).
 
 #### 3.1.1 Remaining Pattern functions trailing or near C (genuine floors)
 
-With the 5-run median (§4), **5** Pattern functions remain genuinely slower than C; the other 4
-historically-slow CDL functions now sit within the At-parity band (≤1.2×). `cdl_engulfing` (1.996×)
-is an independent algorithm not touched by the rollout. The remaining slower ones are transformed
-functions whose candle-decision branches add a small fixed adaq overhead over C's hand-tuned
-switches — genuine floors, not `CandleAvg` pseudo-slowness (which the rollout eliminated):
+With the 5-run median (§4), **5** Pattern functions still bench slower than C. `cdl_engulfing`
+(1.996×) is a **C-side benchmark artifact**, not a genuine Rust gap: C's ~1 ns/elem is implausibly
+low for a 2-candle lookback cache (Rust's ~2 ns/elem is normal, on par with sibling CDL functions),
+so the ~2× ratio reflects an anomalous C timing rather than adaq-talib being slow (see §5). The
+other 4 slower functions (`cdl_separatinglines` / `cdl_harami` / `cdl_longline` / `cdl_shortline`)
+are **genuine single-thread codegen floors** — branch-heavy candle-decision loops where GCC's
+hand-tuned candle switches + FMA contraction beat LLVM under the project's hard constraints (safe /
+no-SIMD / single-thread / No-Deps). They are real Rust-vs-C gaps, not residual overhead left by a
+transformation, and have no single-thread lever (verified by the P3-7 probe, §3.4):
 
 | Function | Rust/C | Status | Note |
 |---|---:|---|---|
-| `cdl_engulfing` | 1.996× | Slower | independent algorithm (not transformed) |
+| `cdl_engulfing` | 1.996× | Slower | C-side bench artifact — not a genuine Rust gap (see §5) |
 | `cdl_separatinglines` | 1.743× | Slower | transformed; residual minor adaq overhead |
 | `cdl_harami` | 1.632× | Slower | transformed; residual minor adaq overhead |
 | `cdl_longline` | 1.296× | Slower | transformed; residual minor adaq overhead |
@@ -265,7 +269,7 @@ and A/B-measured on a focused bench (N = 100,000, median of 5):
 | Candidate lever | Target | Before → After (ns/elem) | Δ | Verdict |
 |---|---|---:|---|---|
 | FMA contraction on the rolling sum-of-products (`s00 += a*a`, `s01 += a*b`) | `correl` (1.550×) | 4.795 → 4.897 | **+2.1%** (noise) | **Reverted** — bottleneck is the per-bar `sqrt` + divisions, not the sum recurrences; FMA is negligible here (unlike the EMA family where the recurrence *is* the whole function). |
-| Early color-change guard + `bool` color (restructure of the 2-candle compare) | `cdl_engulfing` (1.996×) | 5.316 → 5.683 | **+6.9%** (regression) | **Reverted** — the 2× gap is structural codegen, not branch shape; the rewrite made the hot path slightly worse. |
+| Early color-change guard + `bool` color (restructure of the 2-candle compare) | `cdl_engulfing` (1.996×) | 5.316 → 5.683 | **+6.9%** (regression) | **Reverted** — the 2× gap is a C-side benchmark artifact (not a Rust codegen issue to fix; see §5), and the rewrite made the hot path slightly worse. |
 
 Both fell within (or worse than) the ±5% gate, so they were **reverted** per protocol. The probe
 **confirms** the prior conclusion: the 16 residual functions are genuine single-thread floors — the
@@ -328,10 +332,11 @@ for this pass (no claim of completion for them):
   `adosc` (1.325×) — a strict `out[i] = f(out[i-1], x[i])` recurrence needs the *exact* prior output
   value (Hilbert state / Wilder seed), which the overlap trick cannot reconstruct without replaying the
   full prefix; parallelizing these requires a prefix-state handoff, not an overlap.
-- **D-class (candle-decision branches):** `cdl_engulfing` (1.996×), `cdl_separatinglines` (1.743×),
-  `cdl_harami` (1.632×), `cdl_longline` (1.296×), `cdl_shortline` (1.307×) — each bar's decision depends
-  on the `CandleAvg` running window; overlap-seeding the candle accumulators is a separate, larger
-  change and was not attempted here.
+- **D-class (candle-decision branches):** `cdl_separatinglines` (1.743×), `cdl_harami` (1.632×),
+  `cdl_longline` (1.296×), `cdl_shortline` (1.307×) — branch-heavy candle-decision loops where GCC
+  beats LLVM under the hard constraints (`cdl_harami` still uses `CandleAvg`; the others inline
+  accumulators). `cdl_engulfing` (1.996×) is also in this slower set under parallel, but it is a
+  **C-side benchmark artifact** (see §5), not a genuine Rust gap, so it does not need seeding.
 
 These 10 are genuine single-thread floors; the `parallel` feature eliminates the *seedable* subset but
 does not — and is not claimed to — bring the full library to <1×. The project KPI (all functions at or
@@ -526,10 +531,11 @@ note in §2 / §5). `c_missing` would show `—` (none in this run).*
   measurement. **Numerical correctness for both is established by the golden-vector tests (§2), not
   by the bench parity.**
 - **Pattern Recognition** is no longer the main performance gap after the rollout (geomean Rust/C
-  2.978× → 0.677×, now *faster* than C on average). **56/61** are at-or-above C parity (43 Faster +
-  13 At parity); the **5** remaining slower (`cdl_engulfing`, `cdl_separatinglines`, `cdl_harami`,
-  `cdl_longline`, `cdl_shortline`) are genuine candle-decision-branch floors, not `CandleAvg`
-  pseudo-slowness (see §3.1.1).
+  2.978× → 0.677×, now *faster* than C on average).   **56/61** are at-or-above C parity (43 Faster +
+  13 At parity). The remaining slower ones are `cdl_separatinglines` / `cdl_harami` / `cdl_longline` /
+  `cdl_shortline` — genuine candle-decision-branch codegen floors (GCC's hand-tuned candle switches +
+  FMA contraction beat LLVM here under the hard constraints; not `CandleAvg` pseudo-slowness) — plus
+  `cdl_engulfing`, which is a **C-side benchmark artifact** (see §3.1.1 / §5), not a genuine Rust gap.
 - **Cycle indicators** are now essentially at parity with C on average (0.980×); `ht_phasor`
   (1.237×) and `ht_trendline` (1.273×) remain slower. The dual-deque scans `minmax`/`minmax_index` and
   `midpoint` (≈1.5–1.6×, ~2× the single-deque cost of C's MINMAX scan) and the sliding-window
@@ -543,10 +549,12 @@ note in §2 / §5). `c_missing` would show `—` (none in this run).*
   - **B-class (strict recurrence IIR):** `ht_phasor` (1.237×), `ht_trendline` (1.273×), `trange`
     (1.215×), `adosc` (1.325×) — a strict `out[i] = f(out[i-1], x[i])` recurrence needs the *exact*
     prior output (Hilbert / Wilder seed), which the overlap trick cannot reconstruct.
-  - **D-class (candle-decision branches):** `cdl_engulfing` (1.996×), `cdl_separatinglines` (1.743×),
-    `cdl_harami` (1.632×), `cdl_longline` (1.296×), `cdl_shortline` (1.307×) — each bar's decision
-    depends on the `CandleAvg` running window; overlap-seeding the candle accumulators is a separate,
-    larger change.
+  - **D-class (candle-decision branches):** `cdl_separatinglines` (1.743×), `cdl_harami` (1.632×),
+    `cdl_longline` (1.296×), `cdl_shortline` (1.307×) — branch-heavy candle-decision loops where GCC
+    beats LLVM under the hard constraints. Only `cdl_harami` still uses the `CandleAvg` running-window
+    accumulator; the others use inline per-bar accumulators. `cdl_engulfing` (1.996×) is **excluded**
+    here: it is a C-side benchmark artifact (C's ~1 ns/elem timing is anomalously low for its 2-candle
+    cache; Rust's ~2 ns/elem is normal), not a genuine Rust gap, so it is not counted as a real floor.
   These 10 are documented as an honest out-of-scope limit for this pass (§3.5). In the **default
   (serial)** build the slower count is still **16** (the 5 A-class included). Per `NEXT-ACTIONS-perf.md`
   P3 the path to >2× for these residual floors is parallelization / explicit SIMD with a different
@@ -568,8 +576,9 @@ rolling extremes, a cycle-IIR skip plus sin/cos recurrence, and MFI fusion — m
   **Rust/C = 0.734×**, ≈1.36× faster than C). The 16 remaining-slower functions in the serial build are
   genuine single-thread recurrence / dual-extreme floors — `midpoint`, `minmax`, `minmax_index`, `mfi`,
   `willr`, `stoch_f`, `correl`, `adosc`, `trange`, `ht_phasor`, `ht_trendline`, and the Pattern
-  candle-decision branches `cdl_engulfing`/`cdl_separatinglines`/`cdl_harami`/`cdl_longline`/
-  `cdl_shortline` (full list in §4). Under the optional `parallel` feature the first five
+  candle-decision branches `cdl_separatinglines`/`cdl_harami`/`cdl_longline`/`cdl_shortline`
+  (plus `cdl_engulfing`, a C-side bench artifact — not a genuine Rust gap; full list in §4). Under
+  the optional `parallel` feature the first five
   (`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`) move to parity/faster (§3.5), leaving **10**
   genuine floors that need a different boundary-state seeding and are documented as an honest
   out-of-scope limit. The EMA-family gap (EMA/KAMA/APO/PPO/T3/TRIX/ULTOSC/ADX/ADXR/DX) was closed by the

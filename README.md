@@ -423,20 +423,20 @@ depend on them externally.
 
 ## Interactive Demo
 
-`src/main.rs` is a command-line demo entry point that runs a built-in example by indicator
+`examples/demo.rs` is a command-line demo entry point that runs a built-in example by indicator
 name — **no code required**:
 
 ```bash
-cargo run -- sma
-cargo run -- rsi
-cargo run -- macd
-cargo run -- bbands
-cargo run -- atr
-cargo run -- adx
-cargo run -- mama
+cargo run --example demo -- sma
+cargo run --example demo -- rsi
+cargo run --example demo -- macd
+cargo run --example demo -- bbands
+cargo run --example demo -- atr
+cargo run --example demo -- adx
+cargo run --example demo -- mama
 ```
 
-All supported indicators (run directly with `cargo run -- <name>`, grouped by category):
+All supported indicators (run directly with `cargo run --example demo -- <name>`, grouped by category):
 
 ```
 Overlap:            sma ema wma dema tema midpoint midprice bbands trima t3 ma mavp kama sar sarext accbands
@@ -521,7 +521,10 @@ slower) to among the fastest (0.677×) after the 0.1.3 inline-accumulator rollou
 candlestick functions. The **16** remaining slower functions are isolated, genuine single-thread
 recurrence / dual-extreme floors: `midpoint`, `minmax`, `minmax_index`, `mfi`, `willr`, `stoch_f`,
 `correl`, `adosc`, `trange`, `ht_phasor`, `ht_trendline`, plus the Pattern candle-decision branches
-`cdl_engulfing`/`cdl_separatinglines`/`cdl_harami`/`cdl_longline`/`cdl_shortline`. The EMA-family gap
+`cdl_separatinglines`/`cdl_harami`/`cdl_longline`/`cdl_shortline`. (`cdl_engulfing` also benches
+slower at ~2×, but that ratio is a **C-side benchmark artifact** — C's ~1 ns/elem timing is
+implausibly low for its 2-candle cache loop while Rust's ~2 ns/elem is normal; it is not a genuine
+Rust gap. See `docs/validation-and-performance-report.md` §5.) The EMA-family gap
 (EMA/KAMA/APO/PPO/T3/TRIX/ULTOSC/ADX/ADXR/DX) was closed by the P3-6 FMA-contraction pass (see the
 optimizations table). The full per-indicator table — all 161, with Rust/C ratio, status and a live
 TA-Lib parity checksum — is in
@@ -595,8 +598,10 @@ cargo bench --bench all161_bench --features bench-c,parallel   # parallel overla
   data-dependent monotonic structure costing ~2× C's single MINMAX scan; `minmax`/`minmax_index`
   (~1.52×/1.43×) carry the same dual-deque cost. The strict-recurrence `ht_phasor`/`ht_trendline`
   (~1.24×/1.27×), sliding-window `mfi`/`willr`/`stoch_f`/`adosc`/`correl` (~1.23–1.55×), `trange`
-  (1.22×), and the Pattern candle-decision branches `cdl_engulfing`/`cdl_separatinglines`/`cdl_harami`/
-  `cdl_longline`/`cdl_shortline` (~1.30–2.00×) complete the set (full list in §4 of the performance
+  (1.22×), and the Pattern candle-decision branches `cdl_separatinglines`/`cdl_harami`/`cdl_longline`/
+  `cdl_shortline` (~1.30–1.75×). `cdl_engulfing` (~2.00×) also appears slower, but that is a **C-side
+  benchmark artifact** (C's timing is anomalously low for its 2-candle cache), not a genuine Rust gap
+  (full list in §4 of the performance
   report). The previously-slow EMA family (`ema`/`kama`/`apo`/`ppo`/`t3`/`trix`/`ultosc`/`adx`/
   `adxr`/`dx`) was closed to At parity / Faster by the P3-6 FMA-contraction pass. The planned P3 SIMD
   pass is a documented **NO-GO** for the recurrence floors ([ADR 0010](docs/adr/0010-performance-strategy.md))

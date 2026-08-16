@@ -398,19 +398,19 @@ match sma(&[1.0, 2.0], 0) {
 
 ## 交互式示例 / Interactive Demo
 
-`src/main.rs` 是一个命令行演示入口，按指标名运行内置示例，**无需编写代码**：
+`examples/demo.rs` 是一个命令行演示入口，按指标名运行内置示例，**无需编写代码**：
 
 ```bash
-cargo run -- sma
-cargo run -- rsi
-cargo run -- macd
-cargo run -- bbands
-cargo run -- atr
-cargo run -- adx
-cargo run -- mama
+cargo run --example demo -- sma
+cargo run --example demo -- rsi
+cargo run --example demo -- macd
+cargo run --example demo -- bbands
+cargo run --example demo -- atr
+cargo run --example demo -- adx
+cargo run --example demo -- mama
 ```
 
-支持的全部指标（可直接 `cargo run -- <名称>`，按类别排列）：
+支持的全部指标（可直接 `cargo run --example demo -- <名称>`，按类别排列）：
 
 ```
 重叠研究 / Overlap:    sma ema wma dema tema midpoint midprice bbands trima t3 ma mavp kama sar sarext accbands
@@ -454,7 +454,7 @@ cargo test --doc           # 仅运行文档示例
 
 全部 **161 / 161** 个指标均与原生 TA-Lib C 0.7.1 逐项对照基准（双轨，见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)；C 侧在 `--features bench-c` 下 FFI 链接系统 TA-Lib C）。环境：Apple Silicon aarch64，每个指标 **N = 100,000** 个元素；`ns/elem = elapsed / ITERS / N`；`Rust/C = Rust_ns/elem ÷ C_ns/elem`。最终数值取 **5 次运行的中位数**以抑制逐指标噪声（约 20–40%）。判定：比值 < 0.8 → 更快，0.8–1.2 → 持平，> 1.2 → 更慢。
 
-**总览：** 相比原生 C，**85 个更快**、**60 个持平**、**16 个更慢**；几何均值 **Rust/C = 0.786×**（adaq-talib 平均约为 C 的 **1.27× 快**；在 0.1.3 优化之前为 1.50× 慢）。其中 **145 / 161 个指标与 C 持平或更优**（Rust/C ≤ 1.2）；仅 16 个仍慢于 C，且均为孤立个案。
+**总览：** 相比原生 C，**85 个更快**、**60 个持平**、**16 个更慢**；几何均值 **Rust/C = 0.786×**（adaq-talib 平均约为 C 的 **1.27× 快**；在 0.1.3 优化之前为 1.50× 慢）。其中 **145 / 161 个指标与 C 持平或更优**（Rust/C ≤ 1.2）；仅 16 个仍慢于 C，且均为孤立个案（其中 `cdl_engulfing` 的 ~2× 属 C 侧基准假象，非真实 Rust 差距，详见性能报告 §5）。
 
 **可选 `parallel` 特性：** `parallel` 特性（默认关闭）对 5 个 A 类窗口函数（`midpoint`、`minmax`、`minmax_index`、`willr`、`stoch_f`）采用重叠播种并行分块，将其移出“更慢”桶。在 `--features parallel` 下，合计变为 **88 更快 / 63 持平 / 10 更慢**（几何均值 **Rust/C = 0.734×**，约为 C 的 1.36× 快）；默认（串行）构建仍为 85/60/16（0.786×）。对其余 156 个函数该特性为 no-op。详见已落地优化表（P3-2b）与 `docs/validation-and-performance-report.md` §3.5。
 
@@ -522,7 +522,7 @@ cargo bench --bench all161_bench --features bench-c,parallel   # 并行重叠播
 ## 已知问题与非推荐特性 / Known Issues & Deprecations
 
 ### 已知问题 / Known issues
-- **16 个指标仍慢于原生 TA-Lib C** —— 全部为真实的单线程递推 / 双极值下限，非正确性缺口。最典型的结构性个案是 `MIDPOINT`（约 1.62×），一种数据依赖的单调结构，代价约为 C 单次 MINMAX 扫描的 2×；`minmax`/`minmax_index`（约 1.52×/1.43×）承担同样的双队列代价。严格递推的 `ht_phasor`/`ht_trendline`（约 1.24×/1.27×）、滑动窗口 `mfi`/`willr`/`stoch_f`/`adosc`/`correl`（约 1.23–1.55×）、`trange`（1.22×），以及形态蜡烛判定分支 `cdl_engulfing`/`cdl_separatinglines`/`cdl_harami`/`cdl_longline`/`cdl_shortline`（约 1.30–2.00×）组成完整名单（完整列表见性能报告 §4）。原本落后的 EMA 家族（`ema`/`kama`/`apo`/`ppo`/`t3`/`trix`/`ultosc`/`adx`/`adxr`/`dx`）已被 P3-6 FMA 收缩阶段补齐至持平 / 更快。规划中的 P3 SIMD 阶段对这些递推下限为已记录的 **NO-GO**（见 [ADR 0010](docs/adr/0010-performance-strategy.md)）—— 单线程微优化已触顶；>2× 的路径是并行化，受 `NEXT-ACTIONS-perf.md` 门槛约束。这是已知且已接受的权衡，**并非缺陷**。
+- **16 个指标仍慢于原生 TA-Lib C** —— 全部为真实的单线程递推 / 双极值下限，非正确性缺口。最典型的结构性个案是 `MIDPOINT`（约 1.62×），一种数据依赖的单调结构，代价约为 C 单次 MINMAX 扫描的 2×；`minmax`/`minmax_index`（约 1.52×/1.43×）承担同样的双队列代价。严格递推的 `ht_phasor`/`ht_trendline`（约 1.24×/1.27×）、滑动窗口 `mfi`/`willr`/`stoch_f`/`adosc`/`correl`（约 1.23–1.55×）、`trange`（1.22×），以及形态蜡烛判定分支 `cdl_separatinglines`/`cdl_harami`/`cdl_longline`/`cdl_shortline`（约 1.30–1.75×）组成完整名单。`cdl_engulfing`（约 2.00×）虽也显示为更慢，但那是 **C 侧基准假象**（其 2-蜡烛缓存的 C 计时异常偏低），并非真实的 Rust 差距（完整列表见性能报告 §4）。原本落后的 EMA 家族（`ema`/`kama`/`apo`/`ppo`/`t3`/`trix`/`ultosc`/`adx`/`adxr`/`dx`）已被 P3-6 FMA 收缩阶段补齐至持平 / 更快。规划中的 P3 SIMD 阶段对这些递推下限为已记录的 **NO-GO**（见 [ADR 0010](docs/adr/0010-performance-strategy.md)）—— 单线程微优化已触顶；>2× 的路径是并行化，受 `NEXT-ACTIONS-perf.md` 门槛约束。这是已知且已接受的权衡，**并非缺陷**。
 - **`linear_reg` / `correl` / `willr` / `stoch` 未接原生 C 对照** —— 其 Rust 侧数值即权威参考。若要接 C 对照需引入 `unsafe` 与系统 TA-Lib C 库，违背零-FFI 设计；因此以 Rust 结果为准。
 - **模式识别仅采用 TA-Lib 默认 candle settings**（见 [ADR 0009](docs/adr/0009-candle-settings-default-only.md)），不暴露配置 API。针对 TA-Lib 0.7.1 **无任何功能性覆盖缺口** —— 全部 61 个蜡烛形态均已实现。
 - **`aroon` / `aroon_osc` 输出顺序** —— adaq-talib 遵循权威 TA-Lib C 0.7.1 的 `outAroonUp` / `outAroonDown` 顺序（即权威黄金向量）。若与 `talib` Python 绑定（0.7.1）交叉核对，需注意该构建 historically 将二者互换；见 [ADR 0003](docs/adr/0003-verification-golden-fixtures.md)。

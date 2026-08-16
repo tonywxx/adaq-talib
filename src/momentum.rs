@@ -73,6 +73,7 @@ pub struct StochF {
 // 简单比率族 / Simple ratio family: MOM, ROC, ROCP, ROCR, ROCR100
 // ---------------------------------------------------------------------------
 
+indicator! {
 /// 动量（Momentum，TA-Lib `TA_MOM`）。
 ///
 /// `MOM[i] = inReal[i] - inReal[i - time_period]`，前导 `time_period` 个为 NaN。
@@ -87,11 +88,10 @@ pub struct StochF {
 /// // MOM[2] = p[2] - p[0] = 4 - 1 = 3
 /// assert!((out[2] - 3.0).abs() < 1e-9);
 /// ```
-pub fn mom(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    mom_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn mom(values: &[f64], time_period: usize) -> Vec<f64> with mom_with_output
+    default mom_default(values: &[f64]) => (MOM_PERIOD)
+/// `mom` 便捷版本，使用 TA-Lib 默认周期 10。/ `mom` with the TA-Lib default period (10).
+    ;
 }
 
 /// 动量，零拷贝写入 `out`（与 `values` 等长）。见 [`mom`]。
@@ -114,10 +114,7 @@ pub fn mom_with_output(
     Ok(())
 }
 
-/// `mom` 便捷版本，使用 TA-Lib 默认周期 10。/ `mom` with the TA-Lib default period (10).
-pub fn mom_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    mom(values, MOM_PERIOD)
-}
+
 
 /// 比率变化族的内核（ROC / ROCP / ROCR / ROCR100 共用）。
 /// Shared core for the rate-of-change family (ROC / ROCP / ROCR / ROCR100).
@@ -173,12 +170,13 @@ fn rate_of_change(values: &[f64], time_period: usize, mode: u8, out: &mut [f64])
     Ok(())
 }
 
+indicator! {
 /// 变动率（Rate of Change，`TA_MOM` 的 `ROC` 变体，TA-Lib `TA_ROC`）。
 /// `ROC[i] = 100 * (inReal[i] - inReal[i-period]) / inReal[i-period]`。
-pub fn roc(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![f64::NAN; values.len()];
-    roc_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn roc(values: &[f64], time_period: usize) -> Vec<f64> with roc_with_output
+    default roc_default(values: &[f64]) => (MOM_PERIOD)
+/// `roc` 便捷版本，默认周期 10。/ `roc` with default period (10).
+    ;
 }
 
 /// 变动率，零拷贝写入 `out`（与 `values` 等长）。见 [`roc`]。
@@ -197,16 +195,14 @@ pub fn roc_with_output(
     rate_of_change(values, time_period, 0, out)
 }
 
-/// `roc` 便捷版本，默认周期 10。/ `roc` with default period (10).
-pub fn roc_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    roc(values, MOM_PERIOD)
-}
 
+
+indicator! {
 /// 变动率（百分比，TA-Lib `TA_ROCP`）。`ROCP[i] = (cur - prev) / prev`。
-pub fn rocp(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![f64::NAN; values.len()];
-    rocp_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn rocp(values: &[f64], time_period: usize) -> Vec<f64> with rocp_with_output
+    default rocp_default(values: &[f64]) => (MOM_PERIOD)
+/// `rocp` 便捷版本，默认周期 10。/ `rocp` with default period (10).
+    ;
 }
 
 /// 变动率（百分比），零拷贝写入 `out`（与 `values` 等长）。见 [`rocp`]。
@@ -225,16 +221,14 @@ pub fn rocp_with_output(
     rate_of_change(values, time_period, 1, out)
 }
 
-/// `rocp` 便捷版本，默认周期 10。/ `rocp` with default period (10).
-pub fn rocp_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    rocp(values, MOM_PERIOD)
-}
 
+
+indicator! {
 /// 变动率（比率，TA-Lib `TA_ROCR`）。`ROCR[i] = cur / prev`。
-pub fn rocr(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![f64::NAN; values.len()];
-    rocr_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn rocr(values: &[f64], time_period: usize) -> Vec<f64> with rocr_with_output
+    default rocr_default(values: &[f64]) => (MOM_PERIOD)
+/// `rocr` 便捷版本，默认周期 10。/ `rocr` with default period (10).
+    ;
 }
 
 /// 变动率（比率），零拷贝写入 `out`（与 `values` 等长）。见 [`rocr`]。
@@ -253,16 +247,14 @@ pub fn rocr_with_output(
     rate_of_change(values, time_period, 2, out)
 }
 
-/// `rocr` 便捷版本，默认周期 10。/ `rocr` with default period (10).
-pub fn rocr_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    rocr(values, MOM_PERIOD)
-}
 
+
+indicator! {
 /// 变动率（比率×100，TA-Lib `TA_ROCR100`）。`ROCR100[i] = 100 * cur / prev`。
-pub fn rocr100(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    let mut out = vec![f64::NAN; values.len()];
-    rocr100_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn rocr100(values: &[f64], time_period: usize) -> Vec<f64> with rocr100_with_output
+    default rocr100_default(values: &[f64]) => (MOM_PERIOD)
+/// `rocr100` 便捷版本，默认周期 10。/ `rocr100` with default period (10).
+    ;
 }
 
 /// 变动率（比率×100），零拷贝写入 `out`（与 `values` 等长）。见 [`rocr100`]。
@@ -281,15 +273,13 @@ pub fn rocr100_with_output(
     rate_of_change(values, time_period, 3, out)
 }
 
-/// `rocr100` 便捷版本，默认周期 10。/ `rocr100` with default period (10).
-pub fn rocr100_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    rocr100(values, MOM_PERIOD)
-}
+
 
 // ---------------------------------------------------------------------------
 // RSI
 // ---------------------------------------------------------------------------
 
+indicator! {
 /// 相对强弱指数（Relative Strength Index，TA-Lib `TA_RSI`）。
 ///
 /// Wilder 平滑：首值 = 前 `period` 个涨跌幅的均值（种子），其后按
@@ -305,11 +295,10 @@ pub fn rocr100_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// RSI   = 100 - 100 / (1 + RS)
 /// ```
 #[allow(clippy::needless_return)]
-pub fn rsi(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    rsi_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn rsi(values: &[f64], time_period: usize) -> Vec<f64> with rsi_with_output
+    default rsi_default(values: &[f64]) => (RSI_PERIOD)
+/// `rsi` 便捷版本，默认周期 14。/ `rsi` with default period (14).
+    ;
 }
 
 /// 相对强弱指数，零拷贝写入 `out`（与 `values` 等长，前导 `period` 为 NaN）。见 [`rsi`]。
@@ -363,10 +352,7 @@ pub fn rsi_with_output(
     Ok(())
 }
 
-/// `rsi` 便捷版本，默认周期 14。/ `rsi` with default period (14).
-pub fn rsi_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    rsi(values, RSI_PERIOD)
-}
+
 
 // ---------------------------------------------------------------------------
 // MACD / MACDFIX / MACDEXT
@@ -599,14 +585,13 @@ pub fn macd_ext_default(values: &[f64]) -> Result<Macd, TaError> {
 // APO / PPO
 // ---------------------------------------------------------------------------
 
+indicator! {
 /// 绝对价格震荡器（Absolute Price Oscillator，TA-Lib `TA_APO`）。
 /// `APO = EMA(fast) - EMA(slow)`，前导 `slow-1` 个为 NaN。
-pub fn apo(values: &[f64], fast_period: usize, slow_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(fast_period)?;
-    check_period(slow_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    apo_with_output(values, fast_period, slow_period, &mut out)?;
-    Ok(out)
+    fn apo(values: &[f64], fast_period: usize, slow_period: usize) -> Vec<f64> with apo_with_output
+    default apo_default(values: &[f64]) => (APO_FAST, APO_SLOW)
+/// `apo` 便捷版本，默认 12 / 26。/ `apo` with defaults 12 / 26.
+    ;
 }
 
 /// 绝对价格震荡器，零拷贝写入 `out`（与 `values` 等长，前导 `slow-1` 为 NaN）。见 [`apo`]。
@@ -640,19 +625,15 @@ pub fn apo_with_output(
     Ok(())
 }
 
-/// `apo` 便捷版本，默认 12 / 26。/ `apo` with defaults 12 / 26.
-pub fn apo_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    apo(values, APO_FAST, APO_SLOW)
-}
 
+
+indicator! {
 /// 百分比价格震荡器（Percentage Price Oscillator，TA-Lib `TA_PPO`）。
 /// `PPO = 100 * (EMA(fast) - EMA(slow)) / EMA(slow)`。
-pub fn ppo(values: &[f64], fast_period: usize, slow_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(fast_period)?;
-    check_period(slow_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    ppo_with_output(values, fast_period, slow_period, &mut out)?;
-    Ok(out)
+    fn ppo(values: &[f64], fast_period: usize, slow_period: usize) -> Vec<f64> with ppo_with_output
+    default ppo_default(values: &[f64]) => (APO_FAST, APO_SLOW)
+/// `ppo` 便捷版本，默认 12 / 26。/ `ppo` with defaults 12 / 26.
+    ;
 }
 
 /// 百分比价格震荡器，零拷贝写入 `out`（与 `values` 等长，前导 `slow-1` 为 NaN）。见 [`ppo`]。
@@ -686,15 +667,13 @@ pub fn ppo_with_output(
     Ok(())
 }
 
-/// `ppo` 便捷版本，默认 12 / 26。/ `ppo` with defaults 12 / 26.
-pub fn ppo_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    ppo(values, APO_FAST, APO_SLOW)
-}
+
 
 // ---------------------------------------------------------------------------
 // CMO / CCI
 // ---------------------------------------------------------------------------
 
+indicator! {
 /// Chande 动量震荡器（Chande Momentum Oscillator，TA-Lib `TA_CMO`）。
 ///
 /// TA-Lib 算法（非朴素滚动和）：先用前 `period` 个涨跌幅做种子（增益/损失各自取均值），
@@ -706,11 +685,10 @@ pub fn ppo_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
 /// each averaged), then Wilder recursion `prev = (prev*(period-1) + x)/period` — but a gain bar
 /// raises the gain accumulator *and lowers* the loss accumulator (and vice versa).
 /// `CMO = 100*(gain-loss)/(gain+loss)`. The leading `period` positions are [`f64::NAN`].
-pub fn cmo(values: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    let mut out = vec![f64::NAN; values.len()];
-    cmo_with_output(values, time_period, &mut out)?;
-    Ok(out)
+    fn cmo(values: &[f64], time_period: usize) -> Vec<f64> with cmo_with_output
+    default cmo_default(values: &[f64]) => (CMO_PERIOD)
+/// `cmo` 便捷版本，默认周期 14。/ `cmo` with default period (14).
+    ;
 }
 
 /// Chande 动量震荡器，零拷贝写入 `out`（与 `values` 等长，前导 `period` 为 NaN）。见 [`cmo`]。
@@ -782,10 +760,7 @@ pub fn cmo_with_output(
     Ok(())
 }
 
-/// `cmo` 便捷版本，默认周期 14。/ `cmo` with default period (14).
-pub fn cmo_default(values: &[f64]) -> Result<Vec<f64>, TaError> {
-    cmo(values, CMO_PERIOD)
-}
+
 
 indicator! {
     /// 商品通道指数（Commodity Channel Index，TA-Lib `TA_CCI`）。
@@ -1936,14 +1911,13 @@ pub fn aroon_default(high: &[f64], low: &[f64]) -> Result<Aroon, TaError> {
     aroon(high, low, AROON_PERIOD)
 }
 
+indicator! {
 /// 阿隆震荡器（TA-Lib `TA_AROONOSC`）。基准构建中 `AROONOSC = 返回的上轨 - 返回的下轨`
 /// （由于 `aroon` 的 up/down 已按基准构建互换，故本值等于真实 `down - up`，与黄金向量一致）。
-pub fn aroon_osc(high: &[f64], low: &[f64], time_period: usize) -> Result<Vec<f64>, TaError> {
-    check_period(time_period)?;
-    check_eq_len(&[high, low], "aroon_osc")?;
-    let mut out = vec![f64::NAN; high.len()];
-    aroon_osc_with_output(high, low, time_period, &mut out)?;
-    Ok(out)
+    fn aroon_osc(high: &[f64], low: &[f64], time_period: usize) -> Vec<f64> with aroon_osc_with_output
+    default aroon_osc_default(high: &[f64], low: &[f64]) => (AROON_PERIOD)
+/// `aroon_osc` 便捷版本，默认周期 14。/ `aroon_osc` with default period (14).
+    ;
 }
 
 /// 阿隆震荡器，零拷贝写入 `out`（与 `high` 等长）。见 [`aroon_osc`]。
@@ -1980,11 +1954,6 @@ pub fn aroon_osc_with_output(
         };
     }
     Ok(())
-}
-
-/// `aroon_osc` 便捷版本，默认周期 14。/ `aroon_osc` with default period (14).
-pub fn aroon_osc_default(high: &[f64], low: &[f64]) -> Result<Vec<f64>, TaError> {
-    aroon_osc(high, low, AROON_PERIOD)
 }
 
 // ---------------------------------------------------------------------------
