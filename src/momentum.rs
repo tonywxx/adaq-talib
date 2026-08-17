@@ -15,7 +15,9 @@ use crate::core::defaults::{
     STOCH_SLOW_K, STOCHRSI_PERIOD, STOCHRSI_RSI_PERIOD, TRIX_PERIOD, ULTOSC_PERIOD1,
     ULTOSC_PERIOD2, ULTOSC_PERIOD3,
 };
-use crate::core::{check_eq_len, ema, rolling_mean, rolling_mean_skip};
+use crate::core::{
+    check_eq_len, ema, rolling_mean, rolling_mean_skip, wilder_step, wilder_step_sum,
+};
 use crate::error::{check_period, TaError};
 use crate::indicator::indicator;
 
@@ -321,6 +323,7 @@ pub fn rsi_with_output(
         return Ok(());
     }
     let p = time_period as f64;
+    let k = 1.0 / p; // Wilder 均值递推常数 / Wilder mean smoothing constant
     // 种子：前 `period` 个涨跌幅（bars 1..period）。
     // Seed over the first `period` deltas (bars 1..period).
     let mut gain = 0.0;
@@ -341,8 +344,8 @@ pub fn rsi_with_output(
         let d = values[i] - values[i - 1];
         let g = if d >= 0.0 { d } else { 0.0 };
         let l = if d >= 0.0 { 0.0 } else { -d };
-        gain = (gain * (p - 1.0) + g) / p;
-        loss = (loss * (p - 1.0) + l) / p;
+        gain = wilder_step(gain, g, k);
+        loss = wilder_step(loss, l, k);
         out[i] = if loss == 0.0 {
             100.0
         } else {
@@ -728,6 +731,7 @@ pub fn cmo_with_output(
     }
     prev_gain /= p;
     prev_loss /= p;
+    let k = 1.0 / p; // Wilder 均值递推常数 / Wilder mean smoothing constant
     // 首个有效值（索引 `period`）直接由种子得出，无需新涨跌幅。
     // First valid value (index `period`) from the seed alone.
     let denom0 = prev_gain + prev_loss;
@@ -741,15 +745,10 @@ pub fn cmo_with_output(
         let tv = values[t];
         let delta = tv - prev_value;
         prev_value = tv;
-        prev_loss *= p - 1.0;
-        prev_gain *= p - 1.0;
-        if delta < 0.0 {
-            prev_loss -= delta;
-        } else {
-            prev_gain += delta;
-        }
-        prev_loss /= p;
-        prev_gain /= p;
+        let new_gain = if delta < 0.0 { 0.0 } else { delta };
+        let new_loss = if delta < 0.0 { -delta } else { 0.0 };
+        prev_gain = wilder_step(prev_gain, new_gain, k);
+        prev_loss = wilder_step(prev_loss, new_loss, k);
         let denom = prev_gain + prev_loss;
         out[t] = if denom == 0.0 {
             0.0
@@ -1295,13 +1294,18 @@ fn dm_tr(
         let tl = low[today];
         let diff_m = prev_low - tl;
         prev_low = tl;
-        prev_minus_dm -= prev_minus_dm / p;
-        prev_plus_dm -= prev_plus_dm / p;
-        if diff_m > 0.0 && diff_p < diff_m {
-            prev_minus_dm += diff_m;
-        } else if diff_p > 0.0 && diff_p > diff_m {
-            prev_plus_dm += diff_p;
-        }
+        let pdm_add = if diff_m > 0.0 && diff_p < diff_m {
+            diff_m
+        } else {
+            0.0
+        };
+        let pdm_p = if diff_p > 0.0 && diff_p > diff_m {
+            diff_p
+        } else {
+            0.0
+        };
+        prev_minus_dm = wilder_step_sum(prev_minus_dm, pdm_add, 1.0 / p);
+        prev_plus_dm = wilder_step_sum(prev_plus_dm, pdm_p, 1.0 / p);
         let mut range = prev_high - prev_low;
         let mut tmp = (prev_high - prev_close).abs();
         if tmp > range {
@@ -1311,7 +1315,7 @@ fn dm_tr(
         if tmp > range {
             range = tmp;
         }
-        prev_tr = prev_tr - prev_tr / p + range;
+        prev_tr = wilder_step_sum(prev_tr, range, 1.0 / p);
         prev_close = close[today];
         pdm[today] = prev_plus_dm;
         mdm[today] = prev_minus_dm;
@@ -1414,13 +1418,18 @@ fn adx_adxr_fused(
         let tl = low[today];
         let diff_m = prev_low - tl;
         prev_low = tl;
-        prev_minus_dm -= prev_minus_dm / p;
-        prev_plus_dm -= prev_plus_dm / p;
-        if diff_m > 0.0 && diff_p < diff_m {
-            prev_minus_dm += diff_m;
-        } else if diff_p > 0.0 && diff_p > diff_m {
-            prev_plus_dm += diff_p;
-        }
+        let pdm_add = if diff_m > 0.0 && diff_p < diff_m {
+            diff_m
+        } else {
+            0.0
+        };
+        let pdm_p = if diff_p > 0.0 && diff_p > diff_m {
+            diff_p
+        } else {
+            0.0
+        };
+        prev_minus_dm = wilder_step_sum(prev_minus_dm, pdm_add, 1.0 / p);
+        prev_plus_dm = wilder_step_sum(prev_plus_dm, pdm_p, 1.0 / p);
         let mut range = prev_high - prev_low;
         let mut tmp = (prev_high - prev_close).abs();
         if tmp > range {
@@ -1430,7 +1439,7 @@ fn adx_adxr_fused(
         if tmp > range {
             range = tmp;
         }
-        prev_tr = prev_tr - prev_tr / p + range;
+        prev_tr = wilder_step_sum(prev_tr, range, 1.0 / p);
         prev_close = close[today];
         // +DI / -DI（与 [`di_from_dm_tr`] 一致）。+DI / -DI (matches `di_from_dm_tr`).
         let (pdi, mdi) = if prev_tr == 0.0 {
@@ -1460,7 +1469,7 @@ fn adx_adxr_fused(
                 seeded_adx = true;
             }
         } else {
-            prev_adx = (prev_adx * (p - 1.0) + dx) / p;
+            prev_adx = wilder_step(prev_adx, dx, 1.0 / p);
             adx[today] = prev_adx;
             adx_ring.push_back(prev_adx);
             if adx_ring.len() > period {
@@ -1543,13 +1552,18 @@ fn dx_from_candles(
         let tl = low[today];
         let diff_m = prev_low - tl;
         prev_low = tl;
-        prev_minus_dm -= prev_minus_dm / p;
-        prev_plus_dm -= prev_plus_dm / p;
-        if diff_m > 0.0 && diff_p < diff_m {
-            prev_minus_dm += diff_m;
-        } else if diff_p > 0.0 && diff_p > diff_m {
-            prev_plus_dm += diff_p;
-        }
+        let pdm_add = if diff_m > 0.0 && diff_p < diff_m {
+            diff_m
+        } else {
+            0.0
+        };
+        let pdm_p = if diff_p > 0.0 && diff_p > diff_m {
+            diff_p
+        } else {
+            0.0
+        };
+        prev_minus_dm = wilder_step_sum(prev_minus_dm, pdm_add, 1.0 / p);
+        prev_plus_dm = wilder_step_sum(prev_plus_dm, pdm_p, 1.0 / p);
         let mut range = prev_high - prev_low;
         let mut tmp = (prev_high - prev_close).abs();
         if tmp > range {
@@ -1559,7 +1573,7 @@ fn dx_from_candles(
         if tmp > range {
             range = tmp;
         }
-        prev_tr = prev_tr - prev_tr / p + range;
+        prev_tr = wilder_step_sum(prev_tr, range, 1.0 / p);
         prev_close = close[today];
         // +DI / -DI（与 [`di_from_dm_tr`] 一致）。+DI / -DI (matches `di_from_dm_tr`).
         let (pdi, mdi) = if prev_tr == 0.0 {

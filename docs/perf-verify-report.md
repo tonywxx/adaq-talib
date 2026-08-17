@@ -84,6 +84,7 @@
 | T03 | CORREL | O(n) 滑动 s0/s1+s00/s11/s01 | O(n·period) 朴素 | **4.81** [Yan] | 4.61 [Kou] | 渐近 ~20× |
 | T04 | WILLR | 单调队列 rolling_max/min (O(n)) | O(n·period) 朴素 | **7.90** [Yan] | 7.83 [Kou] | 渐近 ~20× |
 | T04 | STOCH/STOCHF | 复用 stoch_fastk 极值队列 (O(n)) | O(n·period) 朴素 | **10.99** [Yan] | 10.71 [Kou] | 渐近 ~20× |
+| T05 | RSI / CMO / +DI / −DI / DX / ADX / ADXR (Wilder 递推) | 收口到 `core::ema::wilder_step` / `wilder_step_sum`（预计算 `k = 1/period` 替代热循环内每步 `/p` 除法；均值形与求和形分别保留） | rsi 5.40 / cmo 6.06 / ±di 7.1 / dx 6.74 / adx 6.95 / adxr 6.87 ns/elem | **rsi 3.13 / cmo 3.28 / ±di 4.0 / dx 4.89 / adx 5.87 / adxr 6.05** [Yan] | —（未测 native） | −12% ~ −46% |
 
 **注**: LINREG/CORREL/WILLR/STOCH 的 "before" 为原 O(n·period) 朴素窗口扫描；bare HEAD 不可独立编译（依赖未提交前序改动），故无严格 before ns/elem，按 ADR 0010 以**渐近 O(n·period)→O(n)** 报告（理论降幅 ≈ period=20，实测因新核常数略低）。我的 canonical 实测 after 与工程师 native 实测高度一致（差异 <5%，符合点测 ±5% 波动）。
 

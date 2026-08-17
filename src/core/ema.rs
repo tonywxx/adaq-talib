@@ -195,25 +195,63 @@ pub fn nested_ema_with_output<const L: usize, F>(
 ///
 /// # Panics
 /// 调用方须保证 `period >= 1`。/ Caller must ensure `period >= 1`.
-#[inline]
-pub fn ema_wilder(values: &[f64], period: usize) -> Vec<f64> {
+/// Wilder 均值递推（平滑**均值**）：`prev + (x − prev) * k`，`k = 1/period`，
+/// 等价 `(prev*(period-1) + x)/period`，稳态 = 均值。用于 RSI / CMO / ATR(NATR) 的 EMA 类平滑。
+///
+/// Wilder *mean* step `prev + (x − prev) * k` (k = 1/period), equal to
+/// `(prev*(period-1) + x)/period`; steady state = the mean. Used by RSI / CMO / ATR-family.
+#[inline(always)]
+pub fn wilder_step(prev: f64, x: f64, k: f64) -> f64 {
+    prev + (x - prev) * k
+}
+
+/// Wilder 求和递推（平滑**累加和**，省去种子与比值的 `/period`）：`prev*(1 − k) + x`，
+/// `k = 1/period`，等价于 `prev − prev/period + x`，稳态 = `period·均值`。
+/// ADX 族的 ±DM/TR 用此形式：因 `+DI/−DI` 取比值，`period` 因子相消，数值与均值递推的 DI 一致
+/// （见 `ta_CDL…` / TA-Lib directional movement），但热循环少一次 `/period`。
+///
+/// Wilder *sum* step `prev*(1 − k) + x` (k = 1/period), equal to `prev − prev/period + x`;
+/// steady state = `period·mean`. The ADX family smoothes ±DM/TR this way so the `period`
+/// factor cancels in the ±DI ratio (identical to a mean step there) while avoiding a `/period`
+/// in the hot loop and seed.
+#[inline(always)]
+pub fn wilder_step_sum(prev: f64, x: f64, k: f64) -> f64 {
+    prev * (1.0 - k) + x
+}
+
+/// Wilder 平滑（SMMA）原地写入 `out`，与 [`ema_wilder`] 数值逐项相等（均值递推）。
+/// 前导不稳定期为 [`f64::NAN`]。零拷贝变体（`ema`/`ema_with_output` 关系）。
+///
+/// Wilder (SMMA) smoothing written zero-copy into `out`; bit-for-bit equal to [`ema_wilder`]
+/// (mean step). The leading unstable region is [`f64::NAN`].
+pub fn wilder_with_output(values: &[f64], period: usize, out: &mut [f64]) {
     debug_assert!(period >= 1);
+    debug_assert_eq!(out.len(), values.len());
     let n = values.len();
-    let mut out = vec![f64::NAN; n];
+    for v in out.iter_mut() {
+        *v = f64::NAN;
+    }
     let start = match values.iter().position(|&x| !x.is_nan()) {
         Some(s) => s,
-        None => return out,
+        None => return,
     };
     if n - start < period {
-        return out;
+        return;
     }
     let seed: f64 = values[start..start + period].iter().copied().sum::<f64>() / period as f64;
     out[start + period - 1] = seed;
     let k = 1.0 / period as f64;
     let mut prev = seed;
     for i in (start + period)..n {
-        prev = prev + (values[i] - prev) * k;
+        prev = wilder_step(prev, values[i], k);
         out[i] = prev;
     }
+}
+
+#[inline]
+pub fn ema_wilder(values: &[f64], period: usize) -> Vec<f64> {
+    debug_assert!(period >= 1);
+    let mut out = vec![f64::NAN; values.len()];
+    wilder_with_output(values, period, &mut out);
     out
 }

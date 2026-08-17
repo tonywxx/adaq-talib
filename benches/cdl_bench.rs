@@ -9,6 +9,9 @@ use std::time::Instant;
 
 const N: usize = 100_000;
 const BUDGET_NS: u128 = 400_000_000;
+/// 多次测量取中位数，避免单点 `Instant` 的 ±10% 噪声（ADR 0010/0011 度量前置协议）。
+/// Multiple rounds + median per function, so a single noisy `Instant` cannot fake a regression.
+const ROUNDS: usize = 9;
 
 type CdlFn = fn(&[f64], &[f64], &[f64], &[f64], &mut [f64]) -> Result<(), TaError>;
 
@@ -33,15 +36,20 @@ fn make_inputs() -> (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>) {
 fn bench_one(_name: &str, f: CdlFn, o: &[f64], h: &[f64], l: &[f64], c: &[f64]) -> f64 {
     let mut out = vec![0.0f64; N];
     f(o, h, l, c, &mut out).unwrap();
-    let t0 = Instant::now();
-    for _ in 0..3 { let _ = f(o, h, l, c, &mut out).unwrap(); }
-    let per = t0.elapsed().as_nanos().max(1);
-    let iters = ((BUDGET_NS / per) as usize).clamp(10, 400);
-    let start = Instant::now();
-    let mut ack = 0.0f64;
-    for _ in 0..iters { let _ = f(o, h, l, c, &mut out).unwrap(); ack += out[N - 1]; }
-    let _ = ack;
-    start.elapsed().as_nanos() as f64 / (iters as f64 * N as f64)
+    let mut samples = Vec::with_capacity(ROUNDS);
+    for _ in 0..ROUNDS {
+        let t0 = Instant::now();
+        for _ in 0..3 { let _ = f(o, h, l, c, &mut out).unwrap(); }
+        let per = t0.elapsed().as_nanos().max(1);
+        let iters = ((BUDGET_NS / per) as usize).clamp(10, 400);
+        let start = Instant::now();
+        let mut ack = 0.0f64;
+        for _ in 0..iters { let _ = f(o, h, l, c, &mut out).unwrap(); ack += out[N - 1]; }
+        let _ = ack;
+        samples.push(start.elapsed().as_nanos() as f64 / (iters as f64 * N as f64));
+    }
+    samples.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    samples[ROUNDS / 2]
 }
 
 fn main() {

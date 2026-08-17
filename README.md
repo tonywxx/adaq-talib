@@ -22,7 +22,7 @@
 - [Documentation](#documentation)
 - [License](#license)
 - [Roadmap](#roadmap)
-- [Changelog](#changelog)
+- [Changelog](changelog.md)
 
 ---
 
@@ -53,19 +53,19 @@
 [Verification & Benchmarks](#verification--benchmarks)). The tables below list every public
 function, its TA-Lib counterpart, default parameters, and return shape.
 
-| Category | Module | Count | TA-Lib group |
-| --- | --- | ---: | --- |
-| Overlap Studies | `overlap` | 18 | Overlap Studies |
-| Momentum Indicators | `momentum` | 31 | Momentum Indicators |
-| Volatility Indicators | `volatility` | 3 | Volatility Indicators |
-| Volume Indicators | `volume` | 3 | Volume Indicators |
-| Price Transform | `price_transform` | 5 | Price Transform |
-| Statistic Functions | `stat` | 9 | Statistic Functions |
-| Cycle (Hilbert Transform) | `cycle` | 7\* | Cycle Indicators (5) + Overlap (2)† |
-| Math Operators | `math_ops` | 11 | Math Operators |
-| Math Transform | `math_trans` | 15 | Math Transform |
-| Pattern Recognition | `pattern` | 61 | Pattern Recognition |
-| **Total** | | **161** | **161** |
+| Category                  | Module            |   Count | TA-Lib group                        |
+| ------------------------- | ----------------- | ------: | ----------------------------------- |
+| Overlap Studies           | `overlap`         |      18 | Overlap Studies                     |
+| Momentum Indicators       | `momentum`        |      31 | Momentum Indicators                 |
+| Volatility Indicators     | `volatility`      |       3 | Volatility Indicators               |
+| Volume Indicators         | `volume`          |       3 | Volume Indicators                   |
+| Price Transform           | `price_transform` |       5 | Price Transform                     |
+| Statistic Functions       | `stat`            |       9 | Statistic Functions                 |
+| Cycle (Hilbert Transform) | `cycle`           |     7\* | Cycle Indicators (5) + Overlap (2)† |
+| Math Operators            | `math_ops`        |      11 | Math Operators                      |
+| Math Transform            | `math_trans`      |      15 | Math Transform                      |
+| Pattern Recognition       | `pattern`         |      61 | Pattern Recognition                 |
+| **Total**                 |                   | **161** | **161**                             |
 
 \* The `cycle` module holds 7 functions; TA-Lib classifies 5 as *Cycle Indicators*
 (`HT_DCPERIOD`/`HT_DCPHASE`/`HT_PHASOR`/`HT_SINE`/`HT_TRENDMODE`) and 2 as *Overlap Studies*
@@ -77,113 +77,113 @@ function, its TA-Lib counterpart, default parameters, and return shape.
 
 ### Overlap Studies — `adaq_talib::overlap`
 
-| Function | TA-Lib | Defaults | Returns |
-| --- | --- | --- | --- |
-| `sma` / `sma_default` | `TA_SMA` | period = 30 | `Vec<f64>` |
-| `ema` / `ema_default` | `TA_EMA` | period = 30 | `Vec<f64>` |
-| `wma` / `wma_default` | `TA_WMA` | period = 30 | `Vec<f64>` |
-| `dema` / `dema_default` | `TA_DEMA` | period = 30 | `Vec<f64>` |
-| `tema` / `tema_default` | `TA_TEMA` | period = 30 | `Vec<f64>` |
-| `midpoint` / `midpoint_default` | `TA_MIDPOINT` | period = 30 | `Vec<f64>` |
-| `midprice` / `midprice_default` | `TA_MIDPRICE` | period = 30 | `Vec<f64>` |
-| `bbands` / `bbands_default` | `TA_BBANDS` | period = 20, nb_dev = 2.0/2.0, SMA middle | `Bbands { upper, middle, lower }` |
-| `trima` / `trima_default` | `TA_TRIMA` | period = 30 | `Vec<f64>` |
-| `t3` / `t3_default` | `TA_T3` | period = 5, vfactor = 0.7 | `Vec<f64>` |
-| `ma` / `ma_default` | `TA_MA` | period = 30, `MaType::Sma` | `Vec<f64>` (dispatched by `MaType`) |
-| `mavp` / `mavp_default` | `TA_MAVP` | min = 2 / max = 30, SMA | `Vec<f64>` (variable period) |
-| `kama` / `kama_default` | `TA_KAMA` | period = 30 | `Vec<f64>` |
-| `sar` / `sar_default` | `TA_SAR` | accel = 0.02, max = 0.2 | `Vec<f64>` |
-| `sarext` / `sarext_default` | `TA_SAREXT` | long/short accel 0.02/0.02/0.2 | `Vec<f64>` (short side negative) |
-| `accbands` / `accbands_default` | `TA_ACCBANDS` | period = 20 | `AccBands { upper, middle, lower }` |
-| `MaType` | `TA_MAType` | `Sma/Ema/Wma/Dema/Tema/Trima/Kama/Mama` | enum (for `ma`/`bbands`/`mavp`) |
+| Function                        | TA-Lib        | Defaults                                  | Returns                             |
+| ------------------------------- | ------------- | ----------------------------------------- | ----------------------------------- |
+| `sma` / `sma_default`           | `TA_SMA`      | period = 30                               | `Vec<f64>`                          |
+| `ema` / `ema_default`           | `TA_EMA`      | period = 30                               | `Vec<f64>`                          |
+| `wma` / `wma_default`           | `TA_WMA`      | period = 30                               | `Vec<f64>`                          |
+| `dema` / `dema_default`         | `TA_DEMA`     | period = 30                               | `Vec<f64>`                          |
+| `tema` / `tema_default`         | `TA_TEMA`     | period = 30                               | `Vec<f64>`                          |
+| `midpoint` / `midpoint_default` | `TA_MIDPOINT` | period = 30                               | `Vec<f64>`                          |
+| `midprice` / `midprice_default` | `TA_MIDPRICE` | period = 30                               | `Vec<f64>`                          |
+| `bbands` / `bbands_default`     | `TA_BBANDS`   | period = 20, nb_dev = 2.0/2.0, SMA middle | `Bbands { upper, middle, lower }`   |
+| `trima` / `trima_default`       | `TA_TRIMA`    | period = 30                               | `Vec<f64>`                          |
+| `t3` / `t3_default`             | `TA_T3`       | period = 5, vfactor = 0.7                 | `Vec<f64>`                          |
+| `ma` / `ma_default`             | `TA_MA`       | period = 30, `MaType::Sma`                | `Vec<f64>` (dispatched by `MaType`) |
+| `mavp` / `mavp_default`         | `TA_MAVP`     | min = 2 / max = 30, SMA                   | `Vec<f64>` (variable period)        |
+| `kama` / `kama_default`         | `TA_KAMA`     | period = 30                               | `Vec<f64>`                          |
+| `sar` / `sar_default`           | `TA_SAR`      | accel = 0.02, max = 0.2                   | `Vec<f64>`                          |
+| `sarext` / `sarext_default`     | `TA_SAREXT`   | long/short accel 0.02/0.02/0.2            | `Vec<f64>` (short side negative)    |
+| `accbands` / `accbands_default` | `TA_ACCBANDS` | period = 20                               | `AccBands { upper, middle, lower }` |
+| `MaType`                        | `TA_MAType`   | `Sma/Ema/Wma/Dema/Tema/Trima/Kama/Mama`   | enum (for `ma`/`bbands`/`mavp`)     |
 
 ### Momentum Indicators — `adaq_talib::momentum`
 
-| Function | TA-Lib | Defaults | Returns |
-| --- | --- | --- | --- |
-| `mom` / `mom_default` | `TA_MOM` | period = 10 | `Vec<f64>` |
-| `roc` / `roc_default` | `TA_ROC` | period = 10 | `Vec<f64>` |
-| `rocp` / `rocp_default` | `TA_ROCP` | period = 10 | `Vec<f64>` |
-| `rocr` / `rocr_default` | `TA_ROCR` | period = 10 | `Vec<f64>` |
-| `rocr100` / `rocr100_default` | `TA_ROCR100` | period = 10 | `Vec<f64>` |
-| `rsi` / `rsi_default` | `TA_RSI` | period = 14 | `Vec<f64>` |
-| `macd` / `macd_default` | `TA_MACD` | fast = 12, slow = 26, signal = 9 | `Macd { macd, signal, hist }` |
-| `macd_fix` / `macd_fix_default` | `TA_MACDFIX` | fast = 12, slow = 26, signal = 9 | `Macd` |
-| `macd_ext` / `macd_ext_default` | `TA_MACDEXT` | fast = 12, slow = 26, signal = 9 | `Macd` (all-EMA default) |
-| `apo` / `apo_default` | `TA_APO` | fast = 12, slow = 26 | `Vec<f64>` |
-| `ppo` / `ppo_default` | `TA_PPO` | fast = 12, slow = 26 | `Vec<f64>` |
-| `cmo` / `cmo_default` | `TA_CMO` | period = 14 | `Vec<f64>` |
-| `imi` / `imi_default` | `TA_IMI` | period = 14 | `Vec<f64>` (open/close) |
-| `cci` / `cci_default` | `TA_CCI` | period = 20 | `Vec<f64>` |
-| `mfi` / `mfi_default` | `TA_MFI` | period = 14 | `Vec<f64>` (needs volume) |
-| `willr` / `willr_default` | `TA_WILLR` | period = 14 | `Vec<f64>` |
-| `bop` | `TA_BOP` | — | `Vec<f64>` (lookback 0) |
-| `ultosc` / `ultosc_default` | `TA_ULTOSC` | 7 / 14 / 28 | `Vec<f64>` |
-| `plus_dm` / `plus_dm_default` | `TA_PLUS_DM` | period = 14 | `Vec<f64>` |
-| `minus_dm` / `minus_dm_default` | `TA_MINUS_DM` | period = 14 | `Vec<f64>` |
-| `plus_di` / `plus_di_default` | `TA_PLUS_DI` | period = 14 | `Vec<f64>` |
-| `minus_di` / `minus_di_default` | `TA_MINUS_DI` | period = 14 | `Vec<f64>` |
-| `adx` / `adx_default` | `TA_ADX` | period = 14 | `Vec<f64>` |
-| `adxr` / `adxr_default` | `TA_ADXR` | period = 14 | `Vec<f64>` |
-| `dx` / `dx_default` | `TA_DX` | period = 14 | `Vec<f64>` (OHLC) |
-| `aroon` / `aroon_default` | `TA_AROON` | period = 14 | `Aroon { up, down }` |
-| `aroon_osc` / `aroon_osc_default` | `TA_AROONOSC` | period = 14 | `Vec<f64>` |
-| `stoch` / `stoch_default` | `TA_STOCH` | fastK = 5, slowK = 3, slowD = 3 | `Stoch { slow_k, slow_d }` |
-| `stoch_f` / `stoch_f_default` | `TA_STOCHF` | fastK = 5, fastD = 3 | `StochF { fast_k, fast_d }` |
-| `stoch_rsi` / `stoch_rsi_default` | `TA_STOCHRSI` | rsi = 14, period = 14 | `Vec<f64>` |
-| `trix` / `trix_default` | `TA_TRIX` | period = 30 | `Vec<f64>` |
+| Function                          | TA-Lib        | Defaults                         | Returns                       |
+| --------------------------------- | ------------- | -------------------------------- | ----------------------------- |
+| `mom` / `mom_default`             | `TA_MOM`      | period = 10                      | `Vec<f64>`                    |
+| `roc` / `roc_default`             | `TA_ROC`      | period = 10                      | `Vec<f64>`                    |
+| `rocp` / `rocp_default`           | `TA_ROCP`     | period = 10                      | `Vec<f64>`                    |
+| `rocr` / `rocr_default`           | `TA_ROCR`     | period = 10                      | `Vec<f64>`                    |
+| `rocr100` / `rocr100_default`     | `TA_ROCR100`  | period = 10                      | `Vec<f64>`                    |
+| `rsi` / `rsi_default`             | `TA_RSI`      | period = 14                      | `Vec<f64>`                    |
+| `macd` / `macd_default`           | `TA_MACD`     | fast = 12, slow = 26, signal = 9 | `Macd { macd, signal, hist }` |
+| `macd_fix` / `macd_fix_default`   | `TA_MACDFIX`  | fast = 12, slow = 26, signal = 9 | `Macd`                        |
+| `macd_ext` / `macd_ext_default`   | `TA_MACDEXT`  | fast = 12, slow = 26, signal = 9 | `Macd` (all-EMA default)      |
+| `apo` / `apo_default`             | `TA_APO`      | fast = 12, slow = 26             | `Vec<f64>`                    |
+| `ppo` / `ppo_default`             | `TA_PPO`      | fast = 12, slow = 26             | `Vec<f64>`                    |
+| `cmo` / `cmo_default`             | `TA_CMO`      | period = 14                      | `Vec<f64>`                    |
+| `imi` / `imi_default`             | `TA_IMI`      | period = 14                      | `Vec<f64>` (open/close)       |
+| `cci` / `cci_default`             | `TA_CCI`      | period = 20                      | `Vec<f64>`                    |
+| `mfi` / `mfi_default`             | `TA_MFI`      | period = 14                      | `Vec<f64>` (needs volume)     |
+| `willr` / `willr_default`         | `TA_WILLR`    | period = 14                      | `Vec<f64>`                    |
+| `bop`                             | `TA_BOP`      | —                                | `Vec<f64>` (lookback 0)       |
+| `ultosc` / `ultosc_default`       | `TA_ULTOSC`   | 7 / 14 / 28                      | `Vec<f64>`                    |
+| `plus_dm` / `plus_dm_default`     | `TA_PLUS_DM`  | period = 14                      | `Vec<f64>`                    |
+| `minus_dm` / `minus_dm_default`   | `TA_MINUS_DM` | period = 14                      | `Vec<f64>`                    |
+| `plus_di` / `plus_di_default`     | `TA_PLUS_DI`  | period = 14                      | `Vec<f64>`                    |
+| `minus_di` / `minus_di_default`   | `TA_MINUS_DI` | period = 14                      | `Vec<f64>`                    |
+| `adx` / `adx_default`             | `TA_ADX`      | period = 14                      | `Vec<f64>`                    |
+| `adxr` / `adxr_default`           | `TA_ADXR`     | period = 14                      | `Vec<f64>`                    |
+| `dx` / `dx_default`               | `TA_DX`       | period = 14                      | `Vec<f64>` (OHLC)             |
+| `aroon` / `aroon_default`         | `TA_AROON`    | period = 14                      | `Aroon { up, down }`          |
+| `aroon_osc` / `aroon_osc_default` | `TA_AROONOSC` | period = 14                      | `Vec<f64>`                    |
+| `stoch` / `stoch_default`         | `TA_STOCH`    | fastK = 5, slowK = 3, slowD = 3  | `Stoch { slow_k, slow_d }`    |
+| `stoch_f` / `stoch_f_default`     | `TA_STOCHF`   | fastK = 5, fastD = 3             | `StochF { fast_k, fast_d }`   |
+| `stoch_rsi` / `stoch_rsi_default` | `TA_STOCHRSI` | rsi = 14, period = 14            | `Vec<f64>`                    |
+| `trix` / `trix_default`           | `TA_TRIX`     | period = 30                      | `Vec<f64>`                    |
 
 ### Volatility Indicators — `adaq_talib::volatility`
 
-| Function | TA-Lib | Defaults | Returns |
-| --- | --- | --- | --- |
-| `trange` | `TA_TRANGE` | — | `Vec<f64>` (lookback 0) |
-| `atr` / `atr_default` | `TA_ATR` | period = 14 | `Vec<f64>` |
-| `natr` / `natr_default` | `TA_NATR` | period = 14 | `Vec<f64>` |
+| Function                | TA-Lib      | Defaults    | Returns                 |
+| ----------------------- | ----------- | ----------- | ----------------------- |
+| `trange`                | `TA_TRANGE` | —           | `Vec<f64>` (lookback 0) |
+| `atr` / `atr_default`   | `TA_ATR`    | period = 14 | `Vec<f64>`              |
+| `natr` / `natr_default` | `TA_NATR`   | period = 14 | `Vec<f64>`              |
 
 ### Volume Indicators — `adaq_talib::volume`
 
-| Function | TA-Lib | Defaults | Returns |
-| --- | --- | --- | --- |
-| `ad` | `TA_AD` | — | `Vec<f64>` (cumulative, lookback 0) |
-| `adosc` / `adosc_default` | `TA_ADOSC` | fast = 3, slow = 10 | `Vec<f64>` |
-| `obv` | `TA_OBV` | — | `Vec<f64>` (cumulative, lookback 0) |
+| Function                  | TA-Lib     | Defaults            | Returns                             |
+| ------------------------- | ---------- | ------------------- | ----------------------------------- |
+| `ad`                      | `TA_AD`    | —                   | `Vec<f64>` (cumulative, lookback 0) |
+| `adosc` / `adosc_default` | `TA_ADOSC` | fast = 3, slow = 10 | `Vec<f64>`                          |
+| `obv`                     | `TA_OBV`   | —                   | `Vec<f64>` (cumulative, lookback 0) |
 
 ### Price Transform — `adaq_talib::price_transform`
 
-| Function | TA-Lib | Defaults | Returns |
-| --- | --- | --- | --- |
-| `avgdev` / `avgdev_default` | `TA_AVGDEV` | period = 14 | `Vec<f64>` |
-| `avgprice` | `TA_AVGPRICE` | — | `Vec<f64>` ((H+L+C+O)/4) |
-| `medprice` | `TA_MEDPRICE` | — | `Vec<f64>` ((H+L)/2) |
-| `typprice` | `TA_TYPPRICE` | — | `Vec<f64>` ((H+L+C)/3) |
-| `wclprice` | `TA_WCLPRICE` | — | `Vec<f64>` ((H+L+2C)/4) |
+| Function                    | TA-Lib        | Defaults    | Returns                  |
+| --------------------------- | ------------- | ----------- | ------------------------ |
+| `avgdev` / `avgdev_default` | `TA_AVGDEV`   | period = 14 | `Vec<f64>`               |
+| `avgprice`                  | `TA_AVGPRICE` | —           | `Vec<f64>` ((H+L+C+O)/4) |
+| `medprice`                  | `TA_MEDPRICE` | —           | `Vec<f64>` ((H+L)/2)     |
+| `typprice`                  | `TA_TYPPRICE` | —           | `Vec<f64>` ((H+L+C)/3)   |
+| `wclprice`                  | `TA_WCLPRICE` | —           | `Vec<f64>` ((H+L+2C)/4)  |
 
 ### Statistic Functions — `adaq_talib::stat`
 
-| Function | TA-Lib | Defaults | Returns |
-| --- | --- | --- | --- |
-| `stddev` / `stddev_default` | `TA_STDDEV` | period = 5, nb_dev = 1.0 | `Vec<f64>` |
-| `var` / `var_default` | `TA_VAR` | period = 5, nb_dev (ignored) | `Vec<f64>` |
-| `linear_reg` / `linear_reg_default` | `TA_LINEARREG` | period = 14 | `Vec<f64>` |
-| `linear_reg_angle` / `linear_reg_angle_default` | `TA_LINEARREG_ANGLE` | period = 14 | `Vec<f64>` (angle, degrees) |
-| `linear_reg_intercept` / `linear_reg_intercept_default` | `TA_LINEARREG_INTERCEPT` | period = 14 | `Vec<f64>` |
-| `linear_reg_slope` / `linear_reg_slope_default` | `TA_LINEARREG_SLOPE` | period = 14 | `Vec<f64>` |
-| `tsf` / `tsf_default` | `TA_TSF` | period = 14 | `Vec<f64>` |
-| `beta` / `beta_default` | `TA_BETA` | period = 5 | `Vec<f64>` |
-| `correl` / `correl_default` | `TA_CORREL` | period = 5 | `Vec<f64>` |
+| Function                                                | TA-Lib                   | Defaults                     | Returns                     |
+| ------------------------------------------------------- | ------------------------ | ---------------------------- | --------------------------- |
+| `stddev` / `stddev_default`                             | `TA_STDDEV`              | period = 5, nb_dev = 1.0     | `Vec<f64>`                  |
+| `var` / `var_default`                                   | `TA_VAR`                 | period = 5, nb_dev (ignored) | `Vec<f64>`                  |
+| `linear_reg` / `linear_reg_default`                     | `TA_LINEARREG`           | period = 14                  | `Vec<f64>`                  |
+| `linear_reg_angle` / `linear_reg_angle_default`         | `TA_LINEARREG_ANGLE`     | period = 14                  | `Vec<f64>` (angle, degrees) |
+| `linear_reg_intercept` / `linear_reg_intercept_default` | `TA_LINEARREG_INTERCEPT` | period = 14                  | `Vec<f64>`                  |
+| `linear_reg_slope` / `linear_reg_slope_default`         | `TA_LINEARREG_SLOPE`     | period = 14                  | `Vec<f64>`                  |
+| `tsf` / `tsf_default`                                   | `TA_TSF`                 | period = 14                  | `Vec<f64>`                  |
+| `beta` / `beta_default`                                 | `TA_BETA`                | period = 5                   | `Vec<f64>`                  |
+| `correl` / `correl_default`                             | `TA_CORREL`              | period = 5                   | `Vec<f64>`                  |
 
 ### Cycle (Hilbert Transform) — `adaq_talib::cycle`
 
-| Function | TA-Lib | Defaults | Returns |
-| --- | --- | --- | --- |
-| `mama` / `mama_default` | `TA_MAMA` | fast = 0.5, slow = 0.05 | `Mama { mama, fama }` |
-| `ht_trendline` / `ht_trendline_default` | `TA_HT_TRENDLINE` | — | `Vec<f64>` (lookback 63) |
-| `ht_dcperiod` / `ht_dcperiod_default` | `TA_HT_DCPERIOD` | — | `Vec<f64>` (dominant cycle period) |
-| `ht_dcphase` / `ht_dcphase_default` | `TA_HT_DCPHASE` | — | `Vec<f64>` (dominant cycle phase) |
-| `ht_phasor` / `ht_phasor_default` | `TA_HT_PHASOR` | — | `Phasor { in_phase, quadrature }` |
-| `ht_sine` / `ht_sine_default` | `TA_HT_SINE` | — | `HtSine { sine, lead_sine }` |
-| `ht_trendmode` / `ht_trendmode_default` | `TA_HT_TRENDMODE` | — | `Vec<f64>` (0/1 trend mode) |
+| Function                                | TA-Lib            | Defaults                | Returns                            |
+| --------------------------------------- | ----------------- | ----------------------- | ---------------------------------- |
+| `mama` / `mama_default`                 | `TA_MAMA`         | fast = 0.5, slow = 0.05 | `Mama { mama, fama }`              |
+| `ht_trendline` / `ht_trendline_default` | `TA_HT_TRENDLINE` | —                       | `Vec<f64>` (lookback 63)           |
+| `ht_dcperiod` / `ht_dcperiod_default`   | `TA_HT_DCPERIOD`  | —                       | `Vec<f64>` (dominant cycle period) |
+| `ht_dcphase` / `ht_dcphase_default`     | `TA_HT_DCPHASE`   | —                       | `Vec<f64>` (dominant cycle phase)  |
+| `ht_phasor` / `ht_phasor_default`       | `TA_HT_PHASOR`    | —                       | `Phasor { in_phase, quadrature }`  |
+| `ht_sine` / `ht_sine_default`           | `TA_HT_SINE`      | —                       | `HtSine { sine, lead_sine }`       |
+| `ht_trendmode` / `ht_trendmode_default` | `TA_HT_TRENDMODE` | —                       | `Vec<f64>` (0/1 trend mode)        |
 
 ### Math Operators — `adaq_talib::math_ops`
 
@@ -191,18 +191,18 @@ Element-wise / array operators over one or two equal-length series. All return `
 (equal-length; lookback 0). Binary operators take `(&[f64], &[f64])`; `maxindex`/`minindex`/
 `minmax`/`minmaxindex` reduce a windowed series.
 
-| Function | TA-Lib | Signature | Returns |
-| --- | --- | --- | --- |
-| `add` / `add_default` | `TA_ADD` | `(a, b)` | `Vec<f64>` |
-| `sub` / `sub_default` | `TA_SUB` | `(a, b)` | `Vec<f64>` |
-| `mult` / `mult_default` | `TA_MULT` | `(a, b)` | `Vec<f64>` |
-| `div` / `div_default` | `TA_DIV` | `(a, b)` | `Vec<f64>` |
-| `sum` / `sum_default` | `TA_SUM` | `(a, period)` | `Vec<f64>` |
-| `min` / `min_default` | `TA_MIN` | `(a, period)` | `Vec<f64>` |
-| `max` / `max_default` | `TA_MAX` | `(a, period)` | `Vec<f64>` |
-| `min_index` / `min_index_default` | `TA_MININDEX` | `(a, period)` | `Vec<f64>` (index of min) |
-| `max_index` / `max_index_default` | `TA_MAXINDEX` | `(a, period)` | `Vec<f64>` (index of max) |
-| `minmax` / `minmax_default` | `TA_MINMAX` | `(a, period)` | `MinMax { min, max }` |
+| Function                                | TA-Lib           | Signature     | Returns                            |
+| --------------------------------------- | ---------------- | ------------- | ---------------------------------- |
+| `add` / `add_default`                   | `TA_ADD`         | `(a, b)`      | `Vec<f64>`                         |
+| `sub` / `sub_default`                   | `TA_SUB`         | `(a, b)`      | `Vec<f64>`                         |
+| `mult` / `mult_default`                 | `TA_MULT`        | `(a, b)`      | `Vec<f64>`                         |
+| `div` / `div_default`                   | `TA_DIV`         | `(a, b)`      | `Vec<f64>`                         |
+| `sum` / `sum_default`                   | `TA_SUM`         | `(a, period)` | `Vec<f64>`                         |
+| `min` / `min_default`                   | `TA_MIN`         | `(a, period)` | `Vec<f64>`                         |
+| `max` / `max_default`                   | `TA_MAX`         | `(a, period)` | `Vec<f64>`                         |
+| `min_index` / `min_index_default`       | `TA_MININDEX`    | `(a, period)` | `Vec<f64>` (index of min)          |
+| `max_index` / `max_index_default`       | `TA_MAXINDEX`    | `(a, period)` | `Vec<f64>` (index of max)          |
+| `minmax` / `minmax_default`             | `TA_MINMAX`      | `(a, period)` | `MinMax { min, max }`              |
 | `minmax_index` / `minmax_index_default` | `TA_MINMAXINDEX` | `(a, period)` | `MinMaxIndex { min_idx, max_idx }` |
 
 ### Math Transform — `adaq_talib::math_trans`
@@ -210,23 +210,23 @@ Element-wise / array operators over one or two equal-length series. All return `
 Element-wise transcendental / rounding transforms over a single series. All return `Vec<f64>`
 (equal-length; lookback 0).
 
-| Function | TA-Lib | Returns |
-| --- | --- | --- |
-| `acos` / `acos_default` | `TA_ACOS` | `Vec<f64>` |
-| `asin` / `asin_default` | `TA_ASIN` | `Vec<f64>` |
-| `atan` / `atan_default` | `TA_ATAN` | `Vec<f64>` |
-| `ceil` / `ceil_default` | `TA_CEIL` | `Vec<f64>` |
-| `cos` / `cos_default` | `TA_COS` | `Vec<f64>` |
-| `cosh` / `cosh_default` | `TA_COSH` | `Vec<f64>` |
-| `exp` / `exp_default` | `TA_EXP` | `Vec<f64>` |
+| Function                  | TA-Lib     | Returns    |
+| ------------------------- | ---------- | ---------- |
+| `acos` / `acos_default`   | `TA_ACOS`  | `Vec<f64>` |
+| `asin` / `asin_default`   | `TA_ASIN`  | `Vec<f64>` |
+| `atan` / `atan_default`   | `TA_ATAN`  | `Vec<f64>` |
+| `ceil` / `ceil_default`   | `TA_CEIL`  | `Vec<f64>` |
+| `cos` / `cos_default`     | `TA_COS`   | `Vec<f64>` |
+| `cosh` / `cosh_default`   | `TA_COSH`  | `Vec<f64>` |
+| `exp` / `exp_default`     | `TA_EXP`   | `Vec<f64>` |
 | `floor` / `floor_default` | `TA_FLOOR` | `Vec<f64>` |
-| `ln` / `ln_default` | `TA_LN` | `Vec<f64>` |
+| `ln` / `ln_default`       | `TA_LN`    | `Vec<f64>` |
 | `log10` / `log10_default` | `TA_LOG10` | `Vec<f64>` |
-| `sin` / `sin_default` | `TA_SIN` | `Vec<f64>` |
-| `sinh` / `sinh_default` | `TA_SINH` | `Vec<f64>` |
-| `sqrt` / `sqrt_default` | `TA_SQRT` | `Vec<f64>` |
-| `tan` / `tan_default` | `TA_TAN` | `Vec<f64>` |
-| `tanh` / `tanh_default` | `TA_TANH` | `Vec<f64>` |
+| `sin` / `sin_default`     | `TA_SIN`   | `Vec<f64>` |
+| `sinh` / `sinh_default`   | `TA_SINH`  | `Vec<f64>` |
+| `sqrt` / `sqrt_default`   | `TA_SQRT`  | `Vec<f64>` |
+| `tan` / `tan_default`     | `TA_TAN`   | `Vec<f64>` |
+| `tanh` / `tanh_default`   | `TA_TANH`  | `Vec<f64>` |
 
 ### Pattern Recognition — `adaq_talib::pattern`
 
@@ -236,39 +236,39 @@ All **61 candlestick patterns** (TA-Lib *Pattern Recognition* group). Each takes
 `lookback` positions are `0.0` (consistent with TA-Lib's integer-output convention, ADR 0007).
 Only the default candle settings are implemented (ADR 0009).
 
-| Function | TA-Lib | Function | TA-Lib |
-| --- | --- | --- | --- |
-| `cdl_2crows` | `CDL2CROWS` | `cdl_identical3crows` | `CDLIDENTICAL3CROWS` |
-| `cdl_3blackcrows` | `CDL3BLACKCROWS` | `cdl_inneck` | `CDLINNECK` |
-| `cdl_3inside` | `CDL3INSIDE` | `cdl_invertedhammer` | `CDLINVERTEDHAMMER` |
-| `cdl_3linestrike` | `CDL3LINESTRIKE` | `cdl_kicking` | `CDLKICKING` |
-| `cdl_3outside` | `CDL3OUTSIDE` | `cdl_kickingbylength` | `CDLKICKINGBYLENGTH` |
-| `cdl_3starsinsouth` | `CDL3STARSINSOUTH` | `cdl_ladderbottom` | `CDLLADDERBOTTOM` |
-| `cdl_3whitesoldiers` | `CDL3WHITESOLDIERS` | `cdl_longleggeddoji` | `CDLLONGLEGGEDDOJI` |
-| `cdl_abandonedbaby` | `CDLABANDONEDBABY` | `cdl_longline` | `CDLLONGLINE` |
-| `cdl_advanceblock` | `CDLADVANCEBLOCK` | `cdl_marubozu` | `CDLMARUBOZU` |
-| `cdl_belthold` | `CDLBELTHOLD` | `cdl_matchinglow` | `CDLMATCHINGLOW` |
-| `cdl_breakaway` | `CDLBREAKAWAY` | `cdl_mathold` | `CDLMATHOLD` |
-| `cdl_closingmarubozu` | `CDLCLOSINGMARUBOZU` | `cdl_morningdojistar` | `CDLMORNINGDOJISTAR` |
-| `cdl_concealbabyswall` | `CDLCONCEALBABYSWALL` | `cdl_morningstar` | `CDLMORNINGSTAR` |
-| `cdl_counterattack` | `CDLCOUNTERATTACK` | `cdl_onneck` | `CDLONNECK` |
-| `cdl_darkcloudcover` | `CDLDARKCLOUDCOVER` | `cdl_piercing` | `CDLPIERCING` |
-| `cdl_doji` | `CDLDOJI` | `cdl_rickshawman` | `CDLRICKSHAWMAN` |
-| `cdl_dojistar` | `CDLDOJISTAR` | `cdl_risefall3methods` | `CDLRISEFALL3METHODS` |
-| `cdl_dragonflydoji` | `CDLDRAGONFLYDOJI` | `cdl_separatinglines` | `CDLSEPARATINGLINES` |
-| `cdl_engulfing` | `CDLENGULFING` | `cdl_shootingstar` | `CDLSHOOTINGSTAR` |
-| `cdl_eveningdojistar` | `CDLEVENINGDOJISTAR` | `cdl_shortline` | `CDLSHORTLINE` |
-| `cdl_eveningstar` | `CDLEVENINGSTAR` | `cdl_spinningtop` | `CDLSPINNINGTOP` |
-| `cdl_gapsidesidewhite` | `CDLGAPSIDESIDEWHITE` | `cdl_stalledpattern` | `CDLSTALLEDPATTERN` |
-| `cdl_gravestonedoji` | `CDLGRAVESTONEDOJI` | `cdl_sticksandwich` | `CDLSTICKSANDWICH` |
-| `cdl_hammer` | `CDLHAMMER` | `cdl_takuri` | `CDLTAKURI` |
-| `cdl_hangingman` | `CDLHANGINGMAN` | `cdl_tasukigap` | `CDLTASUKIGAP` |
-| `cdl_harami` | `CDLHARAMI` | `cdl_thrusting` | `CDLTHRUSTING` |
-| `cdl_haramicross` | `CDLHARAMICROSS` | `cdl_tristar` | `CDLTRISTAR` |
-| `cdl_highwave` | `CDLHIGHWAVE` | `cdl_unique3river` | `CDLUNIQUE3RIVER` |
-| `cdl_hikkake` | `CDLHIKKAKE` | `cdl_upsidegap2crows` | `CDLUPSIDEGAP2CROWS` |
-| `cdl_hikkakemod` | `CDLHIKKAKEMOD` | `cdl_xsidegap3methods` | `CDLXSIDEGAP3METHODS` |
-| `cdl_homingpigeon` | `CDLHOMINGPIGEON` | | |
+| Function               | TA-Lib                | Function               | TA-Lib                |
+| ---------------------- | --------------------- | ---------------------- | --------------------- |
+| `cdl_2crows`           | `CDL2CROWS`           | `cdl_identical3crows`  | `CDLIDENTICAL3CROWS`  |
+| `cdl_3blackcrows`      | `CDL3BLACKCROWS`      | `cdl_inneck`           | `CDLINNECK`           |
+| `cdl_3inside`          | `CDL3INSIDE`          | `cdl_invertedhammer`   | `CDLINVERTEDHAMMER`   |
+| `cdl_3linestrike`      | `CDL3LINESTRIKE`      | `cdl_kicking`          | `CDLKICKING`          |
+| `cdl_3outside`         | `CDL3OUTSIDE`         | `cdl_kickingbylength`  | `CDLKICKINGBYLENGTH`  |
+| `cdl_3starsinsouth`    | `CDL3STARSINSOUTH`    | `cdl_ladderbottom`     | `CDLLADDERBOTTOM`     |
+| `cdl_3whitesoldiers`   | `CDL3WHITESOLDIERS`   | `cdl_longleggeddoji`   | `CDLLONGLEGGEDDOJI`   |
+| `cdl_abandonedbaby`    | `CDLABANDONEDBABY`    | `cdl_longline`         | `CDLLONGLINE`         |
+| `cdl_advanceblock`     | `CDLADVANCEBLOCK`     | `cdl_marubozu`         | `CDLMARUBOZU`         |
+| `cdl_belthold`         | `CDLBELTHOLD`         | `cdl_matchinglow`      | `CDLMATCHINGLOW`      |
+| `cdl_breakaway`        | `CDLBREAKAWAY`        | `cdl_mathold`          | `CDLMATHOLD`          |
+| `cdl_closingmarubozu`  | `CDLCLOSINGMARUBOZU`  | `cdl_morningdojistar`  | `CDLMORNINGDOJISTAR`  |
+| `cdl_concealbabyswall` | `CDLCONCEALBABYSWALL` | `cdl_morningstar`      | `CDLMORNINGSTAR`      |
+| `cdl_counterattack`    | `CDLCOUNTERATTACK`    | `cdl_onneck`           | `CDLONNECK`           |
+| `cdl_darkcloudcover`   | `CDLDARKCLOUDCOVER`   | `cdl_piercing`         | `CDLPIERCING`         |
+| `cdl_doji`             | `CDLDOJI`             | `cdl_rickshawman`      | `CDLRICKSHAWMAN`      |
+| `cdl_dojistar`         | `CDLDOJISTAR`         | `cdl_risefall3methods` | `CDLRISEFALL3METHODS` |
+| `cdl_dragonflydoji`    | `CDLDRAGONFLYDOJI`    | `cdl_separatinglines`  | `CDLSEPARATINGLINES`  |
+| `cdl_engulfing`        | `CDLENGULFING`        | `cdl_shootingstar`     | `CDLSHOOTINGSTAR`     |
+| `cdl_eveningdojistar`  | `CDLEVENINGDOJISTAR`  | `cdl_shortline`        | `CDLSHORTLINE`        |
+| `cdl_eveningstar`      | `CDLEVENINGSTAR`      | `cdl_spinningtop`      | `CDLSPINNINGTOP`      |
+| `cdl_gapsidesidewhite` | `CDLGAPSIDESIDEWHITE` | `cdl_stalledpattern`   | `CDLSTALLEDPATTERN`   |
+| `cdl_gravestonedoji`   | `CDLGRAVESTONEDOJI`   | `cdl_sticksandwich`    | `CDLSTICKSANDWICH`    |
+| `cdl_hammer`           | `CDLHAMMER`           | `cdl_takuri`           | `CDLTAKURI`           |
+| `cdl_hangingman`       | `CDLHANGINGMAN`       | `cdl_tasukigap`        | `CDLTASUKIGAP`        |
+| `cdl_harami`           | `CDLHARAMI`           | `cdl_thrusting`        | `CDLTHRUSTING`        |
+| `cdl_haramicross`      | `CDLHARAMICROSS`      | `cdl_tristar`          | `CDLTRISTAR`          |
+| `cdl_highwave`         | `CDLHIGHWAVE`         | `cdl_unique3river`     | `CDLUNIQUE3RIVER`     |
+| `cdl_hikkake`          | `CDLHIKKAKE`          | `cdl_upsidegap2crows`  | `CDLUPSIDEGAP2CROWS`  |
+| `cdl_hikkakemod`       | `CDLHIKKAKEMOD`       | `cdl_xsidegap3methods` | `CDLXSIDEGAP3METHODS` |
+| `cdl_homingpigeon`     | `CDLHOMINGPIGEON`     |                        |                       |
 
 ### Error Type
 
@@ -485,6 +485,8 @@ All **161 / 161** indicators were benchmarked head-to-head against native TA-Lib
 TA-Lib C under `--features bench-c`). Environment: Apple Silicon aarch64, **N = 100,000** elements
 per indicator; `ns/elem = elapsed / ITERS / N`; `Rust/C = Rust_ns/elem ÷ C_ns/elem`.
 Final numbers are the **median of 5 runs** to damp per-function benchmark noise (~20–40%).
+The focused micro-benches (`cdl_bench`, `momentum_wilder_bench`) run **9 rounds** and take the median
+for even lower noise on small per-function effects.
 Status: ratio < 0.8 → Faster, 0.8–1.2 → At parity, > 1.2 → Slower.
 
 **Headline:** **85 faster**, **60 at parity**, **16 slower** than native C; geomean
@@ -499,19 +501,19 @@ chunking to the 5 **A-class** window functions (`midpoint`, `minmax`, `minmax_in
 default (serial) build stays at 85/60/16 (0.786×). For the other 156 functions the feature is a no-op.
 See the Optimizations table (P3-2b) and `docs/validation-and-performance-report.md` §3.5.
 
-| TA-Lib Group | Indicators | Faster (<0.8) | At parity (0.8–1.2) | Slower (>1.2) | Geomean Rust/C |
-|---|---:|---:|---:|---:|---:|
-| Cycle Indicators | 5 | 2 | 2 | 1 | 0.980× |
-| Math Operators | 11 | 7 | 2 | 2 | 0.805× |
-| Math Transform | 15 | 4 | 11 | 0 | 0.858× |
-| Momentum Indicators | 31 | 8 | 20 | 3 | 0.852× |
-| Overlap Studies | 18 | 6 | 10 | 2 | 0.842× |
-| Pattern Recognition | 61 | 43 | 13 | 5 | 0.677× |
-| Price Transform | 5 | 5 | 0 | 0 | 0.599× |
-| Statistic Functions | 9 | 7 | 1 | 1 | 0.548× |
-| Volatility Indicators | 3 | 2 | 0 | 1 | 0.841× |
-| Volume Indicators | 3 | 1 | 1 | 1 | 0.994× |
-| **Total** | **161** | **85** | **60** | **16** | **0.786×** |
+| TA-Lib Group          | Indicators | Faster (<0.8) | At parity (0.8–1.2) | Slower (>1.2) | Geomean Rust/C |
+| --------------------- | ---------: | ------------: | ------------------: | ------------: | -------------: |
+| Cycle Indicators      |          5 |             2 |                   2 |             1 |         0.980× |
+| Math Operators        |         11 |             7 |                   2 |             2 |         0.805× |
+| Math Transform        |         15 |             4 |                  11 |             0 |         0.858× |
+| Momentum Indicators   |         31 |             8 |                  20 |             3 |         0.852× |
+| Overlap Studies       |         18 |             6 |                  10 |             2 |         0.842× |
+| Pattern Recognition   |         61 |            43 |                  13 |             5 |         0.677× |
+| Price Transform       |          5 |             5 |                   0 |             0 |         0.599× |
+| Statistic Functions   |          9 |             7 |                   1 |             1 |         0.548× |
+| Volatility Indicators |          3 |             2 |                   0 |             1 |         0.841× |
+| Volume Indicators     |          3 |             1 |                   1 |             1 |         0.994× |
+| **Total**             |    **161** |        **85** |              **60** |        **16** |     **0.786×** |
 
 adaq-talib is now faster than C on average in **all 10 groups** (every group geomean Rust/C < 1) —
 Cycle, Math Operators, Math Transform, Momentum, Overlap Studies, Pattern Recognition, Price
@@ -539,23 +541,24 @@ vectors (see [`benches/BASELINE.md`](benches/BASELINE.md) for the full per-indic
 `ns/elem` measured on Apple Silicon aarch64, `N = 1_000_000`, `PERIOD = 20`, `ITERS = 20`
 (spot measurement, ±5% jitter).
 
-| Phase | Function(s) | Technique | Result (Rust/C or ns/elem) | Δ vs prior |
-|-------|-------------|-----------|----------------------------:|-----------:|
-| P3-1 (0.1.3) | Pattern Recognition (all 61 CDL) | inline `CandleAvg` running-sum / trailing-sum accumulators (`tools/opt_pattern.py`, parity-preserving) | geomean **2.98× → 0.677×**; 43 faster / 13 parity / 5 slower | biggest single driver |
-| P3-2 (0.1.3) | `min` / `max` / `min_index` / `max_index` | ring-buffer `MonoQueue` (masked index, no bounds checks) replacing `VecDeque` | per-extreme 3.447 → 2.347 ns/elem; `min` 1.17→0.76, `max` 1.57→0.99, `min_index` 1.14→0.77, `max_index` 1.54→1.01 | ~32% faster per extreme |
-| P3-3 (0.1.3) | `ht_dcperiod` | cycle-IIR fast path skips the unused `compute_dc_phase` sin/cos window | 3.589× → 1.191× (now at parity) | — |
-| P3-4 (0.1.3) | `ht_dcphase` / `ht_sine` / `ht_trendmode` | sin/cos angle-addition recurrence (`sin(θ+w)`, `cos(θ+w)`) | 1.216→0.786 / 0.840→0.687 / 1.432→1.122 | — |
-| P3-5 (0.1.3) | `mfi` | single-pass sliding-window fusion (two ring-buffer running sums) | 2.563× → 1.406× (still slower — per-bar divisions dominate) | ~1.8× closer to C |
-| P3-6 (0.1.3) | `ema` / `kama` / `apo` / `ppo` / `t3` / `adosc` (recurrence sites) | explicit `.mul_add()` FMA at every recurrence (GCC `-ffp-contract=fast` parity) | `ema` 1.488→0.977, `kama` 1.484→1.069, `apo` 1.529→1.085, `ppo` 1.425→1.077, `t3` 1.325→0.999 (all At parity); transitive `trix`/`ultosc` Faster, `adx`/`adxr`/`dx` At parity | closed the EMA-family gap |
-| P3-2b (0.1.3) | `midpoint` / `minmax` / `minmax_index` / `willr` / `stoch_f` | overlap-seed parallel chunking (`std::thread::scope` + `available_parallelism`, No-Deps, default-off `parallel` feature) | `midpoint` 1.620→0.901, `minmax` 1.523→0.844, `minmax_index` 1.434→0.915 (all At parity); `willr` 1.455→0.748, `stoch_f` 1.228→0.579 (Faster); totals 85/60/16 → 88/63/10, geomean 0.786×→0.734× | lifts the 5 A-class seedable floors out of Slower |
-| P2-1 | `dema` / `tema` / `t3` | single-pass nested-EMA fusion core (`core::nested_ema_with_output`) | 3.63 / 3.46 / 3.76 ns/elem | ~2× / ~3× / ~6× vs naive |
-| P2-2 | `midpoint` / `midprice` | monotonic-queue `core::rolling_extreme` O(n) | 6.88 / 7.30 | ~3× / ~3× |
-| P2-3 | `wma` | O(n) sliding recurrence (`W[i] = W[i-1] + period·x[i] − sw[i-1]`) | 2.11 | ~4.7× |
-| P2-4 | `bbands` (SMA middle) | single-pass `rolling_mean_var` fusion | 3.02 | ~1.5–1.6× |
-| P2-5 | `linear_reg` family / `correl` | O(n) sliding sum / cross-product | 2.33 / 4.81 | ~20× asymptotic |
-| P2-5 | `willr` / `stoch` / `stoch_f` | shared monotonic extreme queue O(n) | 7.90 / 10.99 | ~20× asymptotic |
-| P1② | `minmax` | reuse single-pass `core::rolling_minmax` (consolidation; perf-neutral) | 6.76 | ≈ (accuracy-only) |
-| P1③ | `max_index` / `min_index` / `minmax_index` | single-pass `core::rolling_extreme_index` O(n) | 3.43 / 3.31 / 6.79 | ~1.9× (index) |
+| Phase               | Function(s)                                                        | Technique                                                                                                                                                                        |                                                                                                                                                                       Result (Rust/C or ns/elem) |                                                        Δ vs prior |
+| ------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | ----------------------------------------------------------------: |
+| P3-1 (0.1.3)        | Pattern Recognition (all 61 CDL)                                   | inline `CandleAvg` running-sum / trailing-sum accumulators (`tools/opt_pattern.py`, parity-preserving)                                                                           |                                                                                                                                     geomean **2.98× → 0.677×**; 43 faster / 13 parity / 5 slower |                                             biggest single driver |
+| P3-2 (0.1.3)        | `min` / `max` / `min_index` / `max_index`                          | ring-buffer `MonoQueue` (masked index, no bounds checks) replacing `VecDeque`                                                                                                    |                                                                                per-extreme 3.447 → 2.347 ns/elem; `min` 1.17→0.76, `max` 1.57→0.99, `min_index` 1.14→0.77, `max_index` 1.54→1.01 |                                           ~32% faster per extreme |
+| P3-3 (0.1.3)        | `ht_dcperiod`                                                      | cycle-IIR fast path skips the unused `compute_dc_phase` sin/cos window                                                                                                           |                                                                                                                                                                  3.589× → 1.191× (now at parity) |                                                                 — |
+| P3-4 (0.1.3)        | `ht_dcphase` / `ht_sine` / `ht_trendmode`                          | sin/cos angle-addition recurrence (`sin(θ+w)`, `cos(θ+w)`)                                                                                                                       |                                                                                                                                                          1.216→0.786 / 0.840→0.687 / 1.432→1.122 |                                                                 — |
+| P3-5 (0.1.3)        | `mfi`                                                              | single-pass sliding-window fusion (two ring-buffer running sums)                                                                                                                 |                                                                                                                                      2.563× → 1.406× (still slower — per-bar divisions dominate) |                                                 ~1.8× closer to C |
+| P3-6 (0.1.3)        | `ema` / `kama` / `apo` / `ppo` / `t3` / `adosc` (recurrence sites) | explicit `.mul_add()` FMA at every recurrence (GCC `-ffp-contract=fast` parity)                                                                                                  |                    `ema` 1.488→0.977, `kama` 1.484→1.069, `apo` 1.529→1.085, `ppo` 1.425→1.077, `t3` 1.325→0.999 (all At parity); transitive `trix`/`ultosc` Faster, `adx`/`adxr`/`dx` At parity |                                         closed the EMA-family gap |
+| P3-2b (0.1.3)       | `midpoint` / `minmax` / `minmax_index` / `willr` / `stoch_f`       | overlap-seed parallel chunking (`std::thread::scope` + `available_parallelism`, No-Deps, default-off `parallel` feature)                                                         | `midpoint` 1.620→0.901, `minmax` 1.523→0.844, `minmax_index` 1.434→0.915 (all At parity); `willr` 1.455→0.748, `stoch_f` 1.228→0.579 (Faster); totals 85/60/16 → 88/63/10, geomean 0.786×→0.734× |                 lifts the 5 A-class seedable floors out of Slower |
+| P2-1                | `dema` / `tema` / `t3`                                             | single-pass nested-EMA fusion core (`core::nested_ema_with_output`)                                                                                                              |                                                                                                                                                                       3.63 / 3.46 / 3.76 ns/elem |                                          ~2× / ~3× / ~6× vs naive |
+| P2-2                | `midpoint` / `midprice`                                            | monotonic-queue `core::rolling_extreme` O(n)                                                                                                                                     |                                                                                                                                                                                      6.88 / 7.30 |                                                         ~3× / ~3× |
+| P2-3                | `wma`                                                              | O(n) sliding recurrence (`W[i] = W[i-1] + period·x[i] − sw[i-1]`)                                                                                                                |                                                                                                                                                                                             2.11 |                                                             ~4.7× |
+| P2-4                | `bbands` (SMA middle)                                              | single-pass `rolling_mean_var` fusion                                                                                                                                            |                                                                                                                                                                                             3.02 |                                                         ~1.5–1.6× |
+| P2-5                | `linear_reg` family / `correl`                                     | O(n) sliding sum / cross-product                                                                                                                                                 |                                                                                                                                                                                      2.33 / 4.81 |                                                   ~20× asymptotic |
+| P2-5                | `willr` / `stoch` / `stoch_f`                                      | shared monotonic extreme queue O(n)                                                                                                                                              |                                                                                                                                                                                     7.90 / 10.99 |                                                   ~20× asymptotic |
+| P1②                 | `minmax`                                                           | reuse single-pass `core::rolling_minmax` (consolidation; perf-neutral)                                                                                                           |                                                                                                                                                                                             6.76 |                                                 ≈ (accuracy-only) |
+| P1③                 | `max_index` / `min_index` / `minmax_index`                         | single-pass `core::rolling_extreme_index` O(n)                                                                                                                                   |                                                                                                                                                                               3.43 / 3.31 / 6.79 |                                                     ~1.9× (index) |
+| Wilder 接缝 (0.1.7) | `rsi` / `cmo` / `plus_di` / `minus_di` / `dx` / `adx` / `adxr`     | route inline Wilder recurrences onto `core::ema::wilder_step` / `wilder_step_sum` (precomputed `k = 1/period` replaces hot-loop `/p` divisions; mean vs sum forms kept distinct) |                                                           `rsi` 5.40→3.13, `cmo` 6.06→3.28, `plus_di` 7.02→4.04, `minus_di` 7.14→4.06, `dx` 6.74→4.89, `adx` 6.95→5.87, `adxr` 6.87→6.05 ns/elem | −12% ~ −46% faster (`momentum_wilder_bench`, N=100k, median-of-9) |
 
 † `midpoint` / `midprice` (P2-2) and `max_index` / `min_index` / `minmax_index` (P1③) now run on the
 same ring-buffer `MonoQueue` introduced in 0.1.3 (P3-2).
@@ -578,6 +581,8 @@ cargo bench --bench sma_bench --features bench-c
 cargo bench --bench all161_bench
 cargo bench --bench all161_bench --features bench-c   # with the C reference track
 cargo bench --bench all161_bench --features bench-c,parallel   # parallel overlap-seed pass
+cargo bench --bench momentum_wilder_bench   # Wilder-family micro-bench (rsi/cmo/±di/dx/adx/adxr), median-of-9
+cargo bench --bench cdl_bench               # candle-pattern micro-bench, median-of-9
 ```
 
 > The second form needs the TA-Lib C library installed (`brew install ta-lib` / build from
@@ -622,6 +627,7 @@ cargo bench --bench all161_bench --features bench-c,parallel   # parallel overla
 ## Documentation
 
 - Design decisions (ADR 0001–0009): [`docs/adr/`](docs/adr/)
+- Changelog: [`changelog.md`](changelog.md)
 - Unified API conventions: [`docs/api-conventions.md`](docs/api-conventions.md)
 - 0.1.0 function scope baseline: [`docs/0.1.0-scope.md`](docs/0.1.0-scope.md)
 - Glossary: [`CONTEXT.md`](CONTEXT.md)
@@ -642,7 +648,7 @@ Milestone-based release ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 ships the complete TA-Lib 0.7.1 public surface — all 161 functions across 10 categories — with no
 deletion of published capabilities.**
 
-- ✅ **0.1.6 (current): 161 / 161 functions, faster than C on average** — Overlap Studies (18),
+- ✅ **0.1.8 (current): 161 / 161 functions, faster than C on average** — Overlap Studies (18),
   Momentum (31), Volatility (3), Volume (3), Price Transform (5), Statistic (9), Cycle / Hilbert
   Transform (7), Math Operators (11), Math Transform (15), and Pattern Recognition (61 candlestick
   patterns). Every function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` →
@@ -650,10 +656,11 @@ deletion of published capabilities.**
   all-161 benchmark + validation suite ([`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md))
   confirms full coverage and that adaq-talib is now **~1.27× faster than C on average** (geomean
   Rust/C = 0.786×; 85 faster / 60 at parity / 16 slower) after the 0.1.3 optimization pass; under the
-  optional `parallel` feature this becomes 88 / 63 / 10 (0.734×).   0.1.4, 0.1.5 and 0.1.6 were internal
-  architecture-refactor releases — core modularization, the zero-cost `indicator!` scaffold, and
-  candle-pattern readability / boilerplate consolidation —
-  adding no new public functions or API changes (see [Changelog](#changelog)).
+  optional `parallel` feature this becomes 88 / 63 / 10 (0.734×).   0.1.4, 0.1.5, 0.1.6, 0.1.7 and 0.1.8
+  were internal architecture-refactor releases — core modularization, the zero-cost `indicator!`
+  scaffold, candle-pattern readability / boilerplate consolidation, the Wilder recurrence seam
+  consolidation, and changelog extraction —
+  adding no new public functions or API changes (see [Changelog](changelog.md)).
 - 🔜 **Future work (post-1.0)**: per [ADR 0009](docs/adr/0009-candle-settings-default-only.md) only
   the **default** candle settings are implemented and no configuration API is exposed; optional
   `bench-c` wiring for the newly optimized indicators (LINREG/CORREL/WILLR/STOCH), and
@@ -665,96 +672,4 @@ Once those land, adaq-talib reaches full coverage equivalent to TA-Lib 0.7.1.
 
 ## Changelog
 
-### 0.1.6
-- **Candle-pattern kernels — `real_body` recompute dedup (perf(pattern))**: 20 candlestick kernels now
-  reuse the already-computed `cur_avg_*` sliding-window value inside each condition instead of
-  recomputing `real_body(open[i], close[i])`. Pure reordering — no arithmetic change — so the TA-Lib
-  0.7.1 golden vectors stay bit-identical (all 144 candle integration tests pass). Control-corrected
-  A/B vs the original baseline (median of 3 runs, env-drift corrected via untouched controls): 12
-  clean wins (e.g. `cdl_closingmarubozu` −57%, `cdl_marubozu` −36%, `cdl_stalledpattern` −27%,
-  `cdl_counterattack` −24%), 3 flat (`cdl_belthold` / `cdl_longleggeddoji` / `cdl_eveningstar`), and 5
-  apparent "regressions" (`cdl_3starsinsouth` / `cdl_3whitesoldiers` / `cdl_abandonedbaby` /
-  `cdl_eveningdojistar` / `cdl_morningstar`) identified as environment noise — removing a recompute
-  cannot slow a function and the golden vectors are identical, so all were kept. Also folds in
-  `cdl_harami` CandleAvg consolidation (validated win) and `cdl_homingpigeon` / `longline` /
-  `shortline` shadow+body dedups.
-- **Indicator scaffold rollout (`indicator!` macro) — consistency**: migrated `midprice`, `sar`,
-  `sarext`, `avgprice`, `medprice`, `typprice`, `wclprice`, `ad`, `adosc`, and `obv` to the zero-cost
-  `indicator!` macro (introduced in 0.1.5), removing redundant error-handling / output-init
-  boilerplate; each function keeps its detailed bilingual doc-comment. The pattern module was migrated
-  as well. Output remains golden-vector 1:1.
-- **Candle-pattern modules — readability refactor**: removed unnecessary parentheses in arithmetic
-  across the batch files, consolidated average-calculation variable initialization, and added explicit
-  `#[allow(...)]` for unused assignments / variables in `pattern/mod.rs` to keep strict builds
-  warning-free.
-- **CI**: upgraded `actions/checkout` to **v5** in `.github/workflows/ci.yml` and `release.yml`.
-- **Benchmark suite**: added `benches/cdl_bench.rs` and extended `benches/phase1c_bench.rs` /
-  `benches/poc_bench.rs`; regenerated `all161_results.csv`.
-- **Release**: version bumped to `0.1.6`. No new public API surface, no deprecations, no dependency
-  changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). User-facing behavior, calling
-  conventions, and the `cargo test` / `cargo bench` workflows are unchanged.
-
-### 0.1.5
-- **Indicator scaffold (`indicator!` macro) — architecture-deepening candidate① (Phase 1a/1b/1c)**: added `src/indicator.rs` with a **zero-cost `macro_rules! indicator`** that unifies the repetitive "allocate an equal-length `f64::NAN` buffer → forward to the `*_with_output` kernel" glue shared by ~146 single-output public functions. Rolled out under a **measure-first double gate** (golden-vector 1:1 + A/B `cargo bench` median |Δ| ≤ ±5%):
-  - **Phase 1a**: `math_trans` 15 single-input / single-output / element-wise functions.
-  - **Phase 1b**: `stat` 7 single-input functions (`stddev`/`var`/`linear_reg`/`linear_reg_angle`/`linear_reg_intercept`/`linear_reg_slope`/`tsf`) via the new N-trailing-default arm; `beta`/`correl` (multi-input) stay hand-written (Phase 2).
-  - **Phase 1c**: `math_ops` 9 (`add`/`sub`/`mult`/`div`/`sum`/`min`/`max`/`max_index`/`min_index`) + `volatility` 3 (`trange`/`atr`/`natr`, two with default arms) + `price_transform::avgdev`; `avgprice`/`medprice`/`typprice`/`wclprice` were **intentionally reverted to hand-written** — the macro's uniform `vec![f64::NAN; n]` init regresses them (isolated micro-bench: `avgprice` +34.7%, `add` +22.2%; A/B median |Δ| = 16–17% ≫ 5%), while they need no leading NaN and carry no default args (zero macro benefit).
-- **Zero-cost guarantee verified**: the macro expands to byte-identical code (no `dyn Fn`, no indirection, no per-iteration allocation); the `*_with_output` hot paths are untouched. A/B results — Phase 1a max median |Δ| = **2.97%**, Phase 1b = **0.11%**, Phase 1c = **0.21%** (all ≤ 5% → PASS). Golden-vector gate: all **161/161** functions still reproduce TA-Lib 0.7.1 within tolerance; the full `cargo test` suite stays green (incl. new macro-emitted `doctest`s).
-- **New A/B benchmark harness (methodology)**: added `benches/math_trans_bench.rs`, `benches/stat_bench.rs`, `benches/phase1c_bench.rs` (all registered in `Cargo.toml`) — a dependency-free `Instant` harness using **warmup + interleaved rounds + median** to suppress single-shot noise (which can read ±10%). Documented in [`benches/BASELINE.md`](benches/BASELINE.md) and [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md).
-- **Release**: version bumped to `0.1.5`. No new public API surface, no deprecations, no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). User-facing behavior, calling conventions, and the `cargo test` / `cargo bench` workflows are unchanged.
-
-### 0.1.4
-- **Core modularization (architecture deepening)**: split the monolithic `src/core/mod.rs` into focused, single-responsibility modules — `ema.rs` (nested-EMA fusion), `extreme.rs` (monotonic-queue rolling extremes / indices), `window.rs` (windowed sums / variances), and `kernel.rs` (shared kernel helpers). Removed the redundant `check_eq_len` length-guard helper (length checks now live next to each kernel). Pure refactor — output remains bit-for-bit / golden-vector 1:1 with TA-Lib 0.7.1, zero performance impact.
-- **`parallel` feature promoted to a first-class module**: the overlap-seed parallel chunking (formerly a proof-of-concept) is now `src/parallel.rs`, guarded by a dedicated `tests/parallel_equality.rs` 1:1 equality test and exercised by `benches/parallel_poc.rs`. The 5 A-class window functions (`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`) gain multi-core speedups under the default-off `parallel` feature — totals move **85 Faster / 60 Parity / 16 Slower (geomean 0.786×) → 88 / 63 / 10 (0.734×)**. For the other 156 functions it is a no-op.
-- **Perf report & 161-indicator suite refresh**: refreshed [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md) and the `all161_results*.csv` benchmark data; folded in the finalized 0.1.3 optimization-pass numbers (EMA-family FMA-contraction closing the EMA gap — see [Verification & Benchmarks](#verification--benchmarks)).
-- **Release**: version bumped to `0.1.4`. No new public API surface, no deprecations, no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
-
-### 0.1.3
-- **Pattern Recognition performance rollout**: the `cdl_hammer` inline running-sum accumulator
-  template was applied to **all 61 candlestick functions** (parity-preserving transformer
-  `tools/opt_pattern.py`); per-function `CandleAvg::new`+`value`+`advance` replaced by inline
-  `sum_*`/`trail_*`/`cur_*`/`val_*` accumulators (skipping functions with no `CandleAvg`, e.g.
-  `cdl_engulfing`/`cdl_3outside`/`cdl_hikkake`/`cdl_tristar`). Pattern Recognition geomean
-  **Rust/C dropped from 2.98× → 0.677×** (43 faster / 13 at parity / 5 slower, was 1/3/57) — the
-  single biggest driver of the release.
-- **P2 algorithm-optimization pass (zero-deviation, 0 regressions)**: a ring-buffer `MonoQueue`
-  replacing the `VecDeque` rolling extremes (`min`/`max`/`min_index`/`max_index`, ~32% faster per
-  extreme); a cycle-IIR fast path that skips the unused `compute_dc_phase` sin/cos window in
-  `ht_dcperiod` (3.59× → 1.19×, now at parity); a sin/cos angle-addition recurrence in
-  `compute_dc_phase` (`ht_dcphase`/`ht_sine`/`ht_trendmode`); and a single-pass sliding-window
-  fusion of `mfi` (2.56× → 1.41×). Net: **82 faster / 54 at parity / 25 slower, geomean
-  Rust/C = 0.792×** — adaq-talib is now ~1.26× faster than C on average (was 1.50× slower).
-- **Reports & tooling**: updated [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)
-  (new group/per-indicator tables, median-of-3-run methodology) and the interactive
-  `docs/benchmarks/adaq-vs-talib-161.html`; added `benches/extreme_ab.rs`, `tools/opt_pattern.py`,
-  and `docs/research/perf-161-analysis.md`.
-- **Release**: version bumped to `0.1.3`. No new public API, no deprecations, no dependency
-  changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
-
-### 0.1.2
-- **Comprehensive all-161 benchmark & validation suite**: new `benches/all161_bench.rs`
-  (auto-generated by `tools/bench/gen_all161.py`) benchmarks **all 161** indicators
-  head-to-head against native TA-Lib C 0.7.1 with a live numeric parity checksum; companion
-  `benches/poc_bench.rs` is a proof-of-concept harness. The unified
-  [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md),
-  the interactive `docs/benchmarks/adaq-vs-talib-161.html`, and `all161_results.csv` are produced
-  by `tools/bench/gen_report.py` — all under the dual-track methodology ([ADR 0004](docs/adr/0004-benchmark-dual-track.md)).
-- **Expanded golden-vector coverage**: **222 golden-vector fixture files** (up from 159) — added
-  the full Pattern Recognition fixture set and the `macd_ext` / `macd_fix` fixtures. The full test
-  suite is now **326 tests, 0 failures** (was 308), and `tools/reconcile.py` confirms **161/161**.
-- **Documentation completeness**: the per-function tables now list every one of the 161 functions.
-  `accbands` (Overlap), `dx` / `imi` (Momentum) and `avgdev` (Price Transform) were already
-  implemented and counted in the 161 total, but had been omitted from the detailed tables — they
-  are now documented.
-- **Release**: version bumped to `0.1.2`. No new public API beyond the above; no deprecations,
-  no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
-
-### 0.1.1
-- **Math operators — O(n) extreme-index functions**: `max_index` / `min_index` / `minmax_index` now use a single-pass monotonic-queue (`core::rolling_extreme_index`), replacing the former O(n·period) nested scan — ~1.9× faster while remaining 1:1 with TA-Lib 0.7.1 ([ADR 0005](docs/adr/0005-error-tolerance.md)). Added `benches/index_bench.rs` and `benches/minmax_bench.rs`.
-- **`minmax` consolidation**: `math_ops::minmax` now reuses the single-pass `core::rolling_minmax` core (the same one used by `midpoint`), eliminating duplicated extreme logic. Performance-neutral; accuracy unchanged.
-- **Full P2 performance sweep (verified 1:1)**: nested-EMA fusion for `dema` / `tema` / `t3` (P2-1); monotonic-queue `midpoint` / `midprice` (P2-2); O(n) sliding `wma` (P2-3); single-pass `bbands` middle (P2-4); sliding O(n) `linear_reg` family / `correl` / `willr` / `stoch` (P2-5). See [`benches/BASELINE.md`](benches/BASELINE.md).
-- **Release tooling & docs**: added `.github/workflows/release.yml` (release automation) and CI; doc-comment and publish-`exclude` fixes; version bumped to `0.1.1`.
-- **Pattern Recognition + Math Operations modules**: all 61 candlestick patterns and the full `math_ops` / `math_trans` surface are implemented, with comprehensive golden-vector fixtures (P4 milestone — 161/161 functions).
-
-### 0.1.0
-- Initial public milestone: the complete TA-Lib 0.7.1 public surface — 161 functions across 10 categories — with zero-deviation golden-vector verification.
+> [`changelog.md`](changelog.md)

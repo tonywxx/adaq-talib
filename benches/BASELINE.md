@@ -231,3 +231,23 @@ python3 tools/bench/compare.py
   全 PASS（1a 2.97% / 1b 0.11% / 1c 0.21%），黄金向量 161/161 仍 1:1。详见上方「架构深化 候选①」小节
   与 [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md)。此为「消除重复」重构，非性能优化，故不计入
   性能收益，但证明零成本（展开体与手写字节级相同）。
+
+- **2026-08-17 更新（Wilder 递推接缝收口 / 0.1.7）**：`momentum.rs` 的 5 处内联 Wilder 递推收口到
+  `core::ema` 原语（`wilder_step` 均值形 / `wilder_step_sum` 求和形，两形分别保留以保证 +DI/−DI 逐位一致）；
+  `ema_wilder` 委托新增的零拷贝 `wilder_with_output`。度量前置双闸门通过：31/31 动量黄金向量 1:1、全量
+  `cargo test` 绿。新增回归护栏 `benches/momentum_wilder_bench.rs`（**N = 100,000，median-of-9**，Rust-only
+  `ns/elem`；与上方 N=1M 点测表口径不同，仅用于 targeted 内部重构的回归对照，不可直接与上表交叉比较）。
+  当前基线（median-of-9，单位 ns/elem）：
+
+  | 指标 | ns/elem | 状态 |
+  |------|--------:|------|
+  | `rsi`     | 3.13 | 较旧基线 5.40 提速 −42% |
+  | `cmo`     | 3.28 | 较旧基线 6.06 提速 −46% |
+  | `plus_di` | 4.04 | 较旧基线 7.02 提速 −43% |
+  | `minus_di`| 4.06 | 较旧基线 7.14 提速 −43% |
+  | `dx`      | 4.89 | 较旧基线 6.74 提速 −28% |
+  | `adx`     | 5.87 | 较旧基线 6.95 提速 −16% |
+  | `adxr`    | 6.05 | 较旧基线 6.87 提速 −12% |
+
+  > 旧基线（`/tmp/mom_wilder_baseline.csv`，2026-08-17 会话初测）为收口前数值；提速来自用预计算的
+  > `k = 1/period` 乘法替代热循环内每步的 `/p` 浮点除法。改动零偏差（ADR 0005）。

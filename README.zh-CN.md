@@ -40,19 +40,19 @@
 
 adaq-talib 现已实现完整的 TA-Lib 0.7.1 公开函数面 —— **10 大类、共 161 个**函数，零偏差（逐项对照黄金向量验证，见[验证与基准](#验证与基准--verification--benchmarks)）。下表列出每个公开函数、对应的 TA-Lib 原函数、默认参数与返回形态。
 
-| 类别 | 模块 | 数量 | TA-Lib 分组 |
-| --- | --- | ---: | --- |
-| 重叠研究 | `overlap` | 18 | Overlap Studies |
-| 动量指标 | `momentum` | 31 | Momentum Indicators |
-| 波动率指标 | `volatility` | 3 | Volatility Indicators |
-| 成交量指标 | `volume` | 3 | Volume Indicators |
-| 价格变换 | `price_transform` | 5 | Price Transform |
-| 统计函数 | `stat` | 9 | Statistic Functions |
-| 周期（希尔伯特变换） | `cycle` | 7\* | Cycle Indicators (5) + Overlap (2)† |
-| 数学算子 | `math_ops` | 11 | Math Operators |
-| 数学变换 | `math_trans` | 15 | Math Transform |
-| 模式识别 | `pattern` | 61 | Pattern Recognition |
-| **合计** | | **161** | **161** |
+| 类别                 | 模块              |    数量 | TA-Lib 分组                         |
+| -------------------- | ----------------- | ------: | ----------------------------------- |
+| 重叠研究             | `overlap`         |      18 | Overlap Studies                     |
+| 动量指标             | `momentum`        |      31 | Momentum Indicators                 |
+| 波动率指标           | `volatility`      |       3 | Volatility Indicators               |
+| 成交量指标           | `volume`          |       3 | Volume Indicators                   |
+| 价格变换             | `price_transform` |       5 | Price Transform                     |
+| 统计函数             | `stat`            |       9 | Statistic Functions                 |
+| 周期（希尔伯特变换） | `cycle`           |     7\* | Cycle Indicators (5) + Overlap (2)† |
+| 数学算子             | `math_ops`        |      11 | Math Operators                      |
+| 数学变换             | `math_trans`      |      15 | Math Transform                      |
+| 模式识别             | `pattern`         |      61 | Pattern Recognition                 |
+| **合计**             |                   | **161** | **161**                             |
 
 \* `cycle` 模块含 7 个函数；TA-Lib 将其中 5 个归入 *Cycle Indicators*（`HT_DCPERIOD`/`HT_DCPHASE`/`HT_PHASOR`/`HT_SINE`/`HT_TRENDMODE`），2 个归入 *Overlap Studies*（`MAMA`/`HT_TRENDLINE`）。† 分组依据 TA-Lib 权威 `info['group']`。
 
@@ -60,153 +60,153 @@ adaq-talib 现已实现完整的 TA-Lib 0.7.1 公开函数面 —— **10 大类
 
 ### 重叠研究 / Overlap Studies — `adaq_talib::overlap`
 
-| 函数 | TA-Lib | 默认参数 | 返回 |
-| --- | --- | --- | --- |
-| `sma` / `sma_default` | `TA_SMA` | period = 30 | `Vec<f64>` |
-| `ema` / `ema_default` | `TA_EMA` | period = 30 | `Vec<f64>` |
-| `wma` / `wma_default` | `TA_WMA` | period = 30 | `Vec<f64>` |
-| `dema` / `dema_default` | `TA_DEMA` | period = 30 | `Vec<f64>` |
-| `tema` / `tema_default` | `TA_TEMA` | period = 30 | `Vec<f64>` |
-| `midpoint` / `midpoint_default` | `TA_MIDPOINT` | period = 30 | `Vec<f64>` |
-| `midprice` / `midprice_default` | `TA_MIDPRICE` | period = 30 | `Vec<f64>` |
-| `bbands` / `bbands_default` | `TA_BBANDS` | period = 20, nb_dev = 2.0/2.0, SMA 中轨 | `Bbands { upper, middle, lower }` |
-| `trima` / `trima_default` | `TA_TRIMA` | period = 30 | `Vec<f64>` |
-| `t3` / `t3_default` | `TA_T3` | period = 5, vfactor = 0.7 | `Vec<f64>` |
-| `ma` / `ma_default` | `TA_MA` | period = 30, `MaType::Sma` | `Vec<f64>`（按 `MaType` 派发） |
-| `mavp` / `mavp_default` | `TA_MAVP` | min = 2 / max = 30, SMA | `Vec<f64>`（变周期） |
-| `kama` / `kama_default` | `TA_KAMA` | period = 30 | `Vec<f64>` |
-| `sar` / `sar_default` | `TA_SAR` | accel = 0.02, max = 0.2 | `Vec<f64>` |
-| `sarext` / `sarext_default` | `TA_SAREXT` | 多空加速 0.02/0.02/0.2 | `Vec<f64>`（短侧为负值） |
-| `accbands` / `accbands_default` | `TA_ACCBANDS` | period = 20 | `AccBands { upper, middle, lower }` |
-| `MaType` | `TA_MAType` | `Sma/Ema/Wma/Dema/Tema/Trima/Kama/Mama` | 枚举（供 `ma`/`bbands`/`mavp` 选用） |
+| 函数                            | TA-Lib        | 默认参数                                | 返回                                 |
+| ------------------------------- | ------------- | --------------------------------------- | ------------------------------------ |
+| `sma` / `sma_default`           | `TA_SMA`      | period = 30                             | `Vec<f64>`                           |
+| `ema` / `ema_default`           | `TA_EMA`      | period = 30                             | `Vec<f64>`                           |
+| `wma` / `wma_default`           | `TA_WMA`      | period = 30                             | `Vec<f64>`                           |
+| `dema` / `dema_default`         | `TA_DEMA`     | period = 30                             | `Vec<f64>`                           |
+| `tema` / `tema_default`         | `TA_TEMA`     | period = 30                             | `Vec<f64>`                           |
+| `midpoint` / `midpoint_default` | `TA_MIDPOINT` | period = 30                             | `Vec<f64>`                           |
+| `midprice` / `midprice_default` | `TA_MIDPRICE` | period = 30                             | `Vec<f64>`                           |
+| `bbands` / `bbands_default`     | `TA_BBANDS`   | period = 20, nb_dev = 2.0/2.0, SMA 中轨 | `Bbands { upper, middle, lower }`    |
+| `trima` / `trima_default`       | `TA_TRIMA`    | period = 30                             | `Vec<f64>`                           |
+| `t3` / `t3_default`             | `TA_T3`       | period = 5, vfactor = 0.7               | `Vec<f64>`                           |
+| `ma` / `ma_default`             | `TA_MA`       | period = 30, `MaType::Sma`              | `Vec<f64>`（按 `MaType` 派发）       |
+| `mavp` / `mavp_default`         | `TA_MAVP`     | min = 2 / max = 30, SMA                 | `Vec<f64>`（变周期）                 |
+| `kama` / `kama_default`         | `TA_KAMA`     | period = 30                             | `Vec<f64>`                           |
+| `sar` / `sar_default`           | `TA_SAR`      | accel = 0.02, max = 0.2                 | `Vec<f64>`                           |
+| `sarext` / `sarext_default`     | `TA_SAREXT`   | 多空加速 0.02/0.02/0.2                  | `Vec<f64>`（短侧为负值）             |
+| `accbands` / `accbands_default` | `TA_ACCBANDS` | period = 20                             | `AccBands { upper, middle, lower }`  |
+| `MaType`                        | `TA_MAType`   | `Sma/Ema/Wma/Dema/Tema/Trima/Kama/Mama` | 枚举（供 `ma`/`bbands`/`mavp` 选用） |
 
 ### 动量指标 / Momentum Indicators — `adaq_talib::momentum`
 
-| 函数 | TA-Lib | 默认参数 | 返回 |
-| --- | --- | --- | --- |
-| `mom` / `mom_default` | `TA_MOM` | period = 10 | `Vec<f64>` |
-| `roc` / `roc_default` | `TA_ROC` | period = 10 | `Vec<f64>` |
-| `rocp` / `rocp_default` | `TA_ROCP` | period = 10 | `Vec<f64>` |
-| `rocr` / `rocr_default` | `TA_ROCR` | period = 10 | `Vec<f64>` |
-| `rocr100` / `rocr100_default` | `TA_ROCR100` | period = 10 | `Vec<f64>` |
-| `rsi` / `rsi_default` | `TA_RSI` | period = 14 | `Vec<f64>` |
-| `macd` / `macd_default` | `TA_MACD` | fast = 12, slow = 26, signal = 9 | `Macd { macd, signal, hist }` |
-| `macd_fix` / `macd_fix_default` | `TA_MACDFIX` | fast = 12, slow = 26, signal = 9 | `Macd` |
-| `macd_ext` / `macd_ext_default` | `TA_MACDEXT` | fast = 12, slow = 26, signal = 9 | `Macd`（默认全 EMA） |
-| `apo` / `apo_default` | `TA_APO` | fast = 12, slow = 26 | `Vec<f64>` |
-| `ppo` / `ppo_default` | `TA_PPO` | fast = 12, slow = 26 | `Vec<f64>` |
-| `cmo` / `cmo_default` | `TA_CMO` | period = 14 | `Vec<f64>` |
-| `imi` / `imi_default` | `TA_IMI` | period = 14 | `Vec<f64>`（开/收） |
-| `cci` / `cci_default` | `TA_CCI` | period = 20 | `Vec<f64>` |
-| `mfi` / `mfi_default` | `TA_MFI` | period = 14 | `Vec<f64>`（需成交量） |
-| `willr` / `willr_default` | `TA_WILLR` | period = 14 | `Vec<f64>` |
-| `bop` | `TA_BOP` | — | `Vec<f64>`（lookback 0） |
-| `ultosc` / `ultosc_default` | `TA_ULTOSC` | 7 / 14 / 28 | `Vec<f64>` |
-| `plus_dm` / `plus_dm_default` | `TA_PLUS_DM` | period = 14 | `Vec<f64>` |
-| `minus_dm` / `minus_dm_default` | `TA_MINUS_DM` | period = 14 | `Vec<f64>` |
-| `plus_di` / `plus_di_default` | `TA_PLUS_DI` | period = 14 | `Vec<f64>` |
-| `minus_di` / `minus_di_default` | `TA_MINUS_DI` | period = 14 | `Vec<f64>` |
-| `adx` / `adx_default` | `TA_ADX` | period = 14 | `Vec<f64>` |
-| `adxr` / `adxr_default` | `TA_ADXR` | period = 14 | `Vec<f64>` |
-| `dx` / `dx_default` | `TA_DX` | period = 14 | `Vec<f64>`（OHLC） |
-| `aroon` / `aroon_default` | `TA_AROON` | period = 14 | `Aroon { up, down }` |
-| `aroon_osc` / `aroon_osc_default` | `TA_AROONOSC` | period = 14 | `Vec<f64>` |
-| `stoch` / `stoch_default` | `TA_STOCH` | fastK = 5, slowK = 3, slowD = 3 | `Stoch { slow_k, slow_d }` |
-| `stoch_f` / `stoch_f_default` | `TA_STOCHF` | fastK = 5, fastD = 3 | `StochF { fast_k, fast_d }` |
-| `stoch_rsi` / `stoch_rsi_default` | `TA_STOCHRSI` | rsi = 14, period = 14 | `Vec<f64>` |
-| `trix` / `trix_default` | `TA_TRIX` | period = 30 | `Vec<f64>` |
+| 函数                              | TA-Lib        | 默认参数                         | 返回                          |
+| --------------------------------- | ------------- | -------------------------------- | ----------------------------- |
+| `mom` / `mom_default`             | `TA_MOM`      | period = 10                      | `Vec<f64>`                    |
+| `roc` / `roc_default`             | `TA_ROC`      | period = 10                      | `Vec<f64>`                    |
+| `rocp` / `rocp_default`           | `TA_ROCP`     | period = 10                      | `Vec<f64>`                    |
+| `rocr` / `rocr_default`           | `TA_ROCR`     | period = 10                      | `Vec<f64>`                    |
+| `rocr100` / `rocr100_default`     | `TA_ROCR100`  | period = 10                      | `Vec<f64>`                    |
+| `rsi` / `rsi_default`             | `TA_RSI`      | period = 14                      | `Vec<f64>`                    |
+| `macd` / `macd_default`           | `TA_MACD`     | fast = 12, slow = 26, signal = 9 | `Macd { macd, signal, hist }` |
+| `macd_fix` / `macd_fix_default`   | `TA_MACDFIX`  | fast = 12, slow = 26, signal = 9 | `Macd`                        |
+| `macd_ext` / `macd_ext_default`   | `TA_MACDEXT`  | fast = 12, slow = 26, signal = 9 | `Macd`（默认全 EMA）          |
+| `apo` / `apo_default`             | `TA_APO`      | fast = 12, slow = 26             | `Vec<f64>`                    |
+| `ppo` / `ppo_default`             | `TA_PPO`      | fast = 12, slow = 26             | `Vec<f64>`                    |
+| `cmo` / `cmo_default`             | `TA_CMO`      | period = 14                      | `Vec<f64>`                    |
+| `imi` / `imi_default`             | `TA_IMI`      | period = 14                      | `Vec<f64>`（开/收）           |
+| `cci` / `cci_default`             | `TA_CCI`      | period = 20                      | `Vec<f64>`                    |
+| `mfi` / `mfi_default`             | `TA_MFI`      | period = 14                      | `Vec<f64>`（需成交量）        |
+| `willr` / `willr_default`         | `TA_WILLR`    | period = 14                      | `Vec<f64>`                    |
+| `bop`                             | `TA_BOP`      | —                                | `Vec<f64>`（lookback 0）      |
+| `ultosc` / `ultosc_default`       | `TA_ULTOSC`   | 7 / 14 / 28                      | `Vec<f64>`                    |
+| `plus_dm` / `plus_dm_default`     | `TA_PLUS_DM`  | period = 14                      | `Vec<f64>`                    |
+| `minus_dm` / `minus_dm_default`   | `TA_MINUS_DM` | period = 14                      | `Vec<f64>`                    |
+| `plus_di` / `plus_di_default`     | `TA_PLUS_DI`  | period = 14                      | `Vec<f64>`                    |
+| `minus_di` / `minus_di_default`   | `TA_MINUS_DI` | period = 14                      | `Vec<f64>`                    |
+| `adx` / `adx_default`             | `TA_ADX`      | period = 14                      | `Vec<f64>`                    |
+| `adxr` / `adxr_default`           | `TA_ADXR`     | period = 14                      | `Vec<f64>`                    |
+| `dx` / `dx_default`               | `TA_DX`       | period = 14                      | `Vec<f64>`（OHLC）            |
+| `aroon` / `aroon_default`         | `TA_AROON`    | period = 14                      | `Aroon { up, down }`          |
+| `aroon_osc` / `aroon_osc_default` | `TA_AROONOSC` | period = 14                      | `Vec<f64>`                    |
+| `stoch` / `stoch_default`         | `TA_STOCH`    | fastK = 5, slowK = 3, slowD = 3  | `Stoch { slow_k, slow_d }`    |
+| `stoch_f` / `stoch_f_default`     | `TA_STOCHF`   | fastK = 5, fastD = 3             | `StochF { fast_k, fast_d }`   |
+| `stoch_rsi` / `stoch_rsi_default` | `TA_STOCHRSI` | rsi = 14, period = 14            | `Vec<f64>`                    |
+| `trix` / `trix_default`           | `TA_TRIX`     | period = 30                      | `Vec<f64>`                    |
 
 ### 波动率指标 / Volatility Indicators — `adaq_talib::volatility`
 
-| 函数 | TA-Lib | 默认参数 | 返回 |
-| --- | --- | --- | --- |
-| `trange` | `TA_TRANGE` | — | `Vec<f64>`（lookback 0） |
-| `atr` / `atr_default` | `TA_ATR` | period = 14 | `Vec<f64>` |
-| `natr` / `natr_default` | `TA_NATR` | period = 14 | `Vec<f64>` |
+| 函数                    | TA-Lib      | 默认参数    | 返回                     |
+| ----------------------- | ----------- | ----------- | ------------------------ |
+| `trange`                | `TA_TRANGE` | —           | `Vec<f64>`（lookback 0） |
+| `atr` / `atr_default`   | `TA_ATR`    | period = 14 | `Vec<f64>`               |
+| `natr` / `natr_default` | `TA_NATR`   | period = 14 | `Vec<f64>`               |
 
 ### 成交量指标 / Volume Indicators — `adaq_talib::volume`
 
-| 函数 | TA-Lib | 默认参数 | 返回 |
-| --- | --- | --- | --- |
-| `ad` | `TA_AD` | — | `Vec<f64>`（累计量，lookback 0） |
-| `adosc` / `adosc_default` | `TA_ADOSC` | fast = 3, slow = 10 | `Vec<f64>` |
-| `obv` | `TA_OBV` | — | `Vec<f64>`（累计量，lookback 0） |
+| 函数                      | TA-Lib     | 默认参数            | 返回                             |
+| ------------------------- | ---------- | ------------------- | -------------------------------- |
+| `ad`                      | `TA_AD`    | —                   | `Vec<f64>`（累计量，lookback 0） |
+| `adosc` / `adosc_default` | `TA_ADOSC` | fast = 3, slow = 10 | `Vec<f64>`                       |
+| `obv`                     | `TA_OBV`   | —                   | `Vec<f64>`（累计量，lookback 0） |
 
 ### 价格变换 / Price Transform — `adaq_talib::price_transform`
 
-| 函数 | TA-Lib | 默认参数 | 返回 |
-| --- | --- | --- | --- |
-| `avgdev` / `avgdev_default` | `TA_AVGDEV` | period = 14 | `Vec<f64>` |
-| `avgprice` | `TA_AVGPRICE` | — | `Vec<f64>`（(H+L+C+O)/4） |
-| `medprice` | `TA_MEDPRICE` | — | `Vec<f64>`（(H+L)/2） |
-| `typprice` | `TA_TYPPRICE` | — | `Vec<f64>`（(H+L+C)/3） |
-| `wclprice` | `TA_WCLPRICE` | — | `Vec<f64>`（(H+L+2C)/4） |
+| 函数                        | TA-Lib        | 默认参数    | 返回                      |
+| --------------------------- | ------------- | ----------- | ------------------------- |
+| `avgdev` / `avgdev_default` | `TA_AVGDEV`   | period = 14 | `Vec<f64>`                |
+| `avgprice`                  | `TA_AVGPRICE` | —           | `Vec<f64>`（(H+L+C+O)/4） |
+| `medprice`                  | `TA_MEDPRICE` | —           | `Vec<f64>`（(H+L)/2）     |
+| `typprice`                  | `TA_TYPPRICE` | —           | `Vec<f64>`（(H+L+C)/3）   |
+| `wclprice`                  | `TA_WCLPRICE` | —           | `Vec<f64>`（(H+L+2C)/4）  |
 
 ### 统计函数 / Statistic Functions — `adaq_talib::stat`
 
-| 函数 | TA-Lib | 默认参数 | 返回 |
-| --- | --- | --- | --- |
-| `stddev` / `stddev_default` | `TA_STDDEV` | period = 5, nb_dev = 1.0 | `Vec<f64>` |
-| `var` / `var_default` | `TA_VAR` | period = 5, nb_dev（被忽略） | `Vec<f64>` |
-| `linear_reg` / `linear_reg_default` | `TA_LINEARREG` | period = 14 | `Vec<f64>` |
-| `linear_reg_angle` / `linear_reg_angle_default` | `TA_LINEARREG_ANGLE` | period = 14 | `Vec<f64>`（角度，度） |
-| `linear_reg_intercept` / `linear_reg_intercept_default` | `TA_LINEARREG_INTERCEPT` | period = 14 | `Vec<f64>` |
-| `linear_reg_slope` / `linear_reg_slope_default` | `TA_LINEARREG_SLOPE` | period = 14 | `Vec<f64>` |
-| `tsf` / `tsf_default` | `TA_TSF` | period = 14 | `Vec<f64>` |
-| `beta` / `beta_default` | `TA_BETA` | period = 5 | `Vec<f64>` |
-| `correl` / `correl_default` | `TA_CORREL` | period = 5 | `Vec<f64>` |
+| 函数                                                    | TA-Lib                   | 默认参数                     | 返回                   |
+| ------------------------------------------------------- | ------------------------ | ---------------------------- | ---------------------- |
+| `stddev` / `stddev_default`                             | `TA_STDDEV`              | period = 5, nb_dev = 1.0     | `Vec<f64>`             |
+| `var` / `var_default`                                   | `TA_VAR`                 | period = 5, nb_dev（被忽略） | `Vec<f64>`             |
+| `linear_reg` / `linear_reg_default`                     | `TA_LINEARREG`           | period = 14                  | `Vec<f64>`             |
+| `linear_reg_angle` / `linear_reg_angle_default`         | `TA_LINEARREG_ANGLE`     | period = 14                  | `Vec<f64>`（角度，度） |
+| `linear_reg_intercept` / `linear_reg_intercept_default` | `TA_LINEARREG_INTERCEPT` | period = 14                  | `Vec<f64>`             |
+| `linear_reg_slope` / `linear_reg_slope_default`         | `TA_LINEARREG_SLOPE`     | period = 14                  | `Vec<f64>`             |
+| `tsf` / `tsf_default`                                   | `TA_TSF`                 | period = 14                  | `Vec<f64>`             |
+| `beta` / `beta_default`                                 | `TA_BETA`                | period = 5                   | `Vec<f64>`             |
+| `correl` / `correl_default`                             | `TA_CORREL`              | period = 5                   | `Vec<f64>`             |
 
 ### 周期类（希尔伯特变换）/ Cycle — `adaq_talib::cycle`
 
-| 函数 | TA-Lib | 默认参数 | 返回 |
-| --- | --- | --- | --- |
-| `mama` / `mama_default` | `TA_MAMA` | fast = 0.5, slow = 0.05 | `Mama { mama, fama }` |
-| `ht_trendline` / `ht_trendline_default` | `TA_HT_TRENDLINE` | — | `Vec<f64>`（lookback 63） |
-| `ht_dcperiod` / `ht_dcperiod_default` | `TA_HT_DCPERIOD` | — | `Vec<f64>`（主导周期） |
-| `ht_dcphase` / `ht_dcphase_default` | `TA_HT_DCPHASE` | — | `Vec<f64>`（主导相位） |
-| `ht_phasor` / `ht_phasor_default` | `TA_HT_PHASOR` | — | `Phasor { in_phase, quadrature }` |
-| `ht_sine` / `ht_sine_default` | `TA_HT_SINE` | — | `HtSine { sine, lead_sine }` |
-| `ht_trendmode` / `ht_trendmode_default` | `TA_HT_TRENDMODE` | — | `Vec<f64>`（0/1 趋势模式） |
+| 函数                                    | TA-Lib            | 默认参数                | 返回                              |
+| --------------------------------------- | ----------------- | ----------------------- | --------------------------------- |
+| `mama` / `mama_default`                 | `TA_MAMA`         | fast = 0.5, slow = 0.05 | `Mama { mama, fama }`             |
+| `ht_trendline` / `ht_trendline_default` | `TA_HT_TRENDLINE` | —                       | `Vec<f64>`（lookback 63）         |
+| `ht_dcperiod` / `ht_dcperiod_default`   | `TA_HT_DCPERIOD`  | —                       | `Vec<f64>`（主导周期）            |
+| `ht_dcphase` / `ht_dcphase_default`     | `TA_HT_DCPHASE`   | —                       | `Vec<f64>`（主导相位）            |
+| `ht_phasor` / `ht_phasor_default`       | `TA_HT_PHASOR`    | —                       | `Phasor { in_phase, quadrature }` |
+| `ht_sine` / `ht_sine_default`           | `TA_HT_SINE`      | —                       | `HtSine { sine, lead_sine }`      |
+| `ht_trendmode` / `ht_trendmode_default` | `TA_HT_TRENDMODE` | —                       | `Vec<f64>`（0/1 趋势模式）        |
 
 ### 数学算子 / Math Operators — `adaq_talib::math_ops`
 
 对单条或两条等长序列做逐元素 / 数组运算，全部返回 `Vec<f64>`（等长；lookback 0）。二元算子入参 `(&[f64], &[f64])`；`maxindex`/`minindex`/`minmax`/`minmaxindex` 在滑动窗口上做归约。
 
-| 函数 | TA-Lib | 签名 | 返回 |
-| --- | --- | --- | --- |
-| `add` / `add_default` | `TA_ADD` | `(a, b)` | `Vec<f64>` |
-| `sub` / `sub_default` | `TA_SUB` | `(a, b)` | `Vec<f64>` |
-| `mult` / `mult_default` | `TA_MULT` | `(a, b)` | `Vec<f64>` |
-| `div` / `div_default` | `TA_DIV` | `(a, b)` | `Vec<f64>` |
-| `sum` / `sum_default` | `TA_SUM` | `(a, period)` | `Vec<f64>` |
-| `min` / `min_default` | `TA_MIN` | `(a, period)` | `Vec<f64>` |
-| `max` / `max_default` | `TA_MAX` | `(a, period)` | `Vec<f64>` |
-| `min_index` / `min_index_default` | `TA_MININDEX` | `(a, period)` | `Vec<f64>`（最小值索引） |
-| `max_index` / `max_index_default` | `TA_MAXINDEX` | `(a, period)` | `Vec<f64>`（最大值索引） |
-| `minmax` / `minmax_default` | `TA_MINMAX` | `(a, period)` | `MinMax { min, max }` |
+| 函数                                    | TA-Lib           | 签名          | 返回                               |
+| --------------------------------------- | ---------------- | ------------- | ---------------------------------- |
+| `add` / `add_default`                   | `TA_ADD`         | `(a, b)`      | `Vec<f64>`                         |
+| `sub` / `sub_default`                   | `TA_SUB`         | `(a, b)`      | `Vec<f64>`                         |
+| `mult` / `mult_default`                 | `TA_MULT`        | `(a, b)`      | `Vec<f64>`                         |
+| `div` / `div_default`                   | `TA_DIV`         | `(a, b)`      | `Vec<f64>`                         |
+| `sum` / `sum_default`                   | `TA_SUM`         | `(a, period)` | `Vec<f64>`                         |
+| `min` / `min_default`                   | `TA_MIN`         | `(a, period)` | `Vec<f64>`                         |
+| `max` / `max_default`                   | `TA_MAX`         | `(a, period)` | `Vec<f64>`                         |
+| `min_index` / `min_index_default`       | `TA_MININDEX`    | `(a, period)` | `Vec<f64>`（最小值索引）           |
+| `max_index` / `max_index_default`       | `TA_MAXINDEX`    | `(a, period)` | `Vec<f64>`（最大值索引）           |
+| `minmax` / `minmax_default`             | `TA_MINMAX`      | `(a, period)` | `MinMax { min, max }`              |
 | `minmax_index` / `minmax_index_default` | `TA_MINMAXINDEX` | `(a, period)` | `MinMaxIndex { min_idx, max_idx }` |
 
 ### 数学变换 / Math Transform — `adaq_talib::math_trans`
 
 对单条序列做逐元素超越 / 取整变换，全部返回 `Vec<f64>`（等长；lookback 0）。
 
-| 函数 | TA-Lib | 返回 |
-| --- | --- | --- |
-| `acos` / `acos_default` | `TA_ACOS` | `Vec<f64>` |
-| `asin` / `asin_default` | `TA_ASIN` | `Vec<f64>` |
-| `atan` / `atan_default` | `TA_ATAN` | `Vec<f64>` |
-| `ceil` / `ceil_default` | `TA_CEIL` | `Vec<f64>` |
-| `cos` / `cos_default` | `TA_COS` | `Vec<f64>` |
-| `cosh` / `cosh_default` | `TA_COSH` | `Vec<f64>` |
-| `exp` / `exp_default` | `TA_EXP` | `Vec<f64>` |
+| 函数                      | TA-Lib     | 返回       |
+| ------------------------- | ---------- | ---------- |
+| `acos` / `acos_default`   | `TA_ACOS`  | `Vec<f64>` |
+| `asin` / `asin_default`   | `TA_ASIN`  | `Vec<f64>` |
+| `atan` / `atan_default`   | `TA_ATAN`  | `Vec<f64>` |
+| `ceil` / `ceil_default`   | `TA_CEIL`  | `Vec<f64>` |
+| `cos` / `cos_default`     | `TA_COS`   | `Vec<f64>` |
+| `cosh` / `cosh_default`   | `TA_COSH`  | `Vec<f64>` |
+| `exp` / `exp_default`     | `TA_EXP`   | `Vec<f64>` |
 | `floor` / `floor_default` | `TA_FLOOR` | `Vec<f64>` |
-| `ln` / `ln_default` | `TA_LN` | `Vec<f64>` |
+| `ln` / `ln_default`       | `TA_LN`    | `Vec<f64>` |
 | `log10` / `log10_default` | `TA_LOG10` | `Vec<f64>` |
-| `sin` / `sin_default` | `TA_SIN` | `Vec<f64>` |
-| `sinh` / `sinh_default` | `TA_SINH` | `Vec<f64>` |
-| `sqrt` / `sqrt_default` | `TA_SQRT` | `Vec<f64>` |
-| `tan` / `tan_default` | `TA_TAN` | `Vec<f64>` |
-| `tanh` / `tanh_default` | `TA_TANH` | `Vec<f64>` |
+| `sin` / `sin_default`     | `TA_SIN`   | `Vec<f64>` |
+| `sinh` / `sinh_default`   | `TA_SINH`  | `Vec<f64>` |
+| `sqrt` / `sqrt_default`   | `TA_SQRT`  | `Vec<f64>` |
+| `tan` / `tan_default`     | `TA_TAN`   | `Vec<f64>` |
+| `tanh` / `tanh_default`   | `TA_TANH`  | `Vec<f64>` |
 
 ### 模式识别 / Pattern Recognition — `adaq_talib::pattern`
 
@@ -215,39 +215,39 @@ adaq-talib 现已实现完整的 TA-Lib 0.7.1 公开函数面 —— **10 大类
 `+100` 看多 / `0` 中性 / `−100` 看空；前导 `lookback` 个位置为 `0.0`（与 TA-Lib 整数输出约定一致，ADR 0007）。
 仅实现默认 candle settings（ADR 0009）。
 
-| 函数 | TA-Lib | 函数 | TA-Lib |
-| --- | --- | --- | --- |
-| `cdl_2crows` | `CDL2CROWS` | `cdl_identical3crows` | `CDLIDENTICAL3CROWS` |
-| `cdl_3blackcrows` | `CDL3BLACKCROWS` | `cdl_inneck` | `CDLINNECK` |
-| `cdl_3inside` | `CDL3INSIDE` | `cdl_invertedhammer` | `CDLINVERTEDHAMMER` |
-| `cdl_3linestrike` | `CDL3LINESTRIKE` | `cdl_kicking` | `CDLKICKING` |
-| `cdl_3outside` | `CDL3OUTSIDE` | `cdl_kickingbylength` | `CDLKICKINGBYLENGTH` |
-| `cdl_3starsinsouth` | `CDL3STARSINSOUTH` | `cdl_ladderbottom` | `CDLLADDERBOTTOM` |
-| `cdl_3whitesoldiers` | `CDL3WHITESOLDIERS` | `cdl_longleggeddoji` | `CDLLONGLEGGEDDOJI` |
-| `cdl_abandonedbaby` | `CDLABANDONEDBABY` | `cdl_longline` | `CDLLONGLINE` |
-| `cdl_advanceblock` | `CDLADVANCEBLOCK` | `cdl_marubozu` | `CDLMARUBOZU` |
-| `cdl_belthold` | `CDLBELTHOLD` | `cdl_matchinglow` | `CDLMATCHINGLOW` |
-| `cdl_breakaway` | `CDLBREAKAWAY` | `cdl_mathold` | `CDLMATHOLD` |
-| `cdl_closingmarubozu` | `CDLCLOSINGMARUBOZU` | `cdl_morningdojistar` | `CDLMORNINGDOJISTAR` |
-| `cdl_concealbabyswall` | `CDLCONCEALBABYSWALL` | `cdl_morningstar` | `CDLMORNINGSTAR` |
-| `cdl_counterattack` | `CDLCOUNTERATTACK` | `cdl_onneck` | `CDLONNECK` |
-| `cdl_darkcloudcover` | `CDLDARKCLOUDCOVER` | `cdl_piercing` | `CDLPIERCING` |
-| `cdl_doji` | `CDLDOJI` | `cdl_rickshawman` | `CDLRICKSHAWMAN` |
-| `cdl_dojistar` | `CDLDOJISTAR` | `cdl_risefall3methods` | `CDLRISEFALL3METHODS` |
-| `cdl_dragonflydoji` | `CDLDRAGONFLYDOJI` | `cdl_separatinglines` | `CDLSEPARATINGLINES` |
-| `cdl_engulfing` | `CDLENGULFING` | `cdl_shootingstar` | `CDLSHOOTINGSTAR` |
-| `cdl_eveningdojistar` | `CDLEVENINGDOJISTAR` | `cdl_shortline` | `CDLSHORTLINE` |
-| `cdl_eveningstar` | `CDLEVENINGSTAR` | `cdl_spinningtop` | `CDLSPINNINGTOP` |
-| `cdl_gapsidesidewhite` | `CDLGAPSIDESIDEWHITE` | `cdl_stalledpattern` | `CDLSTALLEDPATTERN` |
-| `cdl_gravestonedoji` | `CDLGRAVESTONEDOJI` | `cdl_sticksandwich` | `CDLSTICKSANDWICH` |
-| `cdl_hammer` | `CDLHAMMER` | `cdl_takuri` | `CDLTAKURI` |
-| `cdl_hangingman` | `CDLHANGINGMAN` | `cdl_tasukigap` | `CDLTASUKIGAP` |
-| `cdl_harami` | `CDLHARAMI` | `cdl_thrusting` | `CDLTHRUSTING` |
-| `cdl_haramicross` | `CDLHARAMICROSS` | `cdl_tristar` | `CDLTRISTAR` |
-| `cdl_highwave` | `CDLHIGHWAVE` | `cdl_unique3river` | `CDLUNIQUE3RIVER` |
-| `cdl_hikkake` | `CDLHIKKAKE` | `cdl_upsidegap2crows` | `CDLUPSIDEGAP2CROWS` |
-| `cdl_hikkakemod` | `CDLHIKKAKEMOD` | `cdl_xsidegap3methods` | `CDLXSIDEGAP3METHODS` |
-| `cdl_homingpigeon` | `CDLHOMINGPIGEON` | | |
+| 函数                   | TA-Lib                | 函数                   | TA-Lib                |
+| ---------------------- | --------------------- | ---------------------- | --------------------- |
+| `cdl_2crows`           | `CDL2CROWS`           | `cdl_identical3crows`  | `CDLIDENTICAL3CROWS`  |
+| `cdl_3blackcrows`      | `CDL3BLACKCROWS`      | `cdl_inneck`           | `CDLINNECK`           |
+| `cdl_3inside`          | `CDL3INSIDE`          | `cdl_invertedhammer`   | `CDLINVERTEDHAMMER`   |
+| `cdl_3linestrike`      | `CDL3LINESTRIKE`      | `cdl_kicking`          | `CDLKICKING`          |
+| `cdl_3outside`         | `CDL3OUTSIDE`         | `cdl_kickingbylength`  | `CDLKICKINGBYLENGTH`  |
+| `cdl_3starsinsouth`    | `CDL3STARSINSOUTH`    | `cdl_ladderbottom`     | `CDLLADDERBOTTOM`     |
+| `cdl_3whitesoldiers`   | `CDL3WHITESOLDIERS`   | `cdl_longleggeddoji`   | `CDLLONGLEGGEDDOJI`   |
+| `cdl_abandonedbaby`    | `CDLABANDONEDBABY`    | `cdl_longline`         | `CDLLONGLINE`         |
+| `cdl_advanceblock`     | `CDLADVANCEBLOCK`     | `cdl_marubozu`         | `CDLMARUBOZU`         |
+| `cdl_belthold`         | `CDLBELTHOLD`         | `cdl_matchinglow`      | `CDLMATCHINGLOW`      |
+| `cdl_breakaway`        | `CDLBREAKAWAY`        | `cdl_mathold`          | `CDLMATHOLD`          |
+| `cdl_closingmarubozu`  | `CDLCLOSINGMARUBOZU`  | `cdl_morningdojistar`  | `CDLMORNINGDOJISTAR`  |
+| `cdl_concealbabyswall` | `CDLCONCEALBABYSWALL` | `cdl_morningstar`      | `CDLMORNINGSTAR`      |
+| `cdl_counterattack`    | `CDLCOUNTERATTACK`    | `cdl_onneck`           | `CDLONNECK`           |
+| `cdl_darkcloudcover`   | `CDLDARKCLOUDCOVER`   | `cdl_piercing`         | `CDLPIERCING`         |
+| `cdl_doji`             | `CDLDOJI`             | `cdl_rickshawman`      | `CDLRICKSHAWMAN`      |
+| `cdl_dojistar`         | `CDLDOJISTAR`         | `cdl_risefall3methods` | `CDLRISEFALL3METHODS` |
+| `cdl_dragonflydoji`    | `CDLDRAGONFLYDOJI`    | `cdl_separatinglines`  | `CDLSEPARATINGLINES`  |
+| `cdl_engulfing`        | `CDLENGULFING`        | `cdl_shootingstar`     | `CDLSHOOTINGSTAR`     |
+| `cdl_eveningdojistar`  | `CDLEVENINGDOJISTAR`  | `cdl_shortline`        | `CDLSHORTLINE`        |
+| `cdl_eveningstar`      | `CDLEVENINGSTAR`      | `cdl_spinningtop`      | `CDLSPINNINGTOP`      |
+| `cdl_gapsidesidewhite` | `CDLGAPSIDESIDEWHITE` | `cdl_stalledpattern`   | `CDLSTALLEDPATTERN`   |
+| `cdl_gravestonedoji`   | `CDLGRAVESTONEDOJI`   | `cdl_sticksandwich`    | `CDLSTICKSANDWICH`    |
+| `cdl_hammer`           | `CDLHAMMER`           | `cdl_takuri`           | `CDLTAKURI`           |
+| `cdl_hangingman`       | `CDLHANGINGMAN`       | `cdl_tasukigap`        | `CDLTASUKIGAP`        |
+| `cdl_harami`           | `CDLHARAMI`           | `cdl_thrusting`        | `CDLTHRUSTING`        |
+| `cdl_haramicross`      | `CDLHARAMICROSS`      | `cdl_tristar`          | `CDLTRISTAR`          |
+| `cdl_highwave`         | `CDLHIGHWAVE`         | `cdl_unique3river`     | `CDLUNIQUE3RIVER`     |
+| `cdl_hikkake`          | `CDLHIKKAKE`          | `cdl_upsidegap2crows`  | `CDLUPSIDEGAP2CROWS`  |
+| `cdl_hikkakemod`       | `CDLHIKKAKEMOD`       | `cdl_xsidegap3methods` | `CDLXSIDEGAP3METHODS` |
+| `cdl_homingpigeon`     | `CDLHOMINGPIGEON`     |                        |                       |
 
 ### 错误类型 / Error Type
 
@@ -458,19 +458,19 @@ cargo test --doc           # 仅运行文档示例
 
 **可选 `parallel` 特性：** `parallel` 特性（默认关闭）对 5 个 A 类窗口函数（`midpoint`、`minmax`、`minmax_index`、`willr`、`stoch_f`）采用重叠播种并行分块，将其移出“更慢”桶。在 `--features parallel` 下，合计变为 **88 更快 / 63 持平 / 10 更慢**（几何均值 **Rust/C = 0.734×**，约为 C 的 1.36× 快）；默认（串行）构建仍为 85/60/16（0.786×）。对其余 156 个函数该特性为 no-op。详见已落地优化表（P3-2b）与 `docs/validation-and-performance-report.md` §3.5。
 
-| TA-Lib 分组 | 指标数 | 更快 (<0.8) | 持平 (0.8–1.2) | 更慢 (>1.2) | 几何均值 Rust/C |
-|---|---:|---:|---:|---:|---:|
-| 周期 / 希尔伯特变换 | 5 | 2 | 2 | 1 | 0.980× |
-| 数学算子 | 11 | 7 | 2 | 2 | 0.805× |
-| 数学变换 | 15 | 4 | 11 | 0 | 0.858× |
-| 动量 | 31 | 8 | 20 | 3 | 0.852× |
-| 重叠研究 | 18 | 6 | 10 | 2 | 0.842× |
-| 模式识别 | 61 | 43 | 13 | 5 | 0.677× |
-| 价格变换 | 5 | 5 | 0 | 0 | 0.599× |
-| 统计函数 | 9 | 7 | 1 | 1 | 0.548× |
-| 波动率 | 3 | 2 | 0 | 1 | 0.841× |
-| 成交量 | 3 | 1 | 1 | 1 | 0.994× |
-| **合计** | **161** | **85** | **60** | **16** | **0.786×** |
+| TA-Lib 分组         |  指标数 | 更快 (<0.8) | 持平 (0.8–1.2) | 更慢 (>1.2) | 几何均值 Rust/C |
+| ------------------- | ------: | ----------: | -------------: | ----------: | --------------: |
+| 周期 / 希尔伯特变换 |       5 |           2 |              2 |           1 |          0.980× |
+| 数学算子            |      11 |           7 |              2 |           2 |          0.805× |
+| 数学变换            |      15 |           4 |             11 |           0 |          0.858× |
+| 动量                |      31 |           8 |             20 |           3 |          0.852× |
+| 重叠研究            |      18 |           6 |             10 |           2 |          0.842× |
+| 模式识别            |      61 |          43 |             13 |           5 |          0.677× |
+| 价格变换            |       5 |           5 |              0 |           0 |          0.599× |
+| 统计函数            |       9 |           7 |              1 |           1 |          0.548× |
+| 波动率              |       3 |           2 |              0 |           1 |          0.841× |
+| 成交量              |       3 |           1 |              1 |           1 |          0.994× |
+| **合计**            | **161** |      **85** |         **60** |      **16** |      **0.786×** |
 
 adaq-talib 现已在 **全部 10 个分组上平均快于 C**（每个分组的几何均值 Rust/C < 1）—— 周期、数学算子、数学变换、动量、重叠研究、模式识别、价格变换、统计函数、波动率与成交量；**没有任何分组在平均意义上慢于 C**。最显著的变化是模式识别：经 0.1.3 对全部 61 个蜡烛函数做内联累加器推广后，该组由最慢（几何均值 2.98× 慢）一跃成为最快之一（0.677×）。仍慢于 C 的 **16** 个指标为孤立个案，属真实的单线程递推 / 双极值下限：`midpoint`、`minmax`、`minmax_index`、`mfi`、`willr`、`stoch_f`、`correl`、`adosc`、`trange`、`ht_phasor`、`ht_trendline`，以及形态蜡烛判定分支 `cdl_engulfing`/`cdl_separatinglines`/`cdl_harami`/`cdl_longline`/`cdl_shortline`。EMA 家族的缺口（EMA/KAMA/APO/PPO/T3/TRIX/ULTOSC/ADX/ADXR/DX）已被 P3-6 FMA 收缩阶段补齐（见下方已落地优化表）。完整逐指标表 —— 全部 161 个，含 Rust/C 比值、状态与实时 TA-Lib 一致性校验和 —— 见 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)。相关注意事项（如 `stoch_rsi` 仅返回 `fastk` 线，故其基准校验和不同 —— 属基准观测假象，非正确性缺口）详见该报告。
 
@@ -478,23 +478,24 @@ adaq-talib 现已在 **全部 10 个分组上平均快于 C**（每个分组的�
 
 所有下述优化均**零偏差** —— 逐项对照 TA-Lib 0.7.1 黄金向量验证（完整逐指标说明见 [`benches/BASELINE.md`](benches/BASELINE.md)）。`ns/elem` 采集于 Apple Silicon aarch64，`N = 1_000_000`，`PERIOD = 20`，`ITERS = 20`（点测，±5% 波动）。
 
-| 阶段 | 函数 | 技术 | 结果 (Rust/C 或 ns/elem) | 相对先前 |
-|------|------|------|--------------------------:|-----------|
-| P3-1 (0.1.3) | 模式识别（全部 61 个 CDL） | 内联 `CandleAvg` 运行和 / 拖尾和累加器（`tools/opt_pattern.py`，零偏差） | 几何均值 **2.98× → 0.677×**；43 快 / 13 持平 / 5 慢 | 最大单项收益 |
-| P3-2 (0.1.3) | `min` / `max` / `min_index` / `max_index` | 环形缓冲 `MonoQueue`（掩码索引，无边界检查）替换 `VecDeque` | 每极值 3.447 → 2.347 ns/elem；`min` 1.17→0.76、`max` 1.57→0.99、`min_index` 1.14→0.77、`max_index` 1.54→1.01 | 每极值约快 32% |
-| P3-3 (0.1.3) | `ht_dcperiod` | 循环-IIR 快路径跳过未用的 `compute_dc_phase` 正弦/余弦窗口 | 3.589× → 1.191×（已持平） | — |
-| P3-4 (0.1.3) | `ht_dcphase` / `ht_sine` / `ht_trendmode` | 正弦/余弦角度加法递推（`sin(θ+w)`、`cos(θ+w)`） | 1.216→0.786 / 0.840→0.687 / 1.432→1.122 | — |
-| P3-5 (0.1.3) | `mfi` | 单遍滑动窗口融合（两个环形缓冲运行和） | 2.563× → 1.406×（仍慢 —— 逐 bar 除法主导） | 约 1.8× 接近 C |
-| P3-6 (0.1.3) | `ema` / `kama` / `apo` / `ppo` / `t3` / `adosc`（递推点） | 在每一处递推显式使用 `.mul_add()` FMA（与 GCC `-ffp-contract=fast` 等价） | `ema` 1.488→0.977、`kama` 1.484→1.069、`apo` 1.529→1.085、`ppo` 1.425→1.077、`t3` 1.325→0.999（均达持平）；传递性使 `trix`/`ultosc` 更快、`adx`/`adxr`/`dx` 持平 | 补齐 EMA 家族缺口 |
-| P3-2b (0.1.3) | `midpoint` / `minmax` / `minmax_index` / `willr` / `stoch_f` | 重叠播种并行分块（`std::thread::scope` + `available_parallelism`，零依赖，默认关闭 `parallel` 特性） | `midpoint` 1.620→0.901、`minmax` 1.523→0.844、`minmax_index` 1.434→0.915（均达持平）；`willr` 1.455→0.748、`stoch_f` 1.228→0.579（更快）；合计 85/60/16 → 88/63/10，几何均值 0.786×→0.734× | 将 5 个可播种的 A 类下限移出“更慢” |
-| P2-1 | `dema` / `tema` / `t3` | 单遍嵌套 EMA 融合核（`core::nested_ema_with_output`） | 3.63 / 3.46 / 3.76 ns/elem | ~2× / ~3× / ~6×（相对朴素） |
-| P2-2 | `midpoint` / `midprice` | 单调队列 `core::rolling_extreme` O(n) | 6.88 / 7.30 | ~3× / ~3× |
-| P2-3 | `wma` | O(n) 滑动递推（`W[i] = W[i-1] + period·x[i] − sw[i-1]`） | 2.11 | ~4.7× |
-| P2-4 | `bbands`（SMA 中轨） | 单遍 `rolling_mean_var` 融合 | 3.02 | ~1.5–1.6× |
-| P2-5 | `linear_reg` 家族 / `correl` | O(n) 滑动求和 / 交叉积 | 2.33 / 4.81 | ~20×（渐近） |
-| P2-5 | `willr` / `stoch` / `stoch_f` | 复用单调极值队列 O(n) | 7.90 / 10.99 | ~20×（渐近） |
-| P1② | `minmax` | 复用单遍 `core::rolling_minmax`（收敛；性能中性） | 6.76 | ≈（仅精度收益） |
-| P1③ | `max_index` / `min_index` / `minmax_index` | 单遍 `core::rolling_extreme_index` O(n) | 3.43 / 3.31 / 6.79 | ~1.9×（索引） |
+| 阶段                | 函数                                                           | 技术                                                                                                                                            |                                                                                                                                                                   结果 (Rust/C 或 ns/elem) | 相对先前                                                        |
+| ------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | --------------------------------------------------------------- |
+| P3-1 (0.1.3)        | 模式识别（全部 61 个 CDL）                                     | 内联 `CandleAvg` 运行和 / 拖尾和累加器（`tools/opt_pattern.py`，零偏差）                                                                        |                                                                                                                                        几何均值 **2.98× → 0.677×**；43 快 / 13 持平 / 5 慢 | 最大单项收益                                                    |
+| P3-2 (0.1.3)        | `min` / `max` / `min_index` / `max_index`                      | 环形缓冲 `MonoQueue`（掩码索引，无边界检查）替换 `VecDeque`                                                                                     |                                                                               每极值 3.447 → 2.347 ns/elem；`min` 1.17→0.76、`max` 1.57→0.99、`min_index` 1.14→0.77、`max_index` 1.54→1.01 | 每极值约快 32%                                                  |
+| P3-3 (0.1.3)        | `ht_dcperiod`                                                  | 循环-IIR 快路径跳过未用的 `compute_dc_phase` 正弦/余弦窗口                                                                                      |                                                                                                                                                                  3.589× → 1.191×（已持平） | —                                                               |
+| P3-4 (0.1.3)        | `ht_dcphase` / `ht_sine` / `ht_trendmode`                      | 正弦/余弦角度加法递推（`sin(θ+w)`、`cos(θ+w)`）                                                                                                 |                                                                                                                                                    1.216→0.786 / 0.840→0.687 / 1.432→1.122 | —                                                               |
+| P3-5 (0.1.3)        | `mfi`                                                          | 单遍滑动窗口融合（两个环形缓冲运行和）                                                                                                          |                                                                                                                                                 2.563× → 1.406×（仍慢 —— 逐 bar 除法主导） | 约 1.8× 接近 C                                                  |
+| P3-6 (0.1.3)        | `ema` / `kama` / `apo` / `ppo` / `t3` / `adosc`（递推点）      | 在每一处递推显式使用 `.mul_add()` FMA（与 GCC `-ffp-contract=fast` 等价）                                                                       |                           `ema` 1.488→0.977、`kama` 1.484→1.069、`apo` 1.529→1.085、`ppo` 1.425→1.077、`t3` 1.325→0.999（均达持平）；传递性使 `trix`/`ultosc` 更快、`adx`/`adxr`/`dx` 持平 | 补齐 EMA 家族缺口                                               |
+| P3-2b (0.1.3)       | `midpoint` / `minmax` / `minmax_index` / `willr` / `stoch_f`   | 重叠播种并行分块（`std::thread::scope` + `available_parallelism`，零依赖，默认关闭 `parallel` 特性）                                            | `midpoint` 1.620→0.901、`minmax` 1.523→0.844、`minmax_index` 1.434→0.915（均达持平）；`willr` 1.455→0.748、`stoch_f` 1.228→0.579（更快）；合计 85/60/16 → 88/63/10，几何均值 0.786×→0.734× | 将 5 个可播种的 A 类下限移出“更慢”                              |
+| P2-1                | `dema` / `tema` / `t3`                                         | 单遍嵌套 EMA 融合核（`core::nested_ema_with_output`）                                                                                           |                                                                                                                                                                 3.63 / 3.46 / 3.76 ns/elem | ~2× / ~3× / ~6×（相对朴素）                                     |
+| P2-2                | `midpoint` / `midprice`                                        | 单调队列 `core::rolling_extreme` O(n)                                                                                                           |                                                                                                                                                                                6.88 / 7.30 | ~3× / ~3×                                                       |
+| P2-3                | `wma`                                                          | O(n) 滑动递推（`W[i] = W[i-1] + period·x[i] − sw[i-1]`）                                                                                        |                                                                                                                                                                                       2.11 | ~4.7×                                                           |
+| P2-4                | `bbands`（SMA 中轨）                                           | 单遍 `rolling_mean_var` 融合                                                                                                                    |                                                                                                                                                                                       3.02 | ~1.5–1.6×                                                       |
+| P2-5                | `linear_reg` 家族 / `correl`                                   | O(n) 滑动求和 / 交叉积                                                                                                                          |                                                                                                                                                                                2.33 / 4.81 | ~20×（渐近）                                                    |
+| P2-5                | `willr` / `stoch` / `stoch_f`                                  | 复用单调极值队列 O(n)                                                                                                                           |                                                                                                                                                                               7.90 / 10.99 | ~20×（渐近）                                                    |
+| P1②                 | `minmax`                                                       | 复用单遍 `core::rolling_minmax`（收敛；性能中性）                                                                                               |                                                                                                                                                                                       6.76 | ≈（仅精度收益）                                                 |
+| P1③                 | `max_index` / `min_index` / `minmax_index`                     | 单遍 `core::rolling_extreme_index` O(n)                                                                                                         |                                                                                                                                                                         3.43 / 3.31 / 6.79 | ~1.9×（索引）                                                   |
+| Wilder 接缝 (0.1.7) | `rsi` / `cmo` / `plus_di` / `minus_di` / `dx` / `adx` / `adxr` | 将内联 Wilder 递推收口到 `core::ema::wilder_step` / `wilder_step_sum`（预计算 `k = 1/period` 替代热循环内的 `/p` 除法；均值形与求和形分别保留） |                                                     `rsi` 5.40→3.13、`cmo` 6.06→3.28、`plus_di` 7.02→4.04、`minus_di` 7.14→4.06、`dx` 6.74→4.89、`adx` 6.95→5.87、`adxr` 6.87→6.05 ns/elem | −12% ~ −46% 更快（`momentum_wilder_bench`，N=10万，9 轮中位数） |
 
 † `midpoint` / `midprice`（P2-2）与 `max_index` / `min_index` / `minmax_index`（P1③）现已运行在 0.1.3 引入的同一环形缓冲 `MonoQueue` 上（P3-2）。
 
@@ -513,6 +514,8 @@ cargo bench --bench sma_bench --features bench-c
 cargo bench --bench all161_bench
 cargo bench --bench all161_bench --features bench-c   # 含 C 参考口径
 cargo bench --bench all161_bench --features bench-c,parallel   # 并行重叠播种阶段
+cargo bench --bench momentum_wilder_bench   # Wilder 家族微基准（rsi/cmo/±di/dx/adx/adxr），9 轮中位数
+cargo bench --bench cdl_bench               # 蜡烛形态微基准，9 轮中位数
 ```
 
 > 第 2 种需系统已安装 TA-Lib C 库（`brew install ta-lib` / 源码编译）；`build.rs` 仅在 `bench-c` 下链接，未启用时构建不受影响。报告须明确区分两种口径。
@@ -538,6 +541,7 @@ cargo bench --bench all161_bench --features bench-c,parallel   # 并行重叠播
 ## 文档 / Documentation
 
 - 设计决策（ADR 0001–0009）：[`docs/adr/`](docs/adr/)
+- 变更日志：[`changelog.zh-CN.md`](changelog.zh-CN.md)（中文）/ [`changelog.md`](changelog.md)（English）
 - 统一 API 写法：[`docs/api-conventions.md`](docs/api-conventions.md)
 - 0.1.0 函数范围基线：[`docs/0.1.0-scope.md`](docs/0.1.0-scope.md)
 - 术语表：[`CONTEXT.md`](CONTEXT.md)
@@ -555,7 +559,7 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.6（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）。0.1.4、0.1.5 与 0.1.6 为内部架构重构版本（核心模块化、零成本 `indicator!` 脚手架、蜡烛形态可读性 / 样板精简），不新增任何公开函数或 API（见[变更日志](#变更日志--changelog)）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
+- ✅ **0.1.8（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）。0.1.4、0.1.5、0.1.6、0.1.7 与 0.1.8 为内部架构重构版本（核心模块化、零成本 `indicator!` 脚手架、蜡烛形态可读性 / 样板精简、Wilder 递推接缝收口、Changelog 抽出），不新增任何公开函数或 API（见[变更日志](#变更日志--changelog)）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
 - 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。
@@ -564,48 +568,6 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 ## 变更日志 / Changelog
 
-### 0.1.6
-- **蜡烛形态内核 —— `real_body` 冗余重算去重（perf(pattern)）**：20 个蜡烛形态内核现复用各条件里已算好的 `cur_avg_*` 滑动窗口值，而非重新计算 `real_body(open[i], close[i])`。纯重排 —— 无算术改动 —— TA-Lib 0.7.1 黄金向量保持逐位一致（全部 144 个蜡烛集成测试通过）。对照原基线的控制校正 A/B（3 轮中位数，借未改动对照组校正环境漂移）：12 个明确提速（如 `cdl_closingmarubozu` −57%、`cdl_marubozu` −36%、`cdl_stalledpattern` −27%、`cdl_counterattack` −24%）、3 个持平（`cdl_belthold` / `cdl_longleggeddoji` / `cdl_eveningstar`）、5 个表观「回归」（`cdl_3starsinsouth` / `cdl_3whitesoldiers` / `cdl_abandonedbaby` / `cdl_eveningdojistar` / `cdl_morningstar`）经判定为环境噪声 —— 去掉一次重算不可能拖慢函数、且黄金向量完全相同，故全部保留。另含 `cdl_harami` CandleAvg 合并（已验证提速）与 `cdl_homingpigeon` / `longline` / `shortline` 影线 + 实体去重。
-- **指标脚手架推广（`indicator!` 宏）—— 一致性**：将 `midprice`、`sar`、`sarext`、`avgprice`、`medprice`、`typprice`、`wclprice`、`ad`、`adosc`、`obv` 迁移至零成本 `indicator!` 宏（0.1.5 引入），移除冗余的错误处理 / 输出初始化样板；各函数保留其详尽的中英双语文档注释。模式识别模块一并迁移。输出仍为黄金向量 1:1。
-- **蜡烛形态模块 —— 可读性重构**：移除各 batch 文件中算术表达式多余括号，合并均值计算的变量初始化，并为 `pattern/mod.rs` 中未使用赋值 / 变量显式加 `#[allow(...)]`，使严格编译无警告。
-- **CI**：`.github/workflows/ci.yml` 与 `release.yml` 中 `actions/checkout` 升级至 **v5**。
-- **基准套件**：新增 `benches/cdl_bench.rs` 并扩展 `benches/phase1c_bench.rs` / `benches/poc_bench.rs`；重新生成 `all161_results.csv`。
-- **发布**：版本号提升至 `0.1.6`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。面向用户的行为、调用形态与 `cargo test` / `cargo bench` 工作流均不变。
+> [`changelog.zh-CN.md`](changelog.zh-CN.md)
 
-### 0.1.5
-- **指标脚手架（`indicator!` 宏）—— 架构深化候选①（Phase 1a/1b/1c）**：新增 `src/indicator.rs`，以**零成本 `macro_rules! indicator`** 宏统一约 146 个单输出公开函数里重复的「分配等长 `f64::NAN` 缓冲 → 转发到 `*_with_output` 内核」胶水。在**度量前置双闸门**（黄金向量 1:1 + A/B `cargo bench` median |Δ| ≤ ±5%）下分阶段推广：
-  - **Phase 1a**：`math_trans` 15 个单输入 / 单输出 / 逐元素函数。
-  - **Phase 1b**：`stat` 7 个单输入函数（`stddev`/`var`/`linear_reg`/`linear_reg_angle`/`linear_reg_intercept`/`linear_reg_slope`/`tsf`）经新增的 N 末尾默认臂生成；`beta`/`correl`（多输入）保持手写（阶段二）。
-  - **Phase 1c**：`math_ops` 9 个（`add`/`sub`/`mult`/`div`/`sum`/`min`/`max`/`max_index`/`min_index`）+ `volatility` 3 个（`trange`/`atr`/`natr`，其中 2 个带默认臂）+ `price_transform::avgdev`，共 13 个单输出函数改由宏生成；`avgprice`/`medprice`/`typprice`/`wclprice` **刻意回退手写** —— 宏统一的 `vec![f64::NAN; n]` 初始化对它们有回归（隔离微基准：`avgprice` +34.7%、`add` +22.2%；A/B median |Δ| = 16–17% ≫ 5%），而它们既无前导 NaN、也无默认参数、宏对其零收益。
-- **零成本保证已验证**：宏在编译期展开为字节级相同的代码（无 `dyn Fn`、无间接调用、无每轮分配）；`*_with_output` 热路径体不变。A/B 结果 —— Phase 1a median 最大 |Δ| = **2.97%**、Phase 1b = **0.11%**、Phase 1c = **0.21%**（均 ≤ 5% → 通过）。黄金向量闸门：全部 **161/161** 函数仍在其容限内复现 TA-Lib 0.7.1；全量 `cargo test` 仍全绿（含宏生成的新 `doctest`）。
-- **新增 A/B 基准 harness（方法论）**：新增 `benches/math_trans_bench.rs`、`benches/stat_bench.rs`、`benches/phase1c_bench.rs`（均已在 `Cargo.toml` 注册）—— 零依赖 `Instant` harness，采用**预热 + 交错多轮 + 中位数**抑制单发噪声（单发可达 ±10%）。详见 [`benches/BASELINE.md`](benches/BASELINE.md) 与 [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md)。
-- **发布**：版本号提升至 `0.1.5`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。面向用户的行为、调用形态与 `cargo test` / `cargo bench` 工作流均不变。
 
-### 0.1.4
-- **核心模块化（架构深化）**：将单体 `src/core/mod.rs` 拆分为职责单一的模块 —— `ema.rs`（嵌套 EMA 融合）、`extreme.rs`（单调队列滚动极值 / 索引）、`window.rs`（窗口求和 / 方差）、`kernel.rs`（共享内核 helper）。删除冗余的 `check_eq_len` 长度检查 helper（长度检查现紧贴各内核）。纯重构 —— 输出与 TA-Lib 0.7.1 仍逐位 / 黄金向量 1:1，零性能影响。
-- **`parallel` 特性升级为一等模块**：原有的重叠播种并行分块（原概念验证）现归入 `src/parallel.rs`，由专属 `tests/parallel_equality.rs` 1:1 相等性测试守护，并由 `benches/parallel_poc.rs` 驱动。5 个 A 类窗口函数（`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`）在默认关闭的 `parallel` 特性下获得多核加速 —— 合计由 **85 更快 / 60 持平 / 16 更慢（几何均值 0.786×）** 变为 **88 / 63 / 10（0.734×）**；对其余 156 个函数该特性为 no-op。
-- **性能报告与 161 基准套件刷新**：刷新 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md) 与 `all161_results*.csv` 基准数据；并入已定稿的 0.1.3 优化成果（EMA 家族 FMA 收缩补齐 EMA 缺口 —— 见[验证与基准](#验证与基准--verification--benchmarks)）。
-- **发布**：版本号提升至 `0.1.4`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
-
-### 0.1.3
-- **模式识别性能推广**：将 `cdl_hammer` 的内联运行和累加器模板推广到**全部 61 个蜡烛函数**（零偏差 transformer `tools/opt_pattern.py`）；把逐函数的 `CandleAvg::new`+`value`+`advance` 替换为内联 `sum_*`/`trail_*`/`cur_*`/`val_*` 累加器（跳过无 `CandleAvg` 的函数，如 `cdl_engulfing`/`cdl_3outside`/`cdl_hikkake`/`cdl_tristar`）。模式识别几何均值 **Rust/C 由 2.98× → 0.677×**（43 快 / 13 持平 / 5 慢，原为 1/3/57）—— 本次发布的最大单项收益。
-- **P2 算法优化（零偏差，0 回退）**：以环形缓冲 `MonoQueue` 替换 `VecDeque` 滚动极值（`min`/`max`/`min_index`/`max_index`，每极值约快 32%）；为 `ht_dcperiod` 增加跳过未用 `compute_dc_phase` 正弦/余弦窗口的循环-IIR 快路径（3.59× → 1.19×，已持平）；在 `compute_dc_phase` 中改用正弦/余弦角度加法递推（`ht_dcphase`/`ht_sine`/`ht_trendmode`）；并将 `mfi` 改写为单遍滑动窗口融合（2.56× → 1.41×）。合计 **82 快 / 54 持平 / 25 慢，几何均值 Rust/C = 0.792×** —— adaq-talib 平均现为 C 的约 1.26× 快（此前为 1.50× 慢）。
-- **P3-2b 并行重叠播种（零偏差，0 回退）**：新增默认关闭的 `parallel` 特性，对 5 个可重叠播种的 A 类窗口函数（`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`）采用 `std::thread::scope` + `available_parallelism` 的重叠播种并行分块（纯 `std`，零外部依赖）；每块以 `period-1`（或 `stoch_f` 的 `fk+fd-2`）个前导元素重叠，复用与串行逐字节一致的核，输出 1:1。合计由 **85 快 / 60 持平 / 16 慢（0.786×）** 变为 **88 快 / 63 持平 / 10 慢（0.734×，约 1.36× 快于 C）**；对其余 156 个函数该特性为 no-op。详见 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md) §3.5。
-- **报告与工具**：更新 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)（新分组 / 逐指标表，三次取中位方法学）与交互式 `docs/benchmarks/adaq-vs-talib-161.html`；新增 `benches/extreme_ab.rs`、`tools/opt_pattern.py` 与 `docs/research/perf-161-analysis.md`。
-- **发布**：版本号提升至 `0.1.3`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
-
-### 0.1.2
-- **全量 161 基准与验证套件**：新增 `benches/all161_bench.rs`（由 `tools/bench/gen_all161.py` 自动生成），对**全部 161** 个指标与原生 TA-Lib C 0.7.1 逐项基准对照，并附带实时数值一致性校验和；配套 `benches/poc_bench.rs` 为概念验证脚手架。统一报告 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)、交互式 `docs/benchmarks/adaq-vs-talib-161.html` 与 `all161_results.csv` 由 `tools/bench/gen_report.py` 生成（双轨方法论见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)）。
-- **黄金向量覆盖扩大**：**222 个黄金向量 fixture 文件**（原 159 个）——补全了完整的模式识别 fixture 集与 `macd_ext` / `macd_fix` fixture。全量测试现为 **326 项测试，0 失败**（原 308），`tools/reconcile.py` 确认 **161/161**。
-- **文档完整性**：逐函数表现已列出全部 161 个函数。`accbands`（重叠研究）、`dx` / `imi`（动量）与 `avgdev`（价格变换）此前已实现并计入 161 总数，但被遗漏在明细表之外 —— 现均已补入文档。
-- **发布**：版本号提升至 `0.1.2`。除上述外无新增公开 API；无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
-
-### 0.1.1
-- **数学算子 —— O(n) 极值索引函数**：`max_index` / `min_index` / `minmax_index` 现采用单遍单调队列（`core::rolling_extreme_index`），替换原先 O(n·period) 的嵌套扫描 —— 提速约 1.9×，且与 TA-Lib 0.7.1 仍逐项 1:1（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。新增 `benches/index_bench.rs` 与 `benches/minmax_bench.rs`。
-- **`minmax` 收敛**：`math_ops::minmax` 现复用单遍 `core::rolling_minmax` 核（与 `midpoint` 同源），消除重复的极值逻辑。性能中性，精度不变。
-- **P2 全阶段性能优化（1:1 验证）**：`dema` / `tema` / `t3` 嵌套 EMA 融合（P2-1）；`midpoint` / `midprice` 单调队列（P2-2）；`wma` O(n) 滑动递推（P2-3）；`bbands` 中轨单遍融合（P2-4）；`linear_reg` 家族 / `correl` / `willr` / `stoch` 滑动 O(n)（P2-5）。详见 [`benches/BASELINE.md`](benches/BASELINE.md)。
-- **发布工具与文档**：新增 `.github/workflows/release.yml`（发布自动化）与 CI；修复 doc-comment 与发布 `exclude`；版本号提升至 `0.1.1`。
-- **模式识别与数学运算模块**：全部 61 个蜡烛形态与完整的 `math_ops` / `math_trans` 函数面均已实现，并补齐黄金向量 fixture（P4 里程碑 —— 161/161 函数）。
-
-### 0.1.0
-- 首个公开里程碑：完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类共 161 个函数，并以零偏差黄金向量验证。

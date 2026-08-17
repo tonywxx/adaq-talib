@@ -17,7 +17,7 @@ name = "adaq-talib"
 readme = "README.md"
 repository = "https://github.com/tonywxx/adaq-talib"
 rust-version = "1.85"
-version = "0.1.7"
+version = "0.1.8"
 
 # Files excluded from the published crate (dev/agent artifacts, not library source).
 exclude = [
@@ -121,3 +121,7 @@ name = "phase1c_bench"
 [[bench]]
 harness = false
 name = "cdl_bench"
+
+[[bench]]
+harness = false
+name = "momentum_wilder_bench"

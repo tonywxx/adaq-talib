@@ -67,6 +67,12 @@
   `> 1.2` → Slower (matching README convention). Final numbers are the **median of 5 runs** to damp
   per-function benchmark noise (~20–40%).
 
+- **Focused micro-benches (2026-08-17):** `benches/cdl_bench.rs` and the new
+  `benches/momentum_wilder_bench.rs` run **9 rounds** and take the median, for lower noise on small
+  per-function effects (a single `Instant` run shows ~±10% noise and is not trusted). These micro-benches
+  measure Rust-only `ns/elem` (no C track) and serve as the regression guard for targeted internal
+  refactors (e.g. §3.6).
+
 - **0.1.5 maintenance (indicator scaffold, 2026-08-11):** the public single-output glue was unified
   behind a zero-cost `macro_rules! indicator` (Phase 1a `math_trans` 15 / 1b `stat` 7 / 1c `math_ops`
   9 + `volatility` 3 + `price_transform::avgdev`; `avgprice`/`medprice`/`typprice`/`wclprice`
@@ -342,6 +348,38 @@ These 10 are genuine single-thread floors; the `parallel` feature eliminates the
 does not — and is not claimed to — bring the full library to <1×. The project KPI (all functions at or
 above C parity, with the parallelizable subset >2×) is therefore met for the A-class subset only; the
 remaining 10 are accepted, documented floors.
+
+### 3.6 Wilder recurrence consolidation (2026-08-17)
+
+The five inline Wilder recurrences in `momentum.rs` (`rsi`, `cmo`, `dm_tr`, `adx_adxr_fused`,
+`dx_from_candles`) were routed onto two `core::ema` primitives — `wilder_step` (mean form,
+`prev + (x−prev)·k`, used by `rsi`/`cmo`/`adx`) and `wilder_step_sum` (sum form,
+`prev·(1−k) + x`, used by the ±DM/TR smoothing in `dm_tr`/`adx_adxr_fused`/`dx_from_candles`).
+`ema_wilder` now delegates to a new zero-copy `wilder_with_output`. The two forms are kept
+**distinct**: the sum form's `period` factor cancels only inside the ±DI ratio, so unifying it with
+the mean form would break `+DI`/`−DI`. Each step precomputes `k = 1/period` once per call and replaces
+the hot-loop `/p` division with a multiply — the source of the speedup below.
+
+- **Accuracy:** golden vectors 31/31 (momentum) reproduce TA-Lib 0.7.1 1:1 (ADR 0005); the full
+  `cargo test` suite is green, including ATR/NATR which flow through the refactored `ema_wilder`.
+- **Performance (median of 9 runs, `momentum_wilder_bench`, N = 100,000):** all 7 Wilder-family
+  indicators are faster — no regression:
+
+  | indicator | before (ns/elem) | after (ns/elem) | Δ |
+  |---|---:|---:|---:|
+  | `rsi`     | 5.40 | 3.13 | **−42%** |
+  | `cmo`     | 6.06 | 3.28 | **−46%** |
+  | `plus_di` | 7.02 | 4.04 | **−43%** |
+  | `minus_di`| 7.14 | 4.06 | **−43%** |
+  | `dx`      | 6.74 | 4.89 | **−28%** |
+  | `adx`     | 6.95 | 5.87 | **−16%** |
+  | `adxr`    | 6.87 | 6.05 | **−12%** |
+
+- **Scope note:** this is a Rust-only internal speedup. The §4 all-161 Rust/C table is the last
+  `all161_bench` median-of-5 (dual-track) snapshot and was **not** re-measured against C here; the
+  Wilder-family indicators remain at-parity-or-better versus native C (their Rust/C ratios shift
+  favourably, but those dual-track numbers are unchanged in this report). The new
+  `benches/momentum_wilder_bench.rs` (median-of-9) is the regression guard for this path.
 
 ## 4. Performance Results — All 161 Indicators
 

@@ -138,7 +138,7 @@ P1–P3 已在一个 PR 内完成（纯内部重构，全部 `pub(crate)`），�
 | 候选 | 内容 | 判定 | 状态 |
 |---|---|---|---|
 | ① | `indicator!` 宏铺开（momentum/overlap 手写胶水迁宏） | 零风险、去重 | ✅ 已执行（2026-08-15 深夜；黄金向量 + 代表 A/B 双闸通过） |
-| ② | core 原语补全 `_with_output`/`_into` | 安全中等 | ⏸ 待办（deferred） |
+| ② | core 原语补全 + Wilder 递推收口（`wilder_step` / `wilder_step_sum` / `wilder_with_output`） | 安全中等 | ✅ **已执行（2026-08-17）**：momentum 的 5 处内联 Wilder 递推收口到 `core::ema` 原语（均值形 `wilder_step` 用于 rsi/cmo/adx；求和形 `wilder_step_sum` 用于 dm_tr/adx_adxr_fused/dx_from_candles 的 ±DM/TR，两形分别保留以保证 +DI/−DI 逐位一致）；`ema_wilder` 改为委托 `wilder_with_output`。黄金向量 31/31 1:1 + 全量测试绿；性能 −12%~−46%（median-of-9，`momentum_wilder_bench`），详见 `docs/validation-and-performance-report.md` §3.6 |
 | ③ | pattern 前导和 `macro_rules!` 去重 + 文档对齐 | 前提不成立 | ❌ **已关闭（2026-08-15）**：9 个慢 pattern 中 7 个已内联却仍 <1×，余下差距为硬约束（safe/无 SIMD/单线程）下 Rust-vs-C codegen 地板，macro 不针对成因（slow-9 内仅 `cdl_harami` 真用 `CandleAvg`）；`cdl_engulfing` 0.43× 经核对为 C 侧测量异常（C 0.93 ns/elem 异常偏低，Rust 2.18 正常）。KPI 重定义为「消除伪慢 + 可并行子集 >2×」 |
 | ④ | `main.rs` → `examples/demo.rs` | 局部性 | ✅ 已执行（2026-08-15；库构建不再耦合 demo CLI） |
 | ⑤ | `parallel.rs` 两分块原语去重 | 默认关闭、无交付影响 | ⏸ 跳过（skip，低优先级） |
