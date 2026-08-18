@@ -512,12 +512,20 @@ pub fn macd_default(values: &[f64]) -> Result<Macd, TaError> {
     macd(values, MACD_FAST, MACD_SLOW, MACD_SIGNAL)
 }
 
-/// 快捷 MACD（固定信号周期 9，TA-Lib `TA_MACDFIX`）。
-/// Convenience MACD with a fixed signal period of 9 (TA-Lib `TA_MACDFIX`).
+/// 快捷 MACD（TA-Lib `TA_MACDFIX`，固定 12 / 26，信号周期可配置）。
+///
+/// Convenience MACD (TA-Lib `TA_MACDFIX`, fixed 12 / 26, configurable signal period).
+///
+/// TA-Lib's `TA_MACDFIX` hard-codes the fast/slow smoothing factors to the historic MACD
+/// constants `0.15` and `0.075` (NOT `2/(period+1)`); only the signal line uses the normal
+/// `2/(signal+1)` factor. This is exactly why `MACDFIX` output differs from `MACD`. The fixed
+/// factors apply when `fast_period == MACD_FAST && slow_period == MACD_SLOW`; any other periods
+/// fall back to the standard EMA factor `2/(period+1)`.
 pub fn macd_fix(
     values: &[f64],
     fast_period: usize,
     slow_period: usize,
+    signal_period: usize,
 ) -> Result<Macd, TaError> {
     let n = values.len();
     let mut out = Macd {
@@ -525,26 +533,117 @@ pub fn macd_fix(
         signal: vec![f64::NAN; n],
         hist: vec![f64::NAN; n],
     };
-    macd_fix_with_output(values, fast_period, slow_period, &mut out)?;
+    macd_fix_with_output(values, fast_period, slow_period, signal_period, &mut out)?;
     Ok(out)
 }
 
-/// 快捷 MACD（固定信号周期 9），零拷贝写入 `out`。见 [`macd_fix`]。
+/// 快捷 MACD（TA-Lib `TA_MACDFIX`），零拷贝写入 `out`。见 [`macd_fix`]。
 ///
-/// Convenience MACD (fixed signal period 9), written zero-copy into `out`. See [`macd_fix`].
+/// Convenience MACD (TA-Lib `TA_MACDFIX`), written zero-copy into `out`. See [`macd_fix`].
 /// Numerically identical to [`macd_fix`].
 pub fn macd_fix_with_output(
     values: &[f64],
     fast_period: usize,
     slow_period: usize,
+    signal_period: usize,
     out: &mut Macd,
 ) -> Result<(), TaError> {
-    macd_with_output(values, fast_period, slow_period, MACD_SIGNAL, out)
+    check_period(fast_period)?;
+    check_period(slow_period)?;
+    check_period(signal_period)?;
+    if fast_period >= slow_period {
+        return Err(TaError::BadParam(
+            "fast_period must be < slow_period".into(),
+        ));
+    }
+    let n = values.len();
+    if out.macd.len() != n || out.signal.len() != n || out.hist.len() != n {
+        return Err(TaError::BadParam(
+            "macd_fix_with_output: out vectors must have length == values length".into(),
+        ));
+    }
+    // TA-Lib `TA_MACDFIX` uses the historic fixed factors `0.15` / `0.075` for the fast / slow
+    // EMAs (the famous MACDFIX quirk) instead of `2/(period+1)`. The signal line keeps the
+    // standard `2/(signal+1)` factor.
+    let use_fixed_k = fast_period == MACD_FAST && slow_period == MACD_SLOW;
+    let fast_k = if use_fixed_k { 0.15 } else { 2.0 / (fast_period as f64 + 1.0) };
+    let slow_k = if use_fixed_k { 0.075 } else { 2.0 / (slow_period as f64 + 1.0) };
+    let signal_k = 2.0 / (signal_period as f64 + 1.0);
+    let lookback_signal = signal_period - 1;
+    let lookback_total = lookback_signal + (slow_period - 1); // = slow + signal - 2
+    if n <= lookback_total {
+        return Ok(());
+    }
+    // Single lockstep pass (identical structure to `macd_with_output`); only the fast/slow
+    // smoothing factors differ.
+    let mut today = 0usize;
+    let mut temp_real = 0.0_f64;
+    let mut i = slow_period - fast_period;
+    while i > 0 {
+        temp_real += values[today];
+        today += 1;
+        i -= 1;
+    }
+    let mut prev_fast = 0.0_f64;
+    i = fast_period;
+    while i > 0 {
+        prev_fast += values[today];
+        temp_real += values[today];
+        today += 1;
+        i -= 1;
+    }
+    let mut prev_slow = temp_real / slow_period as f64;
+    prev_fast = prev_fast / fast_period as f64;
+    while today <= lookback_total - lookback_signal {
+        temp_real = values[today];
+        today += 1;
+        prev_fast = (temp_real - prev_fast) * fast_k + prev_fast;
+        prev_slow = (temp_real - prev_slow) * slow_k + prev_slow;
+    }
+    let mut macd_value = prev_fast - prev_slow;
+    let mut prev_signal = 0.0_f64;
+    prev_signal += macd_value;
+    i = signal_period - 1;
+    while i > 0 {
+        temp_real = values[today];
+        today += 1;
+        prev_fast = (temp_real - prev_fast) * fast_k + prev_fast;
+        prev_slow = (temp_real - prev_slow) * slow_k + prev_slow;
+        macd_value = prev_fast - prev_slow;
+        prev_signal += macd_value;
+        i -= 1;
+    }
+    prev_signal = prev_signal / signal_period as f64;
+    while today <= lookback_total {
+        temp_real = values[today];
+        today += 1;
+        prev_fast = (temp_real - prev_fast) * fast_k + prev_fast;
+        prev_slow = (temp_real - prev_slow) * slow_k + prev_slow;
+        macd_value = prev_fast - prev_slow;
+        prev_signal = (macd_value - prev_signal) * signal_k + prev_signal;
+    }
+    let mut out_idx = lookback_total;
+    out.macd[out_idx] = macd_value;
+    out.signal[out_idx] = prev_signal;
+    out.hist[out_idx] = macd_value - prev_signal;
+    while today < n {
+        temp_real = values[today];
+        today += 1;
+        prev_fast = (temp_real - prev_fast) * fast_k + prev_fast;
+        prev_slow = (temp_real - prev_slow) * slow_k + prev_slow;
+        macd_value = prev_fast - prev_slow;
+        prev_signal = (macd_value - prev_signal) * signal_k + prev_signal;
+        out_idx += 1;
+        out.macd[out_idx] = macd_value;
+        out.signal[out_idx] = prev_signal;
+        out.hist[out_idx] = macd_value - prev_signal;
+    }
+    Ok(())
 }
 
-/// `macd_fix` 便捷版本，默认 12 / 26。/ `macd_fix` with defaults 12 / 26.
+/// `macd_fix` 便捷版本，默认 12 / 26 / 9。/ `macd_fix` with defaults 12 / 26 / 9.
 pub fn macd_fix_default(values: &[f64]) -> Result<Macd, TaError> {
-    macd(values, MACD_FAST, MACD_SLOW, MACD_SIGNAL)
+    macd_fix(values, MACD_FAST, MACD_SLOW, MACD_SIGNAL)
 }
 
 /// 扩展 MACD（TA-Lib `TA_MACDEXT`，默认全 EMA）。参见 `macd` 的 MAType 说明。
@@ -2298,6 +2397,73 @@ pub fn stoch_f_default(high: &[f64], low: &[f64], close: &[f64]) -> Result<Stoch
 /// Stochastic RSI (TA-Lib `TA_STOCHRSI`): `STOCHF(RSI(close, rsiPeriod), fastK = timePeriod,
 /// fastD = 3)`， emitting only the `fastK` line (`fastD` only governs the unstable-period
 /// length). First valid index = `rsiPeriod + timePeriod + fastD - 2`.
+/// 随机相对强弱（TA-Lib `TA_STOCHRSI`），零拷贝写入 `out`（`fast_k` / `fast_d` 与 `close` 等长）。
+///
+/// TA-Lib 实现为 `STOCHF(RSI(close, rsi_period), fastK = time_period, fastD = fast_d_period)`，
+/// 同时输出 `fastK` 与 `fastD` 两行。关键对齐细节（见 ADR 0007）：
+/// `fastD` 是 `fastK` 的移动平均，但二者**对齐到同一前导不稳定期** `lookback = fastK + fastD - 2`
+/// （TA-Lib `TA_STOCHF` 用 `memcpy(tempBuffer + lookbackFastD)` 跳过 `fastD-1` 个内部 K 值来对齐，
+/// 而非把 D 整体后移 `fastD-1`）。因此 `fastD` 的首个有效值与 `fastK` 相同，而非更晚。
+///
+/// Stochastic RSI (TA-Lib `TA_STOCHRSI`), written zero-copy into `out`. `fastK` and `fastD`
+/// share the same leading unstable period `lookback = fastK + fastD - 2` (TA-Lib aligns them by
+/// skipping `fastD-1` internal K values in `TA_STOCHF`), so `fastD`'s first valid index equals
+/// `fastK`'s — not later.
+pub fn stoch_rsi_with_output(
+    close: &[f64],
+    rsi_period: usize,
+    fast_k_period: usize,
+    fast_d_period: usize,
+    out: &mut StochF,
+) -> Result<(), TaError> {
+    check_period(rsi_period)?;
+    check_period(fast_k_period)?;
+    check_period(fast_d_period)?;
+    let n = close.len();
+    if out.fast_k.len() != n || out.fast_d.len() != n {
+        return Err(TaError::BadParam(
+            "stoch_rsi_with_output: out bands must have length == close length".into(),
+        ));
+    }
+    // 前导不稳定期填充 NaN（同时覆盖 out 可能非全 NaN 的入参）。
+    // Seed the leading unstable period with NaN (also covers non-NaN input buffers).
+    for v in out.fast_k.iter_mut().chain(out.fast_d.iter_mut()) {
+        *v = f64::NAN;
+    }
+    let r = rsi(close, rsi_period)?;
+    // 没有足够的 RSI 有效值：保持全 NaN 直接返回。
+    // No RSI valid value yet: keep all-NaN and return.
+    if n <= rsi_period {
+        return Ok(());
+    }
+    // TA-Lib 把 RSI 打包到从 0 起始的缓冲（去掉前导 NaN）再在其上跑 STOCHF；
+    // 否则窗口若覆盖 RSI 前导 NaN 会产生伪值，破坏严格 NaN 对齐（见 ADR 0007）。
+    // TA-Lib compacts the RSI (drops the leading NaN) before STOCHF; otherwise a window
+    // overlapping the RSI leading-NaN would yield spurious values.
+    let compact: Vec<f64> = r[rsi_period..].to_vec();
+    let mut local = StochF {
+        fast_k: vec![f64::NAN; compact.len()],
+        fast_d: vec![f64::NAN; compact.len()],
+    };
+    stoch_f_with_output(
+        &compact,
+        &compact,
+        &compact,
+        fast_k_period,
+        fast_d_period,
+        &mut local,
+    )?;
+    for j in 0..local.fast_k.len() {
+        out.fast_k[rsi_period + j] = local.fast_k[j];
+        out.fast_d[rsi_period + j] = local.fast_d[j];
+    }
+    Ok(())
+}
+
+/// 随机相对强弱（TA-Lib `TA_STOCHRSI`），仅返回 `fastK` 一行。
+///
+/// Stochastic RSI (TA-Lib `TA_STOCHRSI`), returning only the `fastK` line. `fastD` uses the
+/// TA-Lib default period 3 and only governs the unstable-period length. See [`stoch_rsi_with_output`].
 pub fn stoch_rsi(
     close: &[f64],
     rsi_period: usize,
@@ -2305,25 +2471,15 @@ pub fn stoch_rsi(
 ) -> Result<Vec<f64>, TaError> {
     check_period(rsi_period)?;
     check_period(time_period)?;
-    let r = rsi(close, rsi_period)?;
     let n = close.len();
-    // 没有足够的 RSI 有效值：全 NaN 直接返回。
-    // No RSI valid value yet: return all-NaN.
-    if n <= rsi_period {
-        return Ok(vec![f64::NAN; n]);
-    }
-    // TA-Lib 把 RSI 打包到从 0 起始的缓冲（去掉前导 NaN）再在其上跑 STOCHF；
-    // 否则窗口若覆盖 RSI 前导 NaN 会产生伪值，破坏严格 NaN 对齐（见 ADR 0007）。
-    // TA-Lib compacts the RSI (drops the leading NaN) before STOCHF; otherwise a window
-    // overlapping the RSI leading-NaN would yield spurious values.
-    let compact: Vec<f64> = r[rsi_period..].to_vec();
-    let fastd_period = 3usize; // TA-Lib STOCHRSI 默认 optInFastD_Period。
-    let sf = stoch_f(&compact, &compact, &compact, time_period, fastd_period)?;
-    let mut out = vec![f64::NAN; n];
-    for (j, &v) in sf.fast_k.iter().enumerate() {
-        out[rsi_period + j] = v;
-    }
-    Ok(out)
+    let mut out = StochF {
+        fast_k: vec![f64::NAN; n],
+        fast_d: vec![f64::NAN; n],
+    };
+    // TA-Lib STOCHRSI 默认 optInFastD_Period = 3（仅影响不稳定期长度，不改变 fastK）。
+    // TA-Lib STOCHRSI defaults optInFastD_Period = 3 (governs unstable period only).
+    stoch_rsi_with_output(close, rsi_period, time_period, 3, &mut out)?;
+    Ok(out.fast_k)
 }
 
 /// `stoch_rsi` 便捷版本，默认 14 / 14。/ `stoch_rsi` with defaults 14 / 14.

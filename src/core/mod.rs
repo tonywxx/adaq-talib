@@ -107,7 +107,7 @@ mod tests {
         // Naïve leftmost extreme index over window [i-period+1, i].
         let naive_index = |v: &[f64], p: usize, take_max: bool| -> Vec<f64> {
             let n = v.len();
-            let mut out = vec![0.0_f64; n];
+            let mut out = vec![f64::NAN; n];
             if n < p {
                 return out;
             }
@@ -145,8 +145,12 @@ mod tests {
                 for &take_max in &[true, false] {
                     let fast = rolling_extreme_index(&v, p, take_max);
                     let naive = naive_index(&v, p, take_max);
-                    assert_eq!(
-                        fast, naive,
+                    assert!(
+                        fast.len() == naive.len()
+                            && fast
+                                .iter()
+                                .zip(&naive)
+                                .all(|(a, b)| (a.is_nan() && b.is_nan()) || a == b),
                         "mismatch @ n={n} p={p} max={take_max}: index impl diverges from naïve"
                     );
                 }

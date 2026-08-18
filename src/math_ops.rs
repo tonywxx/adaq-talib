@@ -164,9 +164,10 @@ pub fn sum_with_output(values: &[f64], time_period: usize, out: &mut [f64]) -> R
 
 indicator! {
     /// 滚动窗口最大值的**索引**（TA-Lib `TA_MAXINDEX`），返回窗口内最大值的绝对位置
-    /// （0 基；平局取最左）。前导 `period-1` 个为 **0.0**（与原版一致，非 `NaN`）。
+    /// （0 基；平局取最左）。前导 `period-1` 个为 **NaN**（TA-Lib 不写这些位置，对应“无值”）。
     /// Index of the rolling-window maximum (TA-Lib `TA_MAXINDEX`), the absolute (0-based) position
-    /// of the max in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
+    /// of the max in the window (leftmost on ties). The leading `period - 1` positions are `NaN`
+    /// (TA-Lib never writes those positions, i.e. "no value").
     fn max_index(values: &[f64], time_period: usize) -> Vec<f64> with max_index_with_output;
 }
 
@@ -190,9 +191,10 @@ pub fn max_index_with_output(
 
 indicator! {
     /// 滚动窗口最小值的**索引**（TA-Lib `TA_MININDEX`），返回窗口内最小值的绝对位置
-    /// （0 基；平局取最左）。前导 `period-1` 个为 **0.0**（与原版一致，非 `NaN`）。
+    /// （0 基；平局取最左）。前导 `period-1` 个为 **NaN**（TA-Lib 不写这些位置，对应“无值”）。
     /// Index of the rolling-window minimum (TA-Lib `TA_MININDEX`), the absolute (0-based) position
-    /// of the min in the window (leftmost on ties). The leading `period - 1` positions are `NaN`.
+    /// of the min in the window (leftmost on ties). The leading `period - 1` positions are `NaN`
+    /// (TA-Lib never writes those positions, i.e. "no value").
     fn min_index(values: &[f64], time_period: usize) -> Vec<f64> with min_index_with_output;
 }
 

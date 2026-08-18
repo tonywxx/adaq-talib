@@ -13,13 +13,13 @@
 ### 1.1 `cargo test` 全量
 - 命令: `/Users/tony/.cargo/bin/cargo test`
 - 退出码: **0**
-- 总计: **308 项测试, 0 失败**, 跨 **22 个测试二进制**:
-  - `src/lib.rs` 单元测试 (45，含核心原语 `*_matches_naive` 零偏差护栏)
-  - `examples/demo.rs` (0)
-  - 指标测试: cycle(7), math_ops(11), math_trans(15), momentum(29), overlap(9)+overlap_new(16), price_transform(5), sma(1), stat(9), volatility(3), volume(3)
-  - **8 个 CDL 模式测试文件**: pattern_test(9) + pattern_batch2..8 (16+16+16+21+21+21+24) = **144 项**
-  - 文档测试 Doc-tests (21)
+- 总计: **326 项测试, 0 失败**, 跨 **21 个测试二进制**:
+  - `src/lib.rs` 单元测试 (含核心原语 `*_matches_naive` 零偏差护栏)
+  - 指标测试: cycle(7), math_ops(11), math_trans(15), momentum(31), overlap(9)+overlap_new(16), price_transform(5), sma(1), stat(9), volatility(3), volume(3)
+  - **8 个 CDL 模式测试文件**: pattern_test(9) + pattern_batch2..8 (16+16+16+21+21+21+24) = **144 项** (含 61 个蜡烛黄金向量)
+  - 文档测试 Doc-tests
 - 编译警告: **0**；错误: **0**
+- 0.1.9 备注: `macd_fix` / `stoch_rsi` / `max_index` / `min_index` / `minmax_index` / `cdl_shootingstar` 经准确性加固后，其黄金向量 fixture 已从 C `talib` 0.7.1 绑定重建并逐位一致；`stoch_rsi` 现同时输出 `fastK`+`fastD`，故其基准校验和偏差（旧备注）已消除。
 
 ### 1.2 `tools/reconcile.py` 函数对账
 - 命令: `/opt/homebrew/bin/python3 tools/reconcile.py`

@@ -496,6 +496,7 @@ adaq-talib 现已在 **全部 10 个分组上平均快于 C**（每个分组的�
 | P1②                 | `minmax`                                                       | 复用单遍 `core::rolling_minmax`（收敛；性能中性）                                                                                               |                                                                                                                                                                                       6.76 | ≈（仅精度收益）                                                 |
 | P1③                 | `max_index` / `min_index` / `minmax_index`                     | 单遍 `core::rolling_extreme_index` O(n)                                                                                                         |                                                                                                                                                                         3.43 / 3.31 / 6.79 | ~1.9×（索引）                                                   |
 | Wilder 接缝 (0.1.7) | `rsi` / `cmo` / `plus_di` / `minus_di` / `dx` / `adx` / `adxr` | 将内联 Wilder 递推收口到 `core::ema::wilder_step` / `wilder_step_sum`（预计算 `k = 1/period` 替代热循环内的 `/p` 除法；均值形与求和形分别保留） |                                                     `rsi` 5.40→3.13、`cmo` 6.06→3.28、`plus_di` 7.02→4.04、`minus_di` 7.14→4.06、`dx` 6.74→4.89、`adx` 6.95→5.87、`adxr` 6.87→6.05 ns/elem | −12% ~ −46% 更快（`momentum_wilder_bench`，N=10万，9 轮中位数） |
+| 准确性加固 (0.1.9) | `macd_fix` / `stoch_rsi` / `max_index` / `min_index` / `minmax_index` / `cdl_shootingstar` | 匹配 C TA-Lib 0.7.1 的正确性修复：MACDFIX 固定系数 0.15/0.075、`stoch_rsi` 的 fastD 对齐、索引族前导 `NaN`、`cdl_shootingstar` 的 lookback+1（性能中性，未改动热路径） | — | 零回退（Wilder 家族 Δ 在 ±1.4% 内；`stoch_rsi` 的 fastD 复制约 0.18%）——仅准确性，非性能优化 |
 
 † `midpoint` / `midprice`（P2-2）与 `max_index` / `min_index` / `minmax_index`（P1③）现已运行在 0.1.3 引入的同一环形缓冲 `MonoQueue` 上（P3-2）。
 
@@ -541,7 +542,7 @@ cargo bench --bench cdl_bench               # 蜡烛形态微基准，9 轮中�
 ## 文档 / Documentation
 
 - 设计决策（ADR 0001–0009）：[`docs/adr/`](docs/adr/)
-- 变更日志：[`changelog.zh-CN.md`](changelog.zh-CN.md)（中文）/ [`changelog.md`](changelog.md)（English）
+- 变更日志：[`CHANGELOG.zh-CN.md`](CHANGELOG.zh-CN.md)（中文）/ [`CHANGELOG.md`](CHANGELOG.md)（English）
 - 统一 API 写法：[`docs/api-conventions.md`](docs/api-conventions.md)
 - 0.1.0 函数范围基线：[`docs/0.1.0-scope.md`](docs/0.1.0-scope.md)
 - 术语表：[`CONTEXT.md`](CONTEXT.md)
@@ -559,7 +560,7 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 采用里程碑式发布（见 [ADR 0002](docs/adr/0002-release-scope-milestones.md)）。**本版本已交付完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类、共 161 个函数，且不删减任何已发布能力。**
 
-- ✅ **0.1.8（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）。0.1.4、0.1.5、0.1.6、0.1.7 与 0.1.8 为内部架构重构版本（核心模块化、零成本 `indicator!` 脚手架、蜡烛形态可读性 / 样板精简、Wilder 递推接缝收口、Changelog 抽出），不新增任何公开函数或 API（见[变更日志](#变更日志--changelog)）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
+- ✅ **0.1.9（当前）：161 / 161 函数，平均快于 C** —— 重叠研究（18）、动量（31）、波动率（3）、成交量（3）、价格变换（5）、统计（9）、周期 / 希尔伯特变换（7）、数学算子（11）、数学变换（15）、模式识别（61 个蜡烛形态）。每个函数均逐项比照 TA-Lib 0.7.1 黄金向量验证（`cargo test` → 326/326 全绿，`reconcile.py` → 161/161），基于 **222 个黄金向量 fixture**，并通过全量 161 基准 + 验证套件（[`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)）确认完整覆盖；经 0.1.3 优化后 adaq-talib 平均已**约为 C 的 1.27× 快**（几何均值 Rust/C = 0.786×；85 更快 / 60 持平 / 16 更慢；启用可选 `parallel` 特性后进一步为 88/63/10，0.734×）。0.1.4、0.1.5、0.1.6、0.1.7、0.1.8 与 0.1.9 为内部架构重构 / 正确性加固版本（核心模块化、零成本 `indicator!` 脚手架、蜡烛形态可读性 / 样板精简、Wilder 递推接缝收口、Changelog 抽出，以及 0.1.9 的 TA-Lib 0.7.1 准确性加固——MACDFIX 固定系数、`stoch_rsi` 的 fastD 对齐、索引族前导 `NaN`、`cdl_shootingstar` 的 lookback 修正），不新增任何公开函数或 API（见[变更日志](#变更日志--changelog)）—— 见[验证与基准](#验证与基准--verification--benchmarks)。
 - 🔜 **后续工作（1.0 之后）**：可选的 candle-settings 变体（[ADR 0009](docs/adr/0009-candle-settings-default-only.md)）、为新优化指标（LINREG/CORREL/WILLR/STOCH）接 `bench-c` 对照、以及文档 / CI 润色。**针对 TA-Lib 0.7.1 已无任何功能性覆盖缺口。**
 
 完成上述后，adaq-talib 即与 TA-Lib 0.7.1 等价全量覆盖。
@@ -568,6 +569,6 @@ Apache-2.0（见 [`LICENSE`](LICENSE)）。
 
 ## 变更日志 / Changelog
 
-> [`changelog.zh-CN.md`](changelog.zh-CN.md)
+> [`CHANGELOG.zh-CN.md`](CHANGELOG.zh-CN.md)
 
 

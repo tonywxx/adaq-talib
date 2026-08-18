@@ -22,7 +22,7 @@
 - [Documentation](#documentation)
 - [License](#license)
 - [Roadmap](#roadmap)
-- [Changelog](changelog.md)
+- [Changelog](CHANGELOG.md)
 
 ---
 
@@ -559,6 +559,7 @@ vectors (see [`benches/BASELINE.md`](benches/BASELINE.md) for the full per-indic
 | P1②                 | `minmax`                                                           | reuse single-pass `core::rolling_minmax` (consolidation; perf-neutral)                                                                                                           |                                                                                                                                                                                             6.76 |                                                 ≈ (accuracy-only) |
 | P1③                 | `max_index` / `min_index` / `minmax_index`                         | single-pass `core::rolling_extreme_index` O(n)                                                                                                                                   |                                                                                                                                                                               3.43 / 3.31 / 6.79 |                                                     ~1.9× (index) |
 | Wilder 接缝 (0.1.7) | `rsi` / `cmo` / `plus_di` / `minus_di` / `dx` / `adx` / `adxr`     | route inline Wilder recurrences onto `core::ema::wilder_step` / `wilder_step_sum` (precomputed `k = 1/period` replaces hot-loop `/p` divisions; mean vs sum forms kept distinct) |                                                           `rsi` 5.40→3.13, `cmo` 6.06→3.28, `plus_di` 7.02→4.04, `minus_di` 7.14→4.06, `dx` 6.74→4.89, `adx` 6.95→5.87, `adxr` 6.87→6.05 ns/elem | −12% ~ −46% faster (`momentum_wilder_bench`, N=100k, median-of-9) |
+| Accuracy 加固 (0.1.9) | `macd_fix` / `stoch_rsi` / `max_index` / `min_index` / `minmax_index` / `cdl_shootingstar` | correctness fixes to match C TA-Lib 0.7.1: MACDFIX fixed 0.15/0.075 factors, `stoch_rsi` fastD alignment, index-family leading `NaN`, `cdl_shootingstar` lookback+1 (perf-neutral, no hot-path change) | — | 0 regression (Wilder-family Δ within ±1.4%; `stoch_rsi` fastD copy ≈ 0.18%) — accuracy-only, not a perf optimization |
 
 † `midpoint` / `midprice` (P2-2) and `max_index` / `min_index` / `minmax_index` (P1③) now run on the
 same ring-buffer `MonoQueue` introduced in 0.1.3 (P3-2).
@@ -627,7 +628,7 @@ cargo bench --bench cdl_bench               # candle-pattern micro-bench, median
 ## Documentation
 
 - Design decisions (ADR 0001–0009): [`docs/adr/`](docs/adr/)
-- Changelog: [`changelog.md`](changelog.md)
+- Changelog: [`CHANGELOG.md`](CHANGELOG.md)
 - Unified API conventions: [`docs/api-conventions.md`](docs/api-conventions.md)
 - 0.1.0 function scope baseline: [`docs/0.1.0-scope.md`](docs/0.1.0-scope.md)
 - Glossary: [`CONTEXT.md`](CONTEXT.md)
@@ -648,7 +649,7 @@ Milestone-based release ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 ships the complete TA-Lib 0.7.1 public surface — all 161 functions across 10 categories — with no
 deletion of published capabilities.**
 
-- ✅ **0.1.8 (current): 161 / 161 functions, faster than C on average** — Overlap Studies (18),
+- ✅ **0.1.9 (current): 161 / 161 functions, faster than C on average** — Overlap Studies (18),
   Momentum (31), Volatility (3), Volume (3), Price Transform (5), Statistic (9), Cycle / Hilbert
   Transform (7), Math Operators (11), Math Transform (15), and Pattern Recognition (61 candlestick
   patterns). Every function is verified 1:1 against TA-Lib 0.7.1 golden vectors (`cargo test` →
@@ -656,11 +657,13 @@ deletion of published capabilities.**
   all-161 benchmark + validation suite ([`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md))
   confirms full coverage and that adaq-talib is now **~1.27× faster than C on average** (geomean
   Rust/C = 0.786×; 85 faster / 60 at parity / 16 slower) after the 0.1.3 optimization pass; under the
-  optional `parallel` feature this becomes 88 / 63 / 10 (0.734×).   0.1.4, 0.1.5, 0.1.6, 0.1.7 and 0.1.8
-  were internal architecture-refactor releases — core modularization, the zero-cost `indicator!`
-  scaffold, candle-pattern readability / boilerplate consolidation, the Wilder recurrence seam
+  optional `parallel` feature this becomes 88 / 63 / 10 (0.734×).   0.1.4, 0.1.5, 0.1.6, 0.1.7, 0.1.8
+  and 0.1.9 were internal architecture-refactor / correctness-hardening releases — core modularization,
+  the zero-cost `indicator!` scaffold, candle-pattern readability / boilerplate consolidation, the
+  Wilder recurrence seam, and the 0.1.9 TA-Lib 0.7.1 accuracy hardening (MACDFIX fixed factors,
+  `stoch_rsi` fastD alignment, index-family leading `NaN`, `cdl_shootingstar` lookback fix)
   consolidation, and changelog extraction —
-  adding no new public functions or API changes (see [Changelog](changelog.md)).
+  adding no new public functions or API changes (see [Changelog](CHANGELOG.md)).
 - 🔜 **Future work (post-1.0)**: per [ADR 0009](docs/adr/0009-candle-settings-default-only.md) only
   the **default** candle settings are implemented and no configuration API is exposed; optional
   `bench-c` wiring for the newly optimized indicators (LINREG/CORREL/WILLR/STOCH), and
@@ -672,4 +675,4 @@ Once those land, adaq-talib reaches full coverage equivalent to TA-Lib 0.7.1.
 
 ## Changelog
 
-> [`changelog.md`](changelog.md)
+> [`CHANGELOG.md`](CHANGELOG.md)

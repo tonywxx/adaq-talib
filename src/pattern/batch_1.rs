@@ -294,7 +294,8 @@ pub fn cdl_shootingstar_with_output(
     .iter()
     .max()
     .copied()
-    .unwrap(); // 10
+    .unwrap()
+        + 1; // 11: TA-Lib pads one extra leading candle (the evaluated bar sits at `lookback`).
     if n <= lookback {
         return Ok(());
     }

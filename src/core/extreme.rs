@@ -190,8 +190,9 @@ pub(crate) fn rolling_minmax(values: &[f64], period: usize) -> (Vec<f64>, Vec<f6
 ///
 /// Rolling-extreme **index** in a single O(n) monotonic-queue pass (leftmost on ties). Returns
 /// the absolute (0-based) position of the window extreme (max when `take_max`, min otherwise);
-/// the leading `period - 1` positions are `0.0` (matching TA-Lib `TA_MAXINDEX` / `TA_MININDEX`,
-/// which emit `0.0`, not `NaN`).
+/// the leading `period - 1` positions are `NaN`. TA-Lib's `TA_MAXINDEX` / `TA_MININDEX` /
+/// `TA_MINMAXINDEX` never write those positions (the caller treats them as unset), so `NaN`
+/// is the faithful representation that maps to "no value" in the engine.
 ///
 /// 与 [`rolling_extreme`]（值变体，最右 tie-break）互为镜像：此处弹出条件用**严格** `<` / `>`
 /// 而非 `<=` / `>=`，使并列极值保留更靠左（更小索引）的候选，从而复刻 TA-Lib 索引变体的
@@ -205,7 +206,7 @@ pub(crate) fn rolling_minmax(values: &[f64], period: usize) -> (Vec<f64>, Vec<f6
 pub(crate) fn rolling_extreme_index(values: &[f64], period: usize, take_max: bool) -> Vec<f64> {
     debug_assert!(period >= 1);
     let n = values.len();
-    let mut out = vec![0.0_f64; n];
+    let mut out = vec![f64::NAN; n];
     if n < period {
         return out;
     }

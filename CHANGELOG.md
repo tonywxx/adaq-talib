@@ -9,7 +9,34 @@ changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)), unless an entry
 
 ---
 
-### 0.1.8
+### V0.1.9
+
+- **TA-Lib 0.7.1 accuracy hardening (correctness fixes, no public API change)**: closed several
+  real divergences from C TA-Lib that the 1:1 golden vectors previously masked:
+  - `macd_fix` / `macd_fix_default` (`TA_MACDFIX`): the fixed historic smoothing factors `0.15` /
+    `0.075` are now used for the fast/slow EMAs (the famous MACDFIX quirk) instead of the standard
+    `2/(period+1)` factor, and `signal_period` is now configurable. Before this, `macd_fix` was just
+    `macd(12, 26, 9)` with fixed signal and did **not** match C's `TA_MACDFIX`.
+  - `stoch_rsi` / `stoch_rsi_with_output` (`TA_STOCHRSI`): now also emits the `fastD` line, and `fastD`
+    is aligned to the same leading unstable period as `fastK` (C aligns them by skipping `fastD−1`
+    internal K values in `TA_STOCHF`), so `fastD`'s first valid index equals `fastK`'s — not later.
+  - `max_index` / `min_index` / `minmax_index` (`TA_MAXINDEX` / `TA_MININDEX` / `TA_MINMAXINDEX`):
+    the leading `period−1` positions are now `NaN` (C never writes them — "no value") instead of `0.0`.
+  - `cdl_shootingstar` (`TA_CDLSHOOTINGSTAR`): lookback padded by one extra leading candle
+    (the evaluated bar sits at `lookback`), matching C's `outBegIndex`.
+  - Regenerated the affected golden-vector fixtures (`macd_fix_basic` / `max_index_basic` /
+    `min_index_basic` / `minmax_index_basic`) from the C `talib` 0.7.1 binding.
+  - Verified under the **measure-first double gate**: all 21 `cargo test` binaries green (0 failures,
+    incl. 61 candle-pattern + 31 momentum golden vectors); the 4 regenerated fixtures reproduced
+    bit-for-bit from C (max err 1.4e-14 for MACDFIX, exact 0.0 for the index family), and Rust
+    `stoch_rsi` fastK+fastD matched C to ~2e-13. These are accuracy fixes, **not** perf optimizations:
+    the Wilder-family hot paths are unchanged (median Δ within ±1.4%, i.e. 0 regression); the
+    `macd_fix` / `stoch_rsi` edits add no structural regression (the new `fastD` copy costs ~0.18%).
+- **Release**: version bumped to `0.1.9`. No new public API, no deprecations, no dependency changes
+  ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). User-facing behavior, calling conventions,
+  and the `cargo test` / `cargo bench` workflows are unchanged.
+
+### V0.1.8
 
 - **Architecture-deepening wrap-up (measure-first double gate)**: candidate② (Wilder recurrence
   consolidation, see 0.1.7) is **adopted** under the measure-first gate (golden vectors 1:1 + A/B
@@ -28,7 +55,7 @@ changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)), unless an entry
 - **Release**: version bumped to `0.1.8`. No new public API, no deprecations, no dependency changes
   ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 
-### 0.1.7
+### V0.1.7
 
 - **Wilder recurrence seam consolidation (architecture-deepening candidate②)**: routed the 5 inline
   Wilder recurrences in `momentum.rs` onto `core::ema` primitives — `rsi` / `cmo` / `adx` use the mean
@@ -47,7 +74,7 @@ changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)), unless an entry
   ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). User-facing behavior, calling conventions, and
   the `cargo test` / `cargo bench` workflows are unchanged.
 
-### 0.1.6
+### V0.1.6
 
 - **Candle-pattern kernels — `real_body` recompute dedup (perf(pattern))**: 20 candlestick kernels now
   reuse the already-computed `cur_avg_*` sliding-window value inside each condition instead of
@@ -77,7 +104,7 @@ changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)), unless an entry
   changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). User-facing behavior, calling
   conventions, and the `cargo test` / `cargo bench` workflows are unchanged.
 
-### 0.1.5
+### V0.1.5
 
 - **Indicator scaffold (`indicator!` macro) — architecture-deepening candidate① (Phase 1a/1b/1c)**: added `src/indicator.rs` with a **zero-cost `macro_rules! indicator`** that unifies the repetitive "allocate an equal-length `f64::NAN` buffer → forward to the `*_with_output` kernel" glue shared by ~146 single-output public functions. Rolled out under a **measure-first double gate** (golden-vector 1:1 + A/B `cargo bench` median |Δ| ≤ ±5%):
   - **Phase 1a**: `math_trans` 15 single-input / single-output / element-wise functions.
@@ -87,14 +114,14 @@ changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)), unless an entry
 - **New A/B benchmark harness (methodology)**: added `benches/math_trans_bench.rs`, `benches/stat_bench.rs`, `benches/phase1c_bench.rs` (all registered in `Cargo.toml`) — a dependency-free `Instant` harness using **warmup + interleaved rounds + median** to suppress single-shot noise (which can read ±10%). Documented in [`benches/BASELINE.md`](benches/BASELINE.md) and [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md).
 - **Release**: version bumped to `0.1.5`. No new public API surface, no deprecations, no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)). User-facing behavior, calling conventions, and the `cargo test` / `cargo bench` workflows are unchanged.
 
-### 0.1.4
+### V0.1.4
 
 - **Core modularization (architecture deepening)**: split the monolithic `src/core/mod.rs` into focused, single-responsibility modules — `ema.rs` (nested-EMA fusion), `extreme.rs` (monotonic-queue rolling extremes / indices), `window.rs` (windowed sums / variances), and `kernel.rs` (shared kernel helpers). Removed the redundant `check_eq_len` length-guard helper (length checks now live next to each kernel). Pure refactor — output remains bit-for-bit / golden-vector 1:1 with TA-Lib 0.7.1, zero performance impact.
 - **`parallel` feature promoted to a first-class module**: the overlap-seed parallel chunking (formerly a proof-of-concept) is now `src/parallel.rs`, guarded by a dedicated `tests/parallel_equality.rs` 1:1 equality test and exercised by `benches/parallel_poc.rs`. The 5 A-class window functions (`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`) gain multi-core speedups under the default-off `parallel` feature — totals move **85 Faster / 60 Parity / 16 Slower (geomean 0.786×) → 88 / 63 / 10 (0.734×)**. For the other 156 functions it is a no-op.
 - **Perf report & 161-indicator suite refresh**: refreshed [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md) and the `all161_results*.csv` benchmark data; folded in the finalized 0.1.3 optimization-pass numbers (EMA-family FMA-contraction closing the EMA gap — see [Verification & Benchmarks](#verification--benchmarks)).
 - **Release**: version bumped to `0.1.4`. No new public API surface, no deprecations, no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 
-### 0.1.3
+### V0.1.3
 
 - **Pattern Recognition performance rollout**: the `cdl_hammer` inline running-sum accumulator
   template was applied to **all 61 candlestick functions** (parity-preserving transformer
@@ -117,7 +144,7 @@ changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)), unless an entry
 - **Release**: version bumped to `0.1.3`. No new public API, no deprecations, no dependency
   changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 
-### 0.1.2
+### V0.1.2
 
 - **Comprehensive all-161 benchmark & validation suite**: new `benches/all161_bench.rs`
   (auto-generated by `tools/bench/gen_all161.py`) benchmarks **all 161** indicators
@@ -136,7 +163,7 @@ changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)), unless an entry
 - **Release**: version bumped to `0.1.2`. No new public API beyond the above; no deprecations,
   no dependency changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)).
 
-### 0.1.1
+### V0.1.1
 
 - **Math operators — O(n) extreme-index functions**: `max_index` / `min_index` / `minmax_index` now use a single-pass monotonic-queue (`core::rolling_extreme_index`), replacing the former O(n·period) nested scan — ~1.9× faster while remaining 1:1 with TA-Lib 0.7.1 ([ADR 0005](docs/adr/0005-error-tolerance.md)). Added `benches/index_bench.rs` and `benches/minmax_bench.rs`.
 - **`minmax` consolidation**: `math_ops::minmax` now reuses the single-pass `core::rolling_minmax` core (the same one used by `midpoint`), eliminating duplicated extreme logic. Performance-neutral; accuracy unchanged.
@@ -144,6 +171,6 @@ changes ([ADR 0002](docs/adr/0002-release-scope-milestones.md)), unless an entry
 - **Release tooling & docs**: added `.github/workflows/release.yml` (release automation) and CI; doc-comment and publish-`exclude` fixes; version bumped to `0.1.1`.
 - **Pattern Recognition + Math Operations modules**: all 61 candlestick patterns and the full `math_ops` / `math_trans` surface are implemented, with comprehensive golden-vector fixtures (P4 milestone — 161/161 functions).
 
-### 0.1.0
+### V0.1.0
 
 - Initial public milestone: the complete TA-Lib 0.7.1 public surface — 161 functions across 10 categories — with zero-deviation golden-vector verification.

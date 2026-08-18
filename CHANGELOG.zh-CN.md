@@ -6,7 +6,18 @@
 
 ---
 
-### 0.1.8
+### V0.1.9
+
+- **TA-Lib 0.7.1 准确性加固（正确性修复，无公开 API 变更）**：补齐了此前被 1:1 黄金向量掩盖的若干与 C TA-Lib 的真实偏差：
+  - `macd_fix` / `macd_fix_default`（`TA_MACDFIX`）：快/慢 EMA 现使用固定历史平滑系数 `0.15` / `0.075`（MACDFIX 著名特性），而非标准 `2/(period+1)`，且 `signal_period` 现可配置。此前 `macd_fix` 仅是 `macd(12, 26, 9)` 固定信号封装，**并不**匹配 C 的 `TA_MACDFIX`。
+  - `stoch_rsi` / `stoch_rsi_with_output`（`TA_STOCHRSI`）：现额外输出 `fastD` 线，且 `fastD` 与 `fastK` 对齐到同一前导不稳定期（C 在 `TA_STOCHF` 中通过跳过 `fastD−1` 个内部 K 值对齐），故 `fastD` 首个有效索引与 `fastK` 相同——而非更晚。
+  - `max_index` / `min_index` / `minmax_index`（`TA_MAXINDEX` / `TA_MININDEX` / `TA_MINMAXINDEX`）：前导 `period−1` 位现改为 `NaN`（C 不写这些位置——"无值"），而非 `0.0`。
+  - `cdl_shootingstar`（`TA_CDLSHOOTINGSTAR`）：lookback 多铺垫一根前导 K 线（被研判的 K 线位于 `lookback`），匹配 C 的 `outBegIndex`。
+  - 重新生成受影响的黄金向量 fixture（`macd_fix_basic` / `max_index_basic` / `min_index_basic` / `minmax_index_basic`），来源为 C `talib` 0.7.1 绑定。
+  - 在**度量前置双闸门**下验证：21 个 `cargo test` 二进制全绿（0 失败，含 61 个蜡烛形态 + 31 个动量黄金向量）；4 个重建 fixture 与 C 逐位一致（MACDFIX 最大误差 1.4e-14，索引族精确到 0.0），Rust `stoch_rsi` 的 fastK+fastD 与 C 偏差约 2e-13。这些属正确性修复，**非**性能优化：Wilder 家族热路径未变（中位 Δ 在 ±1.4% 内，即零回退）；`macd_fix` / `stoch_rsi` 改动无结构性回退（新增 `fastD` 复制开销约 0.18%）。
+- **发布**：版本号提升至 `0.1.9`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。面向用户的行为、调用形态与 `cargo test` / `cargo bench` 工作流均不变。
+
+### V0.1.8
 
 - **架构深化收尾（度量前置双闸门）**：候选②（Wilder 递推接缝收口，见 0.1.7）在「黄金向量 1:1 + A/B
   `cargo bench` median-of-9」双闸门下**采纳**——Wilder 家族 7 个指标（`rsi`/`cmo`/`plus_di`/`minus_di`/
@@ -30,13 +41,13 @@
 - **发布**：版本号提升至 `0.1.8`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
   - Release: version bumped to `0.1.8`. No new public API, no deprecations, no dependency changes.
 
-### 0.1.7
+### V0.1.7
 
 - **Wilder 递推接缝收口（架构深化候选②）**：将 `momentum.rs` 中 5 处内联 Wilder 递推收口到 `core::ema` 原语 —— `rsi`/`cmo`/`adx` 用均值形 `wilder_step(prev, x, k)`，`dm_tr`/`adx_adxr_fused`/`dx_from_candles` 的 ±DM/TR 用求和形 `wilder_step_sum(prev, x, k)`（两种形式分别保留，因 `period` 因子仅在 ±DI 比值中相消，盲目统一会破坏 +DI/−DI）；`ema_wilder` 改为委托新增的零拷贝 `wilder_with_output`。在**度量前置双闸门**（黄金向量 1:1 + A/B `cargo bench` median-of-9）下通过：31/31 动量黄金向量逐项 1:1、全量 `cargo test` 全绿（含经重构 `ema_wilder` 的 ATR/NATR）；`rsi`/`cmo`/`plus_di`/`minus_di`/`dx`/`adx`/`adxr` 提速 **−12% ~ −46%**（`momentum_wilder_bench`，N=10 万，9 轮中位数）—— 性能提升来自用预计算的 `k = 1/period` 乘法替代热循环内每步的 `/p` 浮点除法。
 - **基准套件**：新增 `benches/momentum_wilder_bench.rs`（Wilder 家族微基准，median-of-9）；`benches/cdl_bench.rs` 由单发 `Instant` 加固为 **median-of-9**（单发噪声可达 ±10%，已证会误报）。
 - **发布**：版本号提升至 `0.1.7`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。面向用户的行为、调用形态与 `cargo test` / `cargo bench` 工作流均不变。
 
-### 0.1.6
+### V0.1.6
 
 - **蜡烛形态内核 —— `real_body` 冗余重算去重（perf(pattern)）**：20 个蜡烛形态内核现复用各条件里已算好的 `cur_avg_*` 滑动窗口值，而非重新计算 `real_body(open[i], close[i])`。纯重排 —— 无算术改动 —— TA-Lib 0.7.1 黄金向量保持逐位一致（全部 144 个蜡烛集成测试通过）。对照原基线的控制校正 A/B（3 轮中位数，借未改动对照组校正环境漂移）：12 个明确提速（如 `cdl_closingmarubozu` −57%、`cdl_marubozu` −36%、`cdl_stalledpattern` −27%、`cdl_counterattack` −24%）、3 个持平（`cdl_belthold` / `cdl_longleggeddoji` / `cdl_eveningstar`）、5 个表观「回归」（`cdl_3starsinsouth` / `cdl_3whitesoldiers` / `cdl_abandonedbaby` / `cdl_eveningdojistar` / `cdl_morningstar`）经判定为环境噪声 —— 去掉一次重算不可能拖慢函数、且黄金向量完全相同，故全部保留。另含 `cdl_harami` CandleAvg 合并（已验证提速）与 `cdl_homingpigeon` / `longline` / `shortline` 影线 + 实体去重。
 - **指标脚手架推广（`indicator!` 宏）—— 一致性**：将 `midprice`、`sar`、`sarext`、`avgprice`、`medprice`、`typprice`、`wclprice`、`ad`、`adosc`、`obv` 迁移至零成本 `indicator!` 宏（0.1.5 引入），移除冗余的错误处理 / 输出初始化样板；各函数保留其详尽的中英双语文档注释。模式识别模块一并迁移。输出仍为黄金向量 1:1。
@@ -45,7 +56,7 @@
 - **基准套件**：新增 `benches/cdl_bench.rs` 并扩展 `benches/phase1c_bench.rs` / `benches/poc_bench.rs`；重新生成 `all161_results.csv`。
 - **发布**：版本号提升至 `0.1.6`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。面向用户的行为、调用形态与 `cargo test` / `cargo bench` 工作流均不变。
 
-### 0.1.5
+### V0.1.5
 
 - **指标脚手架（`indicator!` 宏）—— 架构深化候选①（Phase 1a/1b/1c）**：新增 `src/indicator.rs`，以**零成本 `macro_rules! indicator`** 宏统一约 146 个单输出公开函数里重复的「分配等长 `f64::NAN` 缓冲 → 转发到 `*_with_output` 内核」胶水。在**度量前置双闸门**（黄金向量 1:1 + A/B `cargo bench` median |Δ| ≤ ±5%）下分阶段推广：
   - **Phase 1a**：`math_trans` 15 个单输入 / 单输出 / 逐元素函数。
@@ -55,14 +66,14 @@
 - **新增 A/B 基准 harness（方法论）**：新增 `benches/math_trans_bench.rs`、`benches/stat_bench.rs`、`benches/phase1c_bench.rs`（均已在 `Cargo.toml` 注册）—— 零依赖 `Instant` harness，采用**预热 + 交错多轮 + 中位数**抑制单发噪声（单发可达 ±10%）。详见 [`benches/BASELINE.md`](benches/BASELINE.md) 与 [ADR 0011](docs/adr/0011-indicator-scaffold-seam.md)。
 - **发布**：版本号提升至 `0.1.5`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。面向用户的行为、调用形态与 `cargo test` / `cargo bench` 工作流均不变。
 
-### 0.1.4
+### V0.1.4
 
 - **核心模块化（架构深化）**：将单体 `src/core/mod.rs` 拆分为职责单一的模块 —— `ema.rs`（嵌套 EMA 融合）、`extreme.rs`（单调队列滚动极值 / 索引）、`window.rs`（窗口求和 / 方差）、`kernel.rs`（共享内核 helper）。删除冗余的 `check_eq_len` 长度检查 helper（长度检查现紧贴各内核）。纯重构 —— 输出与 TA-Lib 0.7.1 仍逐位 / 黄金向量 1:1，零性能影响。
 - **`parallel` 特性升级为一等模块**：原有的重叠播种并行分块（原概念验证）现归入 `src/parallel.rs`，由专属 `tests/parallel_equality.rs` 1:1 相等性测试守护，并由 `benches/parallel_poc.rs` 驱动。5 个 A 类窗口函数（`midpoint`/`minmax`/`minmax_index`/`willr`/`stoch_f`）在默认关闭的 `parallel` 特性下获得多核加速 —— 合计由 **85 更快 / 60 持平 / 16 更慢（几何均值 0.786×）** 变为 **88 / 63 / 10（0.734×）**；对其余 156 个函数该特性为 no-op。
 - **性能报告与 161 基准套件刷新**：刷新 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md) 与 `all161_results*.csv` 基准数据；并入已定稿的 0.1.3 优化成果（EMA 家族 FMA 收缩补齐 EMA 缺口 —— 见[验证与基准](#验证与基准--verification--benchmarks)）。
 - **发布**：版本号提升至 `0.1.4`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
 
-### 0.1.3
+### V0.1.3
 
 - **模式识别性能推广**：将 `cdl_hammer` 的内联运行和累加器模板推广到**全部 61 个蜡烛函数**（零偏差 transformer `tools/opt_pattern.py`）；把逐函数的 `CandleAvg::new`+`value`+`advance` 替换为内联 `sum_*`/`trail_*`/`cur_*`/`val_*` 累加器（跳过无 `CandleAvg` 的函数，如 `cdl_engulfing`/`cdl_3outside`/`cdl_hikkake`/`cdl_tristar`）。模式识别几何均值 **Rust/C 由 2.98× → 0.677×**（43 快 / 13 持平 / 5 慢，原为 1/3/57）—— 本次发布的最大单项收益。
 - **P2 算法优化（零偏差，0 回退）**：以环形缓冲 `MonoQueue` 替换 `VecDeque` 滚动极值（`min`/`max`/`min_index`/`max_index`，每极值约快 32%）；为 `ht_dcperiod` 增加跳过未用 `compute_dc_phase` 正弦/余弦窗口的循环-IIR 快路径（3.59× → 1.19×，已持平）；在 `compute_dc_phase` 中改用正弦/余弦角度加法递推（`ht_dcphase`/`ht_sine`/`ht_trendmode`）；并将 `mfi` 改写为单遍滑动窗口融合（2.56× → 1.41×）。合计 **82 快 / 54 持平 / 25 慢，几何均值 Rust/C = 0.792×** —— adaq-talib 平均现为 C 的约 1.26× 快（此前为 1.50× 慢）。
@@ -70,14 +81,14 @@
 - **报告与工具**：更新 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)（新分组 / 逐指标表，三次取中位方法学）与交互式 `docs/benchmarks/adaq-vs-talib-161.html`；新增 `benches/extreme_ab.rs`、`tools/opt_pattern.py` 与 `docs/research/perf-161-analysis.md`。
 - **发布**：版本号提升至 `0.1.3`。无新增公开 API、无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
 
-### 0.1.2
+### V0.1.2
 
 - **全量 161 基准与验证套件**：新增 `benches/all161_bench.rs`（由 `tools/bench/gen_all161.py` 自动生成），对**全部 161** 个指标与原生 TA-Lib C 0.7.1 逐项基准对照，并附带实时数值一致性校验和；配套 `benches/poc_bench.rs` 为概念验证脚手架。统一报告 [`docs/validation-and-performance-report.md`](docs/validation-and-performance-report.md)、交互式 `docs/benchmarks/adaq-vs-talib-161.html` 与 `all161_results.csv` 由 `tools/bench/gen_report.py` 生成（双轨方法论见 [ADR 0004](docs/adr/0004-benchmark-dual-track.md)）。
 - **黄金向量覆盖扩大**：**222 个黄金向量 fixture 文件**（原 159 个）——补全了完整的模式识别 fixture 集与 `macd_ext` / `macd_fix` fixture。全量测试现为 **326 项测试，0 失败**（原 308），`tools/reconcile.py` 确认 **161/161**。
 - **文档完整性**：逐函数表现已列出全部 161 个函数。`accbands`（重叠研究）、`dx` / `imi`（动量）与 `avgdev`（价格变换）此前已实现并计入 161 总数，但被遗漏在明细表之外 —— 现均已补入文档。
 - **发布**：版本号提升至 `0.1.2`。除上述外无新增公开 API；无弃用、无依赖变更（[ADR 0002](docs/adr/0002-release-scope-milestones.md)）。
 
-### 0.1.1
+### V0.1.1
 
 - **数学算子 —— O(n) 极值索引函数**：`max_index` / `min_index` / `minmax_index` 现采用单遍单调队列（`core::rolling_extreme_index`），替换原先 O(n·period) 的嵌套扫描 —— 提速约 1.9×，且与 TA-Lib 0.7.1 仍逐项 1:1（见 [ADR 0005](docs/adr/0005-error-tolerance.md)）。新增 `benches/index_bench.rs` 与 `benches/minmax_bench.rs`。
 - **`minmax` 收敛**：`math_ops::minmax` 现复用单遍 `core::rolling_minmax` 核（与 `midpoint` 同源），消除重复的极值逻辑。性能中性，精度不变。
@@ -85,6 +96,6 @@
 - **发布工具与文档**：新增 `.github/workflows/release.yml`（发布自动化）与 CI；修复 doc-comment 与发布 `exclude`；版本号提升至 `0.1.1`。
 - **模式识别与数学运算模块**：全部 61 个蜡烛形态与完整的 `math_ops` / `math_trans` 函数面均已实现，并补齐黄金向量 fixture（P4 里程碑 —— 161/161 函数）。
 
-### 0.1.0
+### V0.1.0
 
 - 首个公开里程碑：完整的 TA-Lib 0.7.1 公开函数面 —— 10 大类共 161 个函数，并以零偏差黄金向量验证。

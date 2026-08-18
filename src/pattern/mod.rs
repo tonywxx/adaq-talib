@@ -556,24 +556,24 @@ mod tests {
     // ---- cdl_shootingstar：小实体 + 长上影 + 相对前一根实体向上跳空，看跌 ----
     #[test]
     fn cdl_shootingstar_bearish() {
-        // 10 根预热：open=0,close=5（实体5）,high=100,low=0（全幅100）。
-        let mut o = vec![0.0; 11];
-        let mut h = vec![0.0; 11];
-        let mut l = vec![0.0; 11];
-        let mut c = vec![0.0; 11];
-        for i in 0..10 {
+        // 11 根预热（lookback=11）：open=0,close=5（实体5）,high=100,low=0（全幅100）。
+        let mut o = vec![0.0; 12];
+        let mut h = vec![0.0; 12];
+        let mut l = vec![0.0; 12];
+        let mut c = vec![0.0; 12];
+        for i in 0..11 {
             o[i] = 0.0;
             c[i] = 5.0;
             h[i] = 100.0;
             l[i] = 0.0;
         }
-        // 测试根 i=10：小实体、长上影、较前一根实体跳空向上。
-        o[10] = 10.0;
-        c[10] = 11.0; // 实体 1
-        h[10] = 13.0; // 上影 2
-        l[10] = 9.0; // 下影 1
+        // 测试根 i=11：小实体、长上影、较前一根实体跳空向上。
+        o[11] = 10.0;
+        c[11] = 11.0; // 实体 1
+        h[11] = 13.0; // 上影 2
+        l[11] = 9.0; // 下影 1
         let out = cdl_shootingstar(&o, &h, &l, &c).unwrap();
-        assert_eq!(out[10], -100.0);
+        assert_eq!(out[11], -100.0);
     }
 
     // ---- cdl_hammer：OFF=1 的 NEAR 设置，看涨 ----
